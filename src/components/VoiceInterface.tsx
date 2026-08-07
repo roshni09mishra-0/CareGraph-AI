@@ -53,6 +53,15 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
   useEffect(() => {
     connectLiveKit();
 
+    // First-turn greeting introduction
+    const initialGreeting: Message = {
+      id: "greeting-init",
+      sender: "assistant",
+      text: "Namaste! I am SwasthyaSathi AI, your voice healthcare guide for Health Access. How can I help with your symptoms or wellness today?",
+      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    };
+    setMessages([initialGreeting]);
+
     // Initialize Web Speech Recognition if available in browser
     if (typeof window !== "undefined") {
       const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
