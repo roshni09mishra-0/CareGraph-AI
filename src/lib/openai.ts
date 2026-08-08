@@ -155,7 +155,8 @@ export function detectUserLanguage(text: string): "hi" | "hinglish" | "en" {
     "mujhe", "bukhar", "khansi", "dard", "sir dard", "sar dard", "gala", "pet", "kya karu", 
     "ho raha", "ho rahi", "hai", "hain", "hoon", "aap", "tum", "batao", "bataiye", "dawa", 
     "doctor", "namaste", "thoda", "bahut", "aaj", "kal", "se", "lag raha", "kaisa", "kaise",
-    "chakkar", "kamzori", "weakness", "vomit", "ulti", "dast", "pet dard", "sir me", "sar me", "feel ho rahi"
+    "chakkar", "kamzori", "weakness", "vomit", "ulti", "dast", "pet dard", "sir me", "sar me",
+    "feel ho rahi", "neend", "sugar", "acidity", "khana", "khayein", "pata", "bhi"
   ];
   if (hinglishMarkers.some(kw => lower.includes(kw))) {
     return "hinglish";
@@ -165,72 +166,126 @@ export function detectUserLanguage(text: string): "hi" | "hinglish" | "en" {
 
 /**
  * Pure Hindi (हिंदी), Hinglish & Indian English Simulation Logic with Multi-turn Context Memory
+ * Covers comprehensive healthcare domains with accurate word-boundary matching.
  */
 function getSimulatedHealthcareResponse(query: string, history: { role: string; content: string }[] = []): string {
   const q = query.toLowerCase().trim();
   const userLang = detectUserLanguage(query);
   const lastUserTurn = history.filter(h => h.role === "user").slice(-2).map(h => h.content.toLowerCase()).join(" ");
 
-  // 1. Voice Connection / Test greeting check
-  if (q.includes("can you hear me") || (q.includes("hello") && userLang === "en") || (q.includes("hi") && userLang === "en" && q.length < 5) || q.includes("are you there")) {
-    return "Namaste! Yes, I can hear you clearly. I am SwasthyaSathi AI, your voice healthcare guide. How can I assist with your health or symptoms today?";
-  }
-  if (q.includes("kya aap sun sakte") || q.includes("sunai de raha")) {
-    return "नमस्ते! हाँ, मैं आपको स्पष्ट रूप से सुन सकता हूँ। मैं स्वास्थ्य साथी एआई हूँ। आज मैं आपके स्वास्थ्य या लक्षणों में कैसे सहायता कर सकता हूँ?";
-  }
-
-  // 2. Hindi & Hinglish Queries -> Output in proper Devanagari Hindi for authentic Hindi TTS synthesis
-  if (userLang === "hi" || userLang === "hinglish") {
-    if (q.includes("सिरदर्द") || q.includes("headache") || q.includes("sir dard") || q.includes("sar dard") || q.includes("sir me") || q.includes("sar me")) {
-      return "नमस्ते! यदि आपको सिरदर्द हो रहा है, तो 2 गिलास ताजा पानी पिएं, शांत कमरे में विश्राम करें और स्क्रीन से दूरी बनाएं। यदि दर्द बहुत तेज हो या उल्टी आए, तो तुरंत डॉक्टर को दिखाएं।";
-    }
-    if (q.includes("कमजोरी") || q.includes("weakness") || q.includes("kamzori") || q.includes("chakkar") || q.includes("चक्कर")) {
-      return "नमस्ते! कमजोरी या थकान महसूस होने पर तुरंत ओआरएस या नारियल पानी पिएं, हल्का पौष्टिक भोजन लें और आराम करें। यदि चक्कर लगातार आएं, तो डॉक्टर से जांच करवाएं।";
-    }
-    if (q.includes("बुखार") || q.includes("fever") || q.includes("bukhar") || q.includes("तापमान") || lastUserTurn.includes("bukhar") || lastUserTurn.includes("fever")) {
-      if (q.includes("kal") || q.includes("aaj") || q.includes("din") || q.includes("yesterday")) {
-        return "नमस्ते! यदि आपको कल से बुखार है, तो थर्मामीटर से तापमान नापते रहें, गुनगुना पानी पिएं और पर्याप्त आराम करें। यदि बुखार 101 डिग्री से अधिक हो, तो डॉक्टर से सलाह लें।";
-      }
-      return "नमस्ते! यदि आपको बुखार आ रहा है, तो पर्याप्त मात्रा में गुनगुना पानी पिएं, ओआरएस का घोल लें और विश्राम करें। यदि बुखार 101 डिग्री से अधिक हो, तो कृपया डॉक्टर से परामर्श लें।";
-    }
-    if (q.includes("खांसी") || q.includes("गला") || q.includes("cough") || q.includes("khansi") || q.includes("throat") || q.includes("gala") || q.includes("जुकाम")) {
-      return "नमस्ते! खांसी और गले की खराश के लिए गर्म पानी की भाप लें, अदरक-शहद का सेवन करें और गुनगुने नमक के पानी से गरारे करें। ठंडी चीजों से परहेज करें।";
-    }
-    if (q.includes("पेट") || q.includes("stomach") || q.includes("pet dard") || q.includes("gas") || q.includes("ulti")) {
-      return "नमस्ते! पेट में दर्द या अपच के लिए हल्का दलिया या खिचड़ी लें, गुनगुना पानी पिएं और तैलीय भोजन से बचें। यदि दर्द तीव्र हो, तो नजदीकी चिकित्सक से संपर्क करें।";
-    }
-    if (q.includes("मधुमेह") || q.includes("शुगर") || q.includes("sugar") || q.includes("diabetes") || q.includes("diet")) {
-      return "मधुमेह के स्वस्थ नियंत्रण के लिए साबुत अनाज, हरी पत्तेदार सब्जियां, करेला, मेथी दाना और दालें लें। मीठे और तले हुए भोजन से बचें तथा रोजाना 30 मिनट पैदल चलें।";
-    }
-    if (q.includes("डेंगू") || q.includes("dengue") || q.includes("मच्छर")) {
-      return "डेंगू बुखार में तेज बुखार और जोड़ों में दर्द होता है। नारियल पानी, पपीते के पत्ते का रस और प्रचुर मात्रा में तरल पदार्थ लें, तथा लैब में प्लेटलेट्स की नियमित जांच करवाएं।";
-    }
-    return `नमस्ते! स्वास्थ्य साथी से परामर्श के लिए धन्यवाद। स्वस्थ और पौष्टिक आहार लें, प्रचुर मात्रा में पानी पिएं और पर्याप्त विश्राम करें। गंभीर लक्षणों के लिए डॉक्टर से संपर्क करें।`;
-  }
-
-  // 3. English queries -> Output in Indian English for en-IN TTS synthesis
-  if (q.includes("headache") || q.includes("head")) {
-    return "Namaste! For a headache that started today, try drinking two glasses of water, resting in a quiet dim room, and doing gentle breathing exercises. If it is severe or worsening, please consult a doctor.";
-  }
-  if (q.includes("weakness") || q.includes("dizzy") || q.includes("fatigue")) {
-    return "Namaste! For weakness or fatigue, drink an ORS electrolyte solution or fresh coconut water, eat a light meal, and rest. If dizziness persists, please consult a physician.";
-  }
-  if (q.includes("fever") || q.includes("temperature") || q.includes("flu") || q.includes("yesterday") || lastUserTurn.includes("fever")) {
-    if (q.includes("yesterday") || q.includes("today") || q.includes("days")) {
-      return "Namaste! Since your fever has been present for that duration, please monitor your temperature with a thermometer, drink plenty of warm water or ORS, and take adequate rest. If it exceeds 101 degrees or lasts over 3 days, consult a physician.";
-    }
-    return "Namaste! For a mild fever, stay well hydrated with warm water or ORS, rest adequately, and monitor your temperature. If fever exceeds 101 degrees or lasts over 3 days, please consult a physician.";
-  }
-  if (q.includes("cough") || q.includes("throat") || q.includes("cold")) {
-    return "For a sore throat and cough, warm steam inhalation, ginger tea, and salt water gargles twice daily can provide gentle relief. Stay hydrated and rest well.";
-  }
-  if (q.includes("diabetes") || q.includes("sugar") || q.includes("diet")) {
-    return "A balanced Indian diabetic diet should prioritize whole grains like oats or millets, green vegetables, lentils, and fresh bitter gourd. Limit refined sugar and walk 30 minutes daily.";
-  }
-  if (q.includes("dengue") || q.includes("mosquito")) {
-    return "Dengue fever usually involves high fever, severe joint pain, and fatigue. Ensure abundant fluids, coconut water, and consult a doctor to monitor platelet counts.";
-  }
+  // 1. Precise Greeting & Connection Check (Word-boundary matching to prevent false triggers)
+  const isGreetingOnly = /^(hi|hello|hey|namaste|hlo|helo|test|can you hear me|are you there|kya aap sun sakte hain)[\s!?.]*$/i.test(q) ||
+    (/\b(can you hear me|are you there|test connection)\b/i.test(q) && q.length < 35);
   
-  return `Namaste! Thank you for sharing your concern regarding "${query}". Maintain good hydration, eat balanced meals, and rest. Please consult a certified doctor for clinical diagnosis.`;
+  if (isGreetingOnly) {
+    if (userLang === "hi" || userLang === "hinglish") {
+      return "नमस्ते! हाँ, मैं आपको स्पष्ट रूप से सुन सकता हूँ। मैं स्वास्थ्य साथी एआई हूँ, आपका स्वास्थ्य मार्गदर्शक। आज मैं आपके स्वास्थ्य या लक्षणों में कैसे सहायता कर सकता हूँ?";
+    }
+    return "Namaste! Yes, I can hear you clearly. I am SwasthyaSathi AI, your voice healthcare guide. How can I assist you with your health or symptoms today?";
+  }
+
+  // 2. Hindi & Hinglish Queries -> Generate natural, distinct Devanagari Hindi clinical advice
+  if (userLang === "hi" || userLang === "hinglish") {
+    // Headache / Sar Dard
+    if (/\b(headache|sar dard|sir dard|sar me dard|sir me dard|sir me|sar me|migraine)\b/i.test(q) || q.includes("सिरदर्द") || q.includes("सिर दर्द")) {
+      return "नमस्ते! सिरदर्द के लिए 2 गिलास ताजा पानी पिएं, शांत व कम रोशनी वाले कमरे में आराम करें और स्क्रीन से दूरी बनाएं। यदि दर्द बहुत तीव्र हो, उल्टी आए या नजर धुंधली हो, तो तुरंत डॉक्टर को दिखाएं।";
+    }
+    // Weakness / Fatigue / Dizziness / Chakkar
+    if (/\b(weakness|fatigue|dizzy|dizziness|chakkar|kamzori|thakan|energy)\b/i.test(q) || q.includes("कमजोरी") || q.includes("चक्कर") || q.includes("थकान")) {
+      return "नमस्ते! कमजोरी या चक्कर आने पर तुरंत ओआरएस का घोल या ताजा नारियल पानी पिएं, हल्का दलिया या फल लें और विश्राम करें। यदि चक्कर बार-बार आएं, तो बीपी और हीमोग्लोबिन की जांच करवाएं।";
+    }
+    // Fever / Temperature / Bukhar
+    if (/\b(fever|bukhar|temperature|tapman|chills|cold fever)\b/i.test(q) || q.includes("बुखार") || q.includes("तापमान") || lastUserTurn.includes("bukhar") || lastUserTurn.includes("fever")) {
+      if (/\b(kal|yesterday|aaj|days|din)\b/i.test(q) || lastUserTurn.includes("yesterday") || lastUserTurn.includes("kal")) {
+        return "नमस्ते! यदि आपको बुखार बना हुआ है, तो थर्मामीटर से हर 4 घंटे में तापमान नोट करें, प्रचुर मात्रा में गुनगुना पानी पिएं और ठंडी पट्टी रखें। यदि तापमान 101 डिग्री से अधिक हो, तो डॉक्टर से सलाह लें।";
+      }
+      return "नमस्ते! हल्के बुखार में पर्याप्त आराम करें, गुनगुना पानी व ओआरएस पिएं और सुपाच्य भोजन लें। यदि बुखार 3 दिन से अधिक रहे या तेज कंपकंपी हो, तो डॉक्टर से परामर्श लें।";
+    }
+    // Cough / Sore Throat / Cold / Khansi / Gala
+    if (/\b(cough|khansi|throat|gala|cold|जुकाम|kharash|balgam)\b/i.test(q) || q.includes("खांसी") || q.includes("गले") || q.includes("जुकाम")) {
+      return "नमस्ते! खांसी और गले की खराश के लिए दिन में दो बार गुनगुने नमक के पानी से गरारे करें, गर्म पानी की भाप लें और अदरक-शहद का सेवन करें। ठंडी व खट्टी चीजों से परहेज रखें।";
+    }
+    // Stomach Ache / Acidity / Gas / Pet Dard / Vomiting / Loose Motion
+    if (/\b(stomach|pet|pet dard|acidity|gas|kabz|constipation|vomit|ulti|dast|loose motion|diarrhea|indigestion)\b/i.test(q) || q.includes("पेट") || q.includes("उल्टी") || q.includes("दस्त") || q.includes("गैस")) {
+      return "नमस्ते! पेट की परेशानी या एसिडिटी के लिए हल्का मूंग दाल का दलिया या खिचड़ी लें, गुनगुना पानी पिएं और भुना जीरा व छाछ का सेवन करें। तैलीय व मसालेदार भोजन बिल्कुल न लें।";
+    }
+    // Diabetes / Sugar / Blood Sugar
+    if (/\b(diabetes|sugar|shugar|madhumeh|blood sugar|diet)\b/i.test(q) || q.includes("मधुमेह") || q.includes("शुगर") || q.includes("डायबिटीज")) {
+      return "मधुमेह (डायबिटीज) के नियंत्रण के लिए साबुत अनाज जैसे ज्वार-बाजरा, हरी पत्तेदार सब्जियां, करेला और मेथी दाना लें। मीठे खाद्य पदार्थों से बचें तथा रोजाना 30 मिनट तेज गति से टहलें।";
+    }
+    // High Blood Pressure / BP / Hypertension
+    if (/\b(bp|blood pressure|hypertension|high bp)\b/i.test(q) || q.includes("रक्तचाप") || q.includes("बीपी")) {
+      return "उच्च रक्तचाप (High BP) को नियंत्रित रखने के लिए भोजन में नमक की मात्रा कम करें, लहसुन व ताजे फल लें, तनावमुक्त रहें और नियमित रूप से अपना बीपी मापते रहें।";
+    }
+    // Dengue / Malaria / Platelets / Mosquito
+    if (/\b(dengue|malaria|platelet|platelets|mosquito|machhar)\b/i.test(q) || q.includes("डेंगू") || q.includes("मलेरिया") || q.includes("प्लेटलेट")) {
+      return "डेंगू या वायरल संक्रमण में प्रचुर मात्रा में नारियल पानी, पपीते के पत्ते का रस और ओआरएस लें ताकि शरीर हाइड्रेटेड रहे। नजदीकी लैब में ब्लड प्लेटलेट्स की नियमित जांच जरूर करवाएं।";
+    }
+    // Sleep / Insomnia / Anxiety / Stress / Neend
+    if (/\b(sleep|neend|insomnia|stress|anxiety|tension)\b/i.test(q) || q.includes("नींद") || q.includes("तनाव")) {
+      return "अच्छी नींद और तनाव मुक्ति के लिए सोने से 1 घंटा पहले मोबाइल स्क्रीन बंद करें, रात में गुनगुना दूध पिएं और 10 मिनट गहरी सांस (प्राणायाम) लें। दिन में कैफीन का सेवन सीमित करें।";
+    }
+    // Joint Pain / Knee Pain / Back Pain / Body Ache / Jodo ka dard
+    if (/\b(joint|knee|back pain|body ache|kamar dard|ghutna|dard)\b/i.test(q) || q.includes("जोड़ों") || q.includes("घुटने") || q.includes("कमर दर्द")) {
+      return "जोड़ों और कमर के दर्द में प्रभावित स्थान पर गर्म पानी की सिकाई करें, रात में हल्दी वाला गुनगुना दूध लें और हल्का व्यायाम करें। ज्यादा देर एक ही मुद्रा में बैठने से बचें।";
+    }
+    // Skin Rash / Allergy / Khujli
+    if (/\b(skin|rash|allergy|itching|khujli|dana)\b/i.test(q) || q.includes("खुजली") || q.includes("त्वचा") || q.includes("एलर्जी")) {
+      return "त्वचा की खुजली या एलर्जी के लिए प्रभावित जगह पर ताजा एलोवेरा जेल या नारियल तेल लगाएं, हल्के सूती कपड़े पहनें और ज्यादा गर्म पानी से न नहाएं। समस्या बढ़ने पर त्वचा रोग विशेषज्ञ से मिलें।";
+    }
+
+    return `नमस्ते! आपके प्रश्न "${query}" के संबंध में मैं सलाह दूंगा कि पर्याप्त मात्रा में पानी पिएं, घर का बना हल्का व पौष्टिक भोजन लें और अच्छा विश्राम करें। यदि कोई भी लक्षण 2-3 दिन से अधिक बना रहे, तो प्रमाणित डॉक्टर से जांच अवश्य करवाएं।`;
+  }
+
+  // 3. English Queries -> Generate natural, distinct Indian English clinical advice
+  // Headache
+  if (/\b(headache|head pain|migraine|temple pain)\b/i.test(q)) {
+    return "Namaste! For a headache that started recently, drink two large glasses of fresh water, rest in a quiet dim room, and avoid digital screens. If the headache is severe or accompanied by nausea, please consult a physician.";
+  }
+  // Weakness / Dizziness / Fatigue
+  if (/\b(weakness|fatigue|dizzy|dizziness|faint|exhausted|tired|low energy)\b/i.test(q)) {
+    return "Namaste! For weakness or dizziness, drink fresh coconut water or an ORS electrolyte solution immediately, eat a light nutritious snack, and rest. If feeling lightheaded persists, check your blood pressure and consult a doctor.";
+  }
+  // Fever / Temperature / Flu
+  if (/\b(fever|temperature|flu|chills|feverish)\b/i.test(q) || lastUserTurn.includes("fever")) {
+    if (/\b(yesterday|today|days|morning|since)\b/i.test(q) || lastUserTurn.includes("yesterday") || lastUserTurn.includes("today")) {
+      return "Namaste! Since your fever has been present for that duration, please chart your temperature with a thermometer every 4 hours, stay hydrated with warm fluids or ORS, and rest. If it exceeds 101 degrees or lasts over 3 days, consult a physician.";
+    }
+    return "Namaste! For a mild fever, stay well hydrated with warm water and ORS, take adequate bed rest, and monitor your temperature. If the fever stays above 101 degrees Fahrenheit or lasts beyond 3 days, consult a physician.";
+  }
+  // Cough / Cold / Sore Throat
+  if (/\b(cough|cold|throat|sore throat|congestion|runny nose|phlegm)\b/i.test(q)) {
+    return "Namaste! For a sore throat and cough, practice warm steam inhalation, drink ginger tea with honey, and do warm salt water gargles twice daily. Stay hydrated and avoid chilled beverages.";
+  }
+  // Stomach Ache / Acidity / Diarrhea / Vomiting
+  if (/\b(stomach|stomach ache|belly|acidity|gas|bloating|diarrhea|vomiting|nausea|loose motions|indigestion)\b/i.test(q)) {
+    return "Namaste! For stomach ache, acidity, or digestive discomfort, sip warm water, eat light foods like plain khichdi or oatmeal, and avoid oily, spicy meals. If there is severe pain or persistent vomiting, seek medical attention.";
+  }
+  // Diabetes / Sugar / Diet
+  if (/\b(diabetes|sugar|blood sugar|diabetic|diet|food|nutrition)\b/i.test(q)) {
+    return "Namaste! A healthy Indian diet for blood sugar control should emphasize whole grains like millets and oats, green leafy vegetables, bitter gourd, and lentils. Limit refined carbohydrates and walk 30 minutes daily.";
+  }
+  // Blood Pressure / Hypertension
+  if (/\b(bp|blood pressure|hypertension|high blood pressure)\b/i.test(q)) {
+    return "Namaste! To maintain healthy blood pressure, reduce dietary sodium, include fresh fruits and garlic in your meals, manage stress with deep breathing, and check your BP regularly.";
+  }
+  // Dengue / Malaria / Platelets
+  if (/\b(dengue|malaria|platelet|platelets|mosquito)\b/i.test(q)) {
+    return "Namaste! Dengue fever involves high fever, joint aches, and fatigue. Maintain high fluid intake with coconut water, papaya leaf extract, and ORS, and have your platelet counts tested regularly at a laboratory.";
+  }
+  // Joint / Back Pain / Body Ache
+  if (/\b(joint|joints|back pain|knee|knee pain|body ache|muscle ache|pain)\b/i.test(q)) {
+    return "Namaste! For joint or back pain, apply a warm compress, perform gentle mobility stretches, and drink warm turmeric milk at night. Avoid staying in one static posture for extended hours.";
+  }
+  // Sleep / Insomnia / Stress / Anxiety
+  if (/\b(sleep|insomnia|can't sleep|stress|anxiety|tension|restless)\b/i.test(q)) {
+    return "Namaste! For restful sleep and stress relief, disconnect from phone and TV screens 1 hour before bedtime, drink a glass of warm milk, and practice 10 minutes of slow deep breathing.";
+  }
+  // Skin / Rash / Itching / Allergy
+  if (/\b(skin|rash|itching|itch|allergy|hives|acne)\b/i.test(q)) {
+    return "Namaste! For skin irritation or itching, apply pure aloe vera gel or coconut oil, wear loose cotton clothing, and avoid harsh scented soaps. If a rash spreads rapidly, consult a dermatologist.";
+  }
+
+  return `Namaste! Regarding "${query}", I recommend maintaining good hydration, eating balanced home-cooked meals, and getting adequate rest. If your symptoms persist beyond 2 to 3 days or cause significant discomfort, please consult a registered medical doctor.`;
 }
 
