@@ -353,20 +353,32 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
             {/* UI Language Switcher */}
             <div className="flex items-center bg-slate-900 border border-slate-700 rounded-xl p-0.5 text-[11px] font-bold">
               <button
-                onClick={() => setUiLanguage("en")}
+                onClick={() => {
+                  setUiLanguage("en");
+                  setSelectedVoice("en-IN-priya");
+                }}
                 className={`px-2 py-1 rounded-lg transition ${uiLanguage === "en" ? "bg-teal-600 text-white" : "text-slate-400 hover:text-slate-200"}`}
+                title="Indian English"
               >
                 EN
               </button>
               <button
-                onClick={() => setUiLanguage("hi")}
-                className={`px-2 py-1 rounded-lg transition ${uiLanguage === "hi" ? "bg-teal-600 text-white" : "text-slate-400 hover:text-slate-200"}`}
+                onClick={() => {
+                  setUiLanguage("hi");
+                  setSelectedVoice("hi-IN-shweta");
+                }}
+                className={`px-2 py-1 rounded-lg transition ${uiLanguage === "hi" ? "bg-emerald-600 text-white" : "text-slate-400 hover:text-slate-200"}`}
+                title="शुद्ध हिंदी (Pure Hindi)"
               >
-                हिंदी
+                🇮🇳 हिंदी
               </button>
               <button
-                onClick={() => setUiLanguage("hinglish")}
+                onClick={() => {
+                  setUiLanguage("hinglish");
+                  setSelectedVoice("hi-IN-kabir");
+                }}
                 className={`px-2 py-1 rounded-lg transition ${uiLanguage === "hinglish" ? "bg-teal-600 text-white" : "text-slate-400 hover:text-slate-200"}`}
+                title="Hinglish Code-Mixed"
               >
                 Hinglish
               </button>
@@ -520,6 +532,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
         <QuickPrompts
           onSelectPrompt={handleSendUserMessage}
           disabled={assistantState === "connecting"}
+          language={uiLanguage}
         />
 
         {/* Interactive Speech & Text Input Control Bar */}

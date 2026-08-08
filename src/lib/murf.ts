@@ -26,12 +26,12 @@ export interface MurfTTSResponse {
 export const MURF_INDIAN_ENGLISH_VOICE = "en-IN-priya";
 
 export const INDIAN_VOICES = [
-  { id: "en-IN-priya", name: "Priya (Indian English Female)", style: "Empathetic & Clinical" },
-  { id: "en-IN-aarav", name: "Aarav (Indian English Male)", style: "Calm & Reassuring" },
-  { id: "en-IN-isha", name: "Isha (Indian English Female)", style: "Warm Conversational" },
-  { id: "en-IN-rohan", name: "Rohan (Indian English Male)", style: "Articulate Doctor" },
-  { id: "hi-IN-shweta", name: "Shweta (Hindi / Hinglish Female)", style: "Authentic Hindi Accent" },
-  { id: "hi-IN-kabir", name: "Kabir (Hindi / Hinglish Male)", style: "Warm Hindi Accent" },
+  { id: "hi-IN-shweta", name: "Shweta (Pure Hindi Female)", style: "शुद्ध हिंदी - Warm & Empathetic", lang: "hi" },
+  { id: "hi-IN-kabir", name: "Kabir (Pure Hindi Male)", style: "शुद्ध हिंदी - Compassionate Doctor", lang: "hi" },
+  { id: "en-IN-priya", name: "Priya (Indian English Female)", style: "Empathetic & Clinical", lang: "en" },
+  { id: "en-IN-aarav", name: "Aarav (Indian English Male)", style: "Calm & Reassuring", lang: "en" },
+  { id: "en-IN-isha", name: "Isha (Indian English Female)", style: "Warm Conversational", lang: "en" },
+  { id: "en-IN-rohan", name: "Rohan (Indian English Male)", style: "Articulate Healthcare Guide", lang: "en" },
 ];
 
 export async function generateMurfFalconSpeech(options: MurfTTSOptions): Promise<MurfTTSResponse> {

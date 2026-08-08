@@ -101,26 +101,44 @@ export async function generateHealthcareResponse(userPrompt: string, conversatio
 function checkGuardrailsLocally(prompt: string): string | null {
   const p = prompt.toLowerCase();
 
-  // 1. Red-Flag Emergency Symptoms Escalation
-  const emergencyKeywords = ["chest pain", "shortness of breath", "can't breathe", "difficulty breathing", "stroke", "paralysis", "heart attack", "collapsed", "unconscious", "heavy bleeding", "bleeding heavily", "severe injury"];
+  // 1. Red-Flag Emergency Symptoms Escalation (English & Hindi)
+  const emergencyKeywords = [
+    "chest pain", "shortness of breath", "can't breathe", "difficulty breathing", "stroke", "paralysis", "heart attack", "collapsed", "unconscious", "heavy bleeding", "bleeding heavily", "severe injury",
+    "सीने में दर्द", "सांस लेने में तकलीफ", "बेहोश", "खून बह रहा", "हार्ट अटैक"
+  ];
   if (emergencyKeywords.some(kw => p.includes(kw))) {
+    if (/[\u0900-\u097F]/.test(prompt)) {
+      return "⚠️ आपातकालीन चेतावनी! यह एक गंभीर चिकित्सीय आपातकाल हो सकता है। कृपया तुरंत 108 या 112 पर कॉल करें या नजदीकी अस्पताल जाएं। मैं एक एआई सहायक हूं और आपातकालीन उपचार नहीं कर सकता।";
+    }
     return "⚠️ Emergency Alert! This sounds like a potential medical emergency. Please call emergency services 108 or 112 immediately in India, or visit the nearest hospital emergency room. I am an AI assistant and cannot provide emergency treatment.";
   }
 
-  // 2. Prescription Drug Refusal
-  const prescriptionKeywords = ["prescribe", "amoxicillin", "azithromycin", "antibiotic", "steroid", "prescription medicine", "exact dosage for baby", "strong tablet"];
+  // 2. Prescription Drug Refusal (English & Hindi)
+  const prescriptionKeywords = [
+    "prescribe", "amoxicillin", "azithromycin", "antibiotic", "steroid", "prescription medicine", "exact dosage for baby", "strong tablet",
+    "दवा का नाम", "एंटीबायोटिक", "दवा लिखो", "गोली बताओ"
+  ];
   if (prescriptionKeywords.some(kw => p.includes(kw))) {
+    if (/[\u0900-\u097F]/.test(prompt)) {
+      return "मैं किसी भी प्रकार की प्रिस्क्रिप्शन दवा या एंटीबायोटिक नहीं लिख सकता। कृपया सही दवा और खुराक के लिए प्रमाणित डॉक्टर या फार्मासिस्ट से परामर्श लें।";
+    }
     return "I cannot prescribe or recommend specific prescription medications or drug dosages. Please consult a licensed medical doctor or pharmacist for prescription medicines.";
   }
 
   // 3. Clinical Diagnosis Refusal
-  const diagnosisKeywords = ["diagnose me", "definitive diagnosis", "do i definitely have dengue", "do i have cancer", "diagnose my illness"];
+  const diagnosisKeywords = ["diagnose me", "definitive diagnosis", "do i definitely have dengue", "do i have cancer", "diagnose my illness", "मेरी बीमारी बताओ"];
   if (diagnosisKeywords.some(kw => p.includes(kw))) {
+    if (/[\u0900-\u097F]/.test(prompt)) {
+      return "एक एआई स्वास्थ्य मार्गदर्शक के रूप में, मैं कोई नैदानिक निदान (डायग्नोसिस) नहीं दे सकता। कृपया प्रमाणित चिकित्सक से जांच करवाएं।";
+    }
     return "As an AI voice healthcare guide, I cannot provide a clinical diagnosis. I can suggest home wellness care while you consult a registered medical doctor.";
   }
 
   // 4. Never-Claim Doctor Identity Refusal
-  if (p.includes("are you a real doctor") || p.includes("are you a doctor") || p.includes("are you certified doctor")) {
+  if (p.includes("are you a real doctor") || p.includes("are you a doctor") || p.includes("are you certified doctor") || p.includes("क्या आप असली डॉक्टर हैं")) {
+    if (/[\u0900-\u097F]/.test(prompt)) {
+      return "मैं स्वास्थ्य साथी एआई हूं, एक कृत्रिम बुद्धिमत्ता स्वास्थ्य मार्गदर्शक। मैं कोई मानव डॉक्टर नहीं हूं, इसलिए चिकित्सकीय उपचार के लिए प्रमाणित डॉक्टर से परामर्श लें।";
+    }
     return "I am SwasthyaSathi AI, an artificial intelligence voice assistant for health awareness. I am not a licensed human medical doctor, so please consult a certified doctor for medical treatments.";
   }
 
@@ -128,10 +146,30 @@ function checkGuardrailsLocally(prompt: string): string | null {
 }
 
 /**
- * Code-Mixed Hinglish & English Simulation Logic
+ * Pure Hindi (हिंदी), Hinglish & Indian English Simulation Logic
  */
 function getSimulatedHealthcareResponse(query: string): string {
   const q = query.toLowerCase();
+
+  // Pure Hindi Devanagari Queries (शुद्ध हिंदी)
+  if (/[\u0900-\u097F]/.test(query) || q.includes("namaste") || q.includes("bataiye")) {
+    if (q.includes("बुखार") || q.includes("fever") || q.includes("तापमान")) {
+      return "नमस्ते! यदि आपको बुखार आ रहा है, तो पर्याप्त मात्रा में गुनगुना पानी पिएं, ओआरएस का घोल लें और विश्राम करें। यदि बुखार 101 डिग्री से अधिक हो या तीन दिन से अधिक रहे, तो कृपया तुरंत डॉक्टर से परामर्श लें।";
+    }
+    if (q.includes("खांसी") || q.includes("गला") || q.includes("cough") || q.includes("जुकाम")) {
+      return "नमस्ते! खांसी और गले की खराश के लिए गर्म पानी की भाप लें, अदरक-शहद का सेवन करें और गुनगुने नमक के पानी से गरारे करें। ठंडी चीजों से परहेज करें और आराम करें।";
+    }
+    if (q.includes("मधुमेह") || q.includes("शुगर") || q.includes("डायबिटीज") || q.includes("आहार")) {
+      return "मधुमेह के स्वस्थ नियंत्रण के लिए साबुत अनाज, हरी पत्तेदार सब्जियां, करेला, मेथी दाना और दालें लें। मीठे और तले हुए भोजन से बचें तथा रोजाना 30 मिनट पैदल चलें।";
+    }
+    if (q.includes("सिरदर्द") || q.includes("headache") || q.includes("तनाव")) {
+      return "सिरदर्द अक्सर पानी की कमी या तनाव से हो सकता है। 2 गिलास ताजा पानी पिएं, शांत कमरे में आराम करें और गहरी सांस लें। यदि दर्द बहुत तीव्र हो, तो डॉक्टर को दिखाएं।";
+    }
+    if (q.includes("डेंगू") || q.includes("मच्छर")) {
+      return "डेंगू बुखार में तेज बुखार और जोड़ों में दर्द होता है। नारियल पानी, पपीते के पत्ते का रस और प्रचुर मात्रा में तरल पदार्थ लें, तथा लैब में प्लेटलेट्स की नियमित जांच करवाएं।";
+    }
+    return `नमस्ते! स्वास्थ्य साथी एआई से परामर्श करने के लिए धन्यवाद। स्वस्थ और पौष्टिक आहार लें, प्रचुर मात्रा में पानी पिएं और पर्याप्त विश्राम करें। गंभीर लक्षणों के लिए डॉक्टर से संपर्क करें।`;
+  }
 
   // Code-mixed Hinglish queries
   if (q.includes("mujhe") || q.includes("kya karu") || q.includes("ho raha hai") || q.includes("thoda")) {
@@ -141,7 +179,7 @@ function getSimulatedHealthcareResponse(query: string): string {
     if (q.includes("cough") || q.includes("khansi") || q.includes("throat") || q.includes("gala")) {
       return "Namaste! Gale mein khansi ya kharash ke liye warm water gargles aur honey ginger tea lijiye. Thanda paani mat pijiye aur araam karein. Agar saans lene mein takleef ho toh doctor se milen.";
     }
-    return `Namaste! Aapke sawaal "${query}" ke liye, main kahunga ki achha rest lijiye, paani pijiye aur nutritious khana khayein. Kisi bhi severe symptom ke liye doctor se raye lijiye.`;
+    return `Namaste! Aapke sawaal ke liye, main kahunga ki achha rest lijiye, paani pijiye aur nutritious khana khayein. Kisi bhi severe symptom ke liye doctor se raye lijiye.`;
   }
 
   // English queries
