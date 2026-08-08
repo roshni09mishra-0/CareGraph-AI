@@ -2,7 +2,7 @@
 
 import { Mic, Volume2, Loader2, Radio, AlertCircle, PhoneOff, PhoneCall, Sparkles, User, Activity } from "lucide-react";
 
-export type AssistantState = "ready" | "connecting" | "listening" | "speaking" | "call_ended" | "error";
+export type AssistantState = "ready" | "connecting" | "listening" | "processing" | "speaking" | "call_ended" | "error";
 
 interface StatusOrbProps {
   state: AssistantState;
@@ -18,34 +18,43 @@ export default function StatusOrb({ state, errorMessage, onOrbClick, language = 
     switch (state) {
       case "ready":
         return {
-          label: language === "hi" ? "तैयार — कॉल शुरू करें" : language === "hinglish" ? "READY — START HEALTH CALL" : "READY — START CALL",
-          subtext: language === "hi" ? "परामर्श शुरू करने के लिए बटन या ऑर्ब पर क्लिक करें" : "Click 'Start Consultation' or tap the orb to begin your session",
-          speaker: language === "hi" ? "कॉल शुरू करने के लिए तैयार" : "Ready to begin consultation",
+          label: language === "hi" ? "तैयार — परामर्श शुरू करें" : "READY — START CONSULTATION",
+          subtext: language === "hi" ? "शुरू करने के लिए नीचे दिए गए हरे बटन पर क्लिक करें" : "Click 'Start Health Consultation' or tap the microphone to begin",
+          speaker: language === "hi" ? "परामर्श के लिए तैयार" : "Ready to listen",
           color: "border-teal-500/40 bg-teal-500/10 text-teal-300",
           icon: <PhoneCall className="w-4 h-4 text-teal-400" />,
           orbStyle: "bg-gradient-to-tr from-teal-700 via-teal-500 to-emerald-400 shadow-teal-500/30 hover:scale-105",
         };
       case "connecting":
         return {
-          label: language === "hi" ? "कनेक्ट हो रहा है — कृपया प्रतीक्षा करें..." : language === "hinglish" ? "CONNECTING — PLEASE WAIT..." : "CONNECTING TO SWASTHYASATHI AI...",
-          subtext: language === "hi" ? "WebRTC और Murf AI वॉइस रूम तैयार हो रहा है" : "Joining secure WebRTC session & loading Murf Falcon voice...",
-          speaker: "Joining call room...",
+          label: language === "hi" ? "कनेक्ट हो रहा है — कृपया प्रतीक्षा करें..." : "CONNECTING TO SWASTHYASATHI AI...",
+          subtext: language === "hi" ? "WebRTC और Murf AI वॉइस रूम तैयार हो रहा है" : "Initializing WebRTC audio room & Murf Falcon voice...",
+          speaker: "Connecting audio room...",
           color: "border-cyan-500/40 bg-cyan-500/10 text-cyan-300",
           icon: <Loader2 className="w-4 h-4 text-cyan-400 animate-spin" />,
           orbStyle: "animate-orb-think bg-gradient-to-tr from-cyan-600 via-teal-500 to-emerald-400 shadow-cyan-500/30",
         };
       case "listening":
         return {
-          label: language === "hi" ? "आपकी बात सुन रहे हैं (बोलिए)..." : language === "hinglish" ? "LISTENING TO YOU (BOLIYE)..." : "LISTENING TO YOU... (SPEAK NOW)",
-          subtext: language === "hi" ? "आप बोल रहे हैं — माइक्रोफोन सक्रिय है" : "You are speaking — Voice recognition is active",
+          label: language === "hi" ? "आपकी बात सुन रहे हैं (बोलिए)..." : "LISTENING TO YOUR VOICE... (SPEAK NOW)",
+          subtext: language === "hi" ? "माइक्रोफोन सक्रिय है — कृपया स्पष्ट बोलें" : "Microphone active — Speak your health concern clearly",
           speaker: language === "hi" ? "👤 आप बोल रहे हैं" : "👤 You are speaking",
           color: "border-emerald-500/40 bg-emerald-500/10 text-emerald-300",
           icon: <Mic className="w-4 h-4 text-emerald-400 animate-pulse" />,
           orbStyle: "animate-orb-listen bg-gradient-to-tr from-teal-500 via-emerald-400 to-cyan-400 shadow-emerald-500/40",
         };
+      case "processing":
+        return {
+          label: language === "hi" ? "स्वास्थ्य प्रश्न का विश्लेषण हो रहा है..." : "PROCESSING HEALTHCARE RESPONSE...",
+          subtext: language === "hi" ? "सुरक्षा नियमों के साथ उत्तर तैयार किया जा रहा है" : "Analyzing speech with medical safety guardrails...",
+          speaker: language === "hi" ? "🤖 स्वास्थ्य साथी सोच रहे हैं" : "🤖 SwasthyaSathi is processing...",
+          color: "border-amber-500/40 bg-amber-500/10 text-amber-300",
+          icon: <Loader2 className="w-4 h-4 text-amber-400 animate-spin" />,
+          orbStyle: "animate-orb-think bg-gradient-to-tr from-amber-600 via-teal-500 to-cyan-500 shadow-amber-500/30",
+        };
       case "speaking":
         return {
-          label: language === "hi" ? "स्वास्थ्य साथी बोल रहे हैं..." : language === "hinglish" ? "SWASTHYASATHI IS SPEAKING..." : "SWASTHYASATHI AI IS SPEAKING...",
+          label: language === "hi" ? "स्वास्थ्य साथी बोल रहे हैं..." : "SWASTHYASATHI AI IS SPEAKING...",
           subtext: language === "hi" ? "Murf Falcon भारतीय आवाज में उत्तर" : "Murf Falcon Indian English voice playback in real time",
           speaker: language === "hi" ? "🩺 स्वास्थ्य साथी बोल रहे हैं" : "🩺 SwasthyaSathi AI is speaking",
           color: "border-teal-400/40 bg-teal-400/10 text-teal-200",
@@ -54,9 +63,9 @@ export default function StatusOrb({ state, errorMessage, onOrbClick, language = 
         };
       case "call_ended":
         return {
-          label: language === "hi" ? "कॉल समाप्त — फिर से शुरू करें" : language === "hinglish" ? "CALL ENDED — START AGAIN" : "CALL ENDED — START AGAIN",
+          label: language === "hi" ? "परामर्श समाप्त — फिर से शुरू करें" : "CALL ENDED — START AGAIN",
           subtext: language === "hi" ? "परामर्श पूरा हुआ। नया कॉल शुरू करने के लिए नीचे क्लिक करें।" : "Consultation finished. Click below to start a new consultation.",
-          speaker: "Call ended",
+          speaker: "Call concluded",
           color: "border-slate-700 bg-slate-800/80 text-slate-300",
           icon: <PhoneOff className="w-4 h-4 text-slate-400" />,
           orbStyle: "bg-gradient-to-tr from-slate-800 via-slate-700 to-teal-900 shadow-slate-900/50 hover:scale-105",

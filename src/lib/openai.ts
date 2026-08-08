@@ -68,13 +68,13 @@ export async function generateHealthcareResponse(userPrompt: string, conversatio
   }
 
   if (!process.env.OPENAI_API_KEY) {
-    return formatSpeechText(getSimulatedHealthcareResponse(userPrompt));
+    return formatSpeechText(getSimulatedHealthcareResponse(userPrompt, conversationHistory));
   }
 
   try {
     const messages = [
       { role: "system" as const, content: SWASTHYASATHI_SYSTEM_PROMPT },
-      ...conversationHistory.slice(-6).map(msg => ({ role: msg.role as "user" | "assistant", content: msg.content })),
+      ...conversationHistory.slice(-8).map(msg => ({ role: msg.role as "user" | "assistant", content: msg.content })),
       { role: "user" as const, content: userPrompt }
     ];
 
@@ -89,7 +89,7 @@ export async function generateHealthcareResponse(userPrompt: string, conversatio
     return formatSpeechText(rawReply);
   } catch (error) {
     console.error("OpenAI API error:", error);
-    return formatSpeechText(getSimulatedHealthcareResponse(userPrompt));
+    return formatSpeechText(getSimulatedHealthcareResponse(userPrompt, conversationHistory));
   }
 }
 
@@ -144,44 +144,81 @@ function checkGuardrailsLocally(prompt: string): string | null {
 }
 
 /**
- * Pure Hindi (हिंदी), Hinglish & Indian English Simulation Logic
+ * Language detector helper for Indian English, Pure Hindi, and Romanized Hinglish
  */
-function getSimulatedHealthcareResponse(query: string): string {
-  const q = query.toLowerCase();
+export function detectUserLanguage(text: string): "hi" | "hinglish" | "en" {
+  if (!text) return "en";
+  if (/[\u0900-\u097F]/.test(text)) return "hi";
+  
+  const lower = text.toLowerCase();
+  const hinglishMarkers = [
+    "mujhe", "bukhar", "khansi", "dard", "sir dard", "sar dard", "gala", "pet", "kya karu", 
+    "ho raha", "ho rahi", "hai", "hain", "hoon", "aap", "tum", "batao", "bataiye", "dawa", 
+    "doctor", "namaste", "thoda", "bahut", "aaj", "kal", "se", "lag raha", "kaisa", "kaise",
+    "chakkar", "kamzori", "weakness", "vomit", "ulti", "dast", "pet dard", "sir me", "sar me", "feel ho rahi"
+  ];
+  if (hinglishMarkers.some(kw => lower.includes(kw))) {
+    return "hinglish";
+  }
+  return "en";
+}
 
-  // Pure Hindi Devanagari Queries (शुद्ध हिंदी)
-  if (/[\u0900-\u097F]/.test(query) || q.includes("namaste") || q.includes("bataiye")) {
-    if (q.includes("बुखार") || q.includes("fever") || q.includes("तापमान")) {
-      return "नमस्ते! यदि आपको बुखार आ रहा है, तो पर्याप्त मात्रा में गुनगुना पानी पिएं, ओआरएस का घोल लें और विश्राम करें। यदि बुखार 101 डिग्री से अधिक हो या तीन दिन से अधिक रहे, तो कृपया तुरंत डॉक्टर से परामर्श लें।";
+/**
+ * Pure Hindi (हिंदी), Hinglish & Indian English Simulation Logic with Multi-turn Context Memory
+ */
+function getSimulatedHealthcareResponse(query: string, history: { role: string; content: string }[] = []): string {
+  const q = query.toLowerCase().trim();
+  const userLang = detectUserLanguage(query);
+  const lastUserTurn = history.filter(h => h.role === "user").slice(-2).map(h => h.content.toLowerCase()).join(" ");
+
+  // 1. Voice Connection / Test greeting check
+  if (q.includes("can you hear me") || (q.includes("hello") && userLang === "en") || (q.includes("hi") && userLang === "en" && q.length < 5) || q.includes("are you there")) {
+    return "Namaste! Yes, I can hear you clearly. I am SwasthyaSathi AI, your voice healthcare guide. How can I assist with your health or symptoms today?";
+  }
+  if (q.includes("kya aap sun sakte") || q.includes("sunai de raha")) {
+    return "नमस्ते! हाँ, मैं आपको स्पष्ट रूप से सुन सकता हूँ। मैं स्वास्थ्य साथी एआई हूँ। आज मैं आपके स्वास्थ्य या लक्षणों में कैसे सहायता कर सकता हूँ?";
+  }
+
+  // 2. Hindi & Hinglish Queries -> Output in proper Devanagari Hindi for authentic Hindi TTS synthesis
+  if (userLang === "hi" || userLang === "hinglish") {
+    if (q.includes("सिरदर्द") || q.includes("headache") || q.includes("sir dard") || q.includes("sar dard") || q.includes("sir me") || q.includes("sar me")) {
+      return "नमस्ते! यदि आपको सिरदर्द हो रहा है, तो 2 गिलास ताजा पानी पिएं, शांत कमरे में विश्राम करें और स्क्रीन से दूरी बनाएं। यदि दर्द बहुत तेज हो या उल्टी आए, तो तुरंत डॉक्टर को दिखाएं।";
     }
-    if (q.includes("खांसी") || q.includes("गला") || q.includes("cough") || q.includes("जुकाम")) {
-      return "नमस्ते! खांसी और गले की खराश के लिए गर्म पानी की भाप लें, अदरक-शहद का सेवन करें और गुनगुने नमक के पानी से गरारे करें। ठंडी चीजों से परहेज करें और आराम करें।";
+    if (q.includes("कमजोरी") || q.includes("weakness") || q.includes("kamzori") || q.includes("chakkar") || q.includes("चक्कर")) {
+      return "नमस्ते! कमजोरी या थकान महसूस होने पर तुरंत ओआरएस या नारियल पानी पिएं, हल्का पौष्टिक भोजन लें और आराम करें। यदि चक्कर लगातार आएं, तो डॉक्टर से जांच करवाएं।";
     }
-    if (q.includes("मधुमेह") || q.includes("शुगर") || q.includes("डायबिटीज") || q.includes("आहार")) {
+    if (q.includes("बुखार") || q.includes("fever") || q.includes("bukhar") || q.includes("तापमान") || lastUserTurn.includes("bukhar") || lastUserTurn.includes("fever")) {
+      if (q.includes("kal") || q.includes("aaj") || q.includes("din") || q.includes("yesterday")) {
+        return "नमस्ते! यदि आपको कल से बुखार है, तो थर्मामीटर से तापमान नापते रहें, गुनगुना पानी पिएं और पर्याप्त आराम करें। यदि बुखार 101 डिग्री से अधिक हो, तो डॉक्टर से सलाह लें।";
+      }
+      return "नमस्ते! यदि आपको बुखार आ रहा है, तो पर्याप्त मात्रा में गुनगुना पानी पिएं, ओआरएस का घोल लें और विश्राम करें। यदि बुखार 101 डिग्री से अधिक हो, तो कृपया डॉक्टर से परामर्श लें।";
+    }
+    if (q.includes("खांसी") || q.includes("गला") || q.includes("cough") || q.includes("khansi") || q.includes("throat") || q.includes("gala") || q.includes("जुकाम")) {
+      return "नमस्ते! खांसी और गले की खराश के लिए गर्म पानी की भाप लें, अदरक-शहद का सेवन करें और गुनगुने नमक के पानी से गरारे करें। ठंडी चीजों से परहेज करें।";
+    }
+    if (q.includes("पेट") || q.includes("stomach") || q.includes("pet dard") || q.includes("gas") || q.includes("ulti")) {
+      return "नमस्ते! पेट में दर्द या अपच के लिए हल्का दलिया या खिचड़ी लें, गुनगुना पानी पिएं और तैलीय भोजन से बचें। यदि दर्द तीव्र हो, तो नजदीकी चिकित्सक से संपर्क करें।";
+    }
+    if (q.includes("मधुमेह") || q.includes("शुगर") || q.includes("sugar") || q.includes("diabetes") || q.includes("diet")) {
       return "मधुमेह के स्वस्थ नियंत्रण के लिए साबुत अनाज, हरी पत्तेदार सब्जियां, करेला, मेथी दाना और दालें लें। मीठे और तले हुए भोजन से बचें तथा रोजाना 30 मिनट पैदल चलें।";
     }
-    if (q.includes("सिरदर्द") || q.includes("headache") || q.includes("तनाव")) {
-      return "सिरदर्द अक्सर पानी की कमी या तनाव से हो सकता है। 2 गिलास ताजा पानी पिएं, शांत कमरे में आराम करें और गहरी सांस लें। यदि दर्द बहुत तीव्र हो, तो डॉक्टर को दिखाएं।";
-    }
-    if (q.includes("डेंगू") || q.includes("मच्छर")) {
+    if (q.includes("डेंगू") || q.includes("dengue") || q.includes("मच्छर")) {
       return "डेंगू बुखार में तेज बुखार और जोड़ों में दर्द होता है। नारियल पानी, पपीते के पत्ते का रस और प्रचुर मात्रा में तरल पदार्थ लें, तथा लैब में प्लेटलेट्स की नियमित जांच करवाएं।";
     }
-    return `नमस्ते! स्वास्थ्य साथी एआई से परामर्श करने के लिए धन्यवाद। स्वस्थ और पौष्टिक आहार लें, प्रचुर मात्रा में पानी पिएं और पर्याप्त विश्राम करें। गंभीर लक्षणों के लिए डॉक्टर से संपर्क करें।`;
+    return `नमस्ते! स्वास्थ्य साथी से परामर्श के लिए धन्यवाद। स्वस्थ और पौष्टिक आहार लें, प्रचुर मात्रा में पानी पिएं और पर्याप्त विश्राम करें। गंभीर लक्षणों के लिए डॉक्टर से संपर्क करें।`;
   }
 
-  // Code-mixed Hinglish queries
-  if (q.includes("mujhe") || q.includes("kya karu") || q.includes("ho raha hai") || q.includes("thoda")) {
-    if (q.includes("fever") || q.includes("bukhar")) {
-      return "Namaste! Agar aapko fever ho raha hai, toh pehle warm water lijiye, thoda rest karein aur temperature check karte rahein. Agar bukhar 101 se zyada ho ya teen din se zyada chale, toh doctor ko zaroor dikhayein.";
-    }
-    if (q.includes("cough") || q.includes("khansi") || q.includes("throat") || q.includes("gala")) {
-      return "Namaste! Gale mein khansi ya kharash ke liye warm water gargles aur honey ginger tea lijiye. Thanda paani mat pijiye aur araam karein. Agar saans lene mein takleef ho toh doctor se milen.";
-    }
-    return `Namaste! Aapke sawaal ke liye, main kahunga ki achha rest lijiye, paani pijiye aur nutritious khana khayein. Kisi bhi severe symptom ke liye doctor se raye lijiye.`;
+  // 3. English queries -> Output in Indian English for en-IN TTS synthesis
+  if (q.includes("headache") || q.includes("head")) {
+    return "Namaste! For a headache that started today, try drinking two glasses of water, resting in a quiet dim room, and doing gentle breathing exercises. If it is severe or worsening, please consult a doctor.";
   }
-
-  // English queries
-  if (q.includes("fever") || q.includes("temperature") || q.includes("flu")) {
+  if (q.includes("weakness") || q.includes("dizzy") || q.includes("fatigue")) {
+    return "Namaste! For weakness or fatigue, drink an ORS electrolyte solution or fresh coconut water, eat a light meal, and rest. If dizziness persists, please consult a physician.";
+  }
+  if (q.includes("fever") || q.includes("temperature") || q.includes("flu") || q.includes("yesterday") || lastUserTurn.includes("fever")) {
+    if (q.includes("yesterday") || q.includes("today") || q.includes("days")) {
+      return "Namaste! Since your fever has been present for that duration, please monitor your temperature with a thermometer, drink plenty of warm water or ORS, and take adequate rest. If it exceeds 101 degrees or lasts over 3 days, consult a physician.";
+    }
     return "Namaste! For a mild fever, stay well hydrated with warm water or ORS, rest adequately, and monitor your temperature. If fever exceeds 101 degrees or lasts over 3 days, please consult a physician.";
   }
   if (q.includes("cough") || q.includes("throat") || q.includes("cold")) {
@@ -194,6 +231,6 @@ function getSimulatedHealthcareResponse(query: string): string {
     return "Dengue fever usually involves high fever, severe joint pain, and fatigue. Ensure abundant fluids, coconut water, and consult a doctor to monitor platelet counts.";
   }
   
-  return `Namaste! Thank you for asking SwasthyaSathi AI regarding "${query}". Maintain good hydration, eat balanced meals, and rest. Consult a certified doctor for clinical diagnosis.`;
+  return `Namaste! Thank you for sharing your concern regarding "${query}". Maintain good hydration, eat balanced meals, and rest. Please consult a certified doctor for clinical diagnosis.`;
 }
 

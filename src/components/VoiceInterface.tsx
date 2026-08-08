@@ -68,6 +68,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
         recognition.lang = uiLanguage === "hi" ? "hi-IN" : "en-IN"; // Indian English or Hindi speech recognition
 
         recognition.onstart = () => {
+          console.log("[Voice] Microphone started");
           setIsMicActive(true);
           setAssistantState("listening");
           setShowPermissionHelp(false);
@@ -75,13 +76,19 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
 
         recognition.onresult = (event: any) => {
           const current = event.resultIndex;
-          const transcript = event.results[current][0].transcript;
+          const transcript = event.results[current][0]?.transcript || "";
           
           if (event.results[current].isFinal) {
+            const finalTranscript = transcript.trim();
             setInterimText("");
-            setInputText(transcript);
-            if (handleSendUserMessageRef.current) {
-              handleSendUserMessageRef.current(transcript);
+            setInputText(finalTranscript);
+            
+            // Validate that user has ACTUALLY spoken words before triggering AI
+            if (finalTranscript.length > 0) {
+              console.log("[Voice] Speech transcript received:", finalTranscript);
+              if (handleSendUserMessageRef.current) {
+                handleSendUserMessageRef.current(finalTranscript);
+              }
             }
           } else {
             setInterimText(transcript);
@@ -90,7 +97,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
         };
 
         recognition.onerror = (event: any) => {
-          console.error("Speech Recognition Error:", event.error);
+          console.error("[Voice Error] Speech Recognition Error:", event.error);
           setIsMicActive(false);
 
           if (event.error === "not-allowed" || event.error === "service-not-allowed") {
@@ -99,7 +106,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
             setErrorMessage("Microphone permission blocked! Click the Lock / Settings icon in your browser address bar and set Microphone to ALLOW.");
           } else if (event.error === "no-speech") {
             setAssistantState("ready");
-            setErrorMessage("No speech detected. Please speak clearly into your microphone.");
+            setErrorMessage("No speech detected. Please speak into your microphone after clicking the button.");
           } else {
             setAssistantState("error");
             setErrorMessage(`Speech recognition error: ${event.error}`);
@@ -107,6 +114,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
         };
 
         recognition.onend = () => {
+          console.log("[Voice] Microphone stopped");
           setIsMicActive(false);
         };
 
@@ -117,6 +125,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
 
   // Start Consultation Call (Transition from Ready -> Connecting -> Listening)
   const handleStartCall = async () => {
+    console.log("[Voice] Initializing consultation call...");
     setErrorMessage("");
     setShowPermissionHelp(false);
     setAssistantState("connecting");
@@ -130,8 +139,9 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
     if (typeof window !== "undefined" && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
       try {
         await navigator.mediaDevices.getUserMedia({ audio: true });
+        console.log("[Voice] Microphone permission granted");
       } catch (err: any) {
-        console.error("Mic Permission Request Denied:", err);
+        console.error("[Voice Error] Mic Permission Request Denied:", err);
         setAssistantState("error");
         setShowPermissionHelp(true);
         setErrorMessage("Microphone permission denied! Click the Lock icon in your browser URL bar (left of http://127.0.0.1:3000) and set Microphone to ALLOW.");
@@ -139,24 +149,25 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
       }
     }
 
-    // Simulate smooth connection transition to LiveKit audio room
+    // Smooth transition to listening state
     setTimeout(() => {
       if (recognitionRef.current) {
         try {
           recognitionRef.current.start();
           setAssistantState("listening");
         } catch (e: any) {
-          console.error("Mic start exception:", e);
+          console.error("[Voice Error] Mic start exception:", e);
           setAssistantState("listening");
         }
       } else {
         setAssistantState("listening");
       }
-    }, 1200);
+    }, 1000);
   };
 
   // End Consultation Call (Transition to Call Ended)
   const handleEndCall = () => {
+    console.log("[Voice] Ending consultation session");
     if (isMicActive && recognitionRef.current) {
       recognitionRef.current.stop();
     }
@@ -186,7 +197,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
         try {
           recognitionRef.current.start();
         } catch (e: any) {
-          console.error("Mic start exception:", e);
+          console.error("[Voice Error] Mic toggle exception:", e);
         }
       }
     }
@@ -194,49 +205,92 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
 
   // Process User Query with OpenAI API + Murf Falcon TTS
   const handleSendUserMessage = async (queryText: string) => {
-    if (!queryText.trim()) return;
+    const cleanText = queryText.trim();
+    if (!cleanText) {
+      console.warn("[Voice] Empty query ignored. No response generated.");
+      return;
+    }
 
-    // Record end of user speech timestamp for latency log
+    // 1. Detect User Input Language
+    const hasDevanagari = /[\u0900-\u097F]/.test(cleanText);
+    const lowerQuery = cleanText.toLowerCase();
+    const hinglishMarkers = [
+      "mujhe", "bukhar", "khansi", "dard", "sir dard", "sar dard", "gala", "pet", "kya karu", 
+      "ho raha", "ho rahi", "hai", "hain", "hoon", "aap", "tum", "batao", "bataiye", "dawa", 
+      "doctor", "namaste", "thoda", "bahut", "aaj", "kal", "se", "lag raha", "kaisa", "kaise",
+      "chakkar", "kamzori", "weakness", "vomit", "ulti", "dast", "pet dard", "sir me", "sar me", "feel ho rahi"
+    ];
+    const isHinglish = hinglishMarkers.some((kw) => lowerQuery.includes(kw));
+    const userLanguageDetected = hasDevanagari ? "Hindi" : isHinglish ? "Hinglish" : "English";
+
+    console.log(`[Voice] USER LANGUAGE: ${userLanguageDetected}`);
+    console.log("[AI] User message sent to AI:", cleanText);
     speechEndTimeRef.current = Date.now();
 
     const userMsgId = `user-${Date.now()}`;
     const userMsg: Message = {
       id: userMsgId,
       sender: "user",
-      text: queryText,
+      text: cleanText,
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
     };
 
     setMessages((prev) => [...prev, userMsg]);
     setInputText("");
     setInterimText("");
-    setAssistantState("speaking");
+    
+    // Set PROCESSING state while AI is analyzing
+    setAssistantState("processing");
 
     try {
-      // 1. Fetch AI Healthcare Response from OpenAI
+      // 2. Fetch AI Healthcare Response with multi-turn conversation memory
+      const currentHistory = messages.map((m) => ({
+        role: m.sender === "user" ? "user" : "assistant",
+        content: m.text,
+      }));
+
       const chatRes = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          prompt: queryText,
-          history: messages.map((m) => ({ role: m.sender, content: m.text })),
+          prompt: cleanText,
+          history: currentHistory,
         }),
       });
 
       const chatData = await chatRes.json();
-      const aiResponseText = chatData.response || "Namaste! How else can SwasthyaSathi AI help you today?";
+      const aiResponseText = chatData.response || "Namaste! I am here to help. Could you please share more about what you are experiencing?";
+      
+      const isAiHindiResponse = /[\u0900-\u097F]/.test(aiResponseText) || userLanguageDetected === "Hindi" || userLanguageDetected === "Hinglish";
+      const aiResponseLanguage = isAiHindiResponse ? "Hindi" : "English";
+      
+      // Select authentic Hindi voice for Hindi/Hinglish and Indian English voice for English
+      const targetTtsVoice = isAiHindiResponse 
+        ? (selectedVoice.startsWith("hi-IN") ? selectedVoice : "hi-IN-shweta")
+        : (selectedVoice.startsWith("en-IN") ? selectedVoice : "en-IN-priya");
 
-      // 2. Fetch Murf Falcon Indian English TTS Speech
+      const ttsLanguage = isAiHindiResponse ? "hi-IN (Hindi)" : "en-IN (Indian English)";
+
+      console.log(`[Voice] AI RESPONSE LANGUAGE: ${aiResponseLanguage}`);
+      console.log(`[Voice] SELECTED TTS VOICE: ${targetTtsVoice}`);
+      console.log(`[Voice] TTS LANGUAGE: ${ttsLanguage}`);
+
+      // 3. Fetch Murf Falcon TTS with appropriate Indian voice
+      setAssistantState("speaking");
+
       const ttsRes = await fetch("/api/tts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           text: aiResponseText,
-          voiceId: selectedVoice,
+          voiceId: targetTtsVoice,
+          language: isAiHindiResponse ? "hi" : "en",
+          userLanguage: userLanguageDetected,
         }),
       });
 
       const ttsData = await ttsRes.json();
+      console.log(`[Voice] TTS REQUEST SUCCESS: ${!ttsData.isFallback && !!ttsData.audioUrl}`);
 
       const aiMsgId = `ai-${Date.now()}`;
       const aiMsg: Message = {
@@ -250,22 +304,21 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
 
       setMessages((prev) => [...prev, aiMsg]);
 
-      // 3. Play Murf Falcon Audio
+      // 4. Play Audio with proper language voice
       if (!audioMuted) {
         if (ttsData.audioUrl) {
-          playAudioUrl(ttsData.audioUrl, aiResponseText);
+          playAudioUrl(ttsData.audioUrl, aiResponseText, isAiHindiResponse);
         } else {
-          // Fallback to WebSpeech Synthesis if Murf API Key is pending
-          speakBrowserTTS(aiResponseText);
+          speakBrowserTTS(aiResponseText, isAiHindiResponse);
         }
       } else {
         setAssistantState("ready");
       }
 
     } catch (err: any) {
-      console.error("Voice processing error:", err);
+      console.error("[AI Error] Voice processing error:", err);
       setAssistantState("error");
-      setErrorMessage(err.message || "Failed to complete voice response");
+      setErrorMessage(err.message || "Failed to complete voice response. Please try again.");
     }
   };
 
@@ -273,7 +326,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
   handleSendUserMessageRef.current = handleSendUserMessage;
 
   // Play Murf Falcon audio URL with latency measurement and browser fallback
-  const playAudioUrl = (url: string, fallbackText?: string) => {
+  const playAudioUrl = (url: string, fallbackText?: string, isHindi?: boolean) => {
     if (audioRef.current) {
       audioRef.current.src = url;
       audioRef.current.play().then(() => {
@@ -281,12 +334,12 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
         if (speechEndTimeRef.current > 0) {
           const measuredLatency = Date.now() - speechEndTimeRef.current;
           setLatencyMs(measuredLatency);
-          console.log(`[Murf Falcon Latency]: ${measuredLatency} ms (end-of-speech to first audio output)`);
+          console.log(`[TTS Latency]: ${measuredLatency} ms (speech-end to first audio output)`);
         }
       }).catch(e => {
-        console.warn("Murf Audio Playback Autoplay Error (falling back to WebSpeech):", e);
+        console.warn("[TTS Warning] Murf Audio Playback Error (falling back to WebSpeech):", e);
         if (fallbackText) {
-          speakBrowserTTS(fallbackText);
+          speakBrowserTTS(fallbackText, isHindi);
         } else {
           setAssistantState("ready");
         }
@@ -294,17 +347,43 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
     }
   };
 
-  // Fallback browser synthesis
-  const speakBrowserTTS = (text: string) => {
+  // Fallback browser synthesis with authentic Hindi / Indian English voice matching
+  const speakBrowserTTS = (text: string, isHindi?: boolean) => {
     if (typeof window !== "undefined" && "speechSynthesis" in window) {
       window.speechSynthesis.cancel();
+      const isHindiText = isHindi !== undefined ? isHindi : /[\u0900-\u097F]/.test(text);
       const utterance = new SpeechSynthesisUtterance(text);
-      utterance.rate = 1.0;
+      utterance.rate = 0.95;
       utterance.pitch = 1.0;
+      utterance.lang = isHindiText ? "hi-IN" : "en-IN";
 
-      utterance.onstart = () => setAssistantState("speaking");
-      utterance.onend = () => setAssistantState("ready");
-      utterance.onerror = () => setAssistantState("ready");
+      const availableVoices = window.speechSynthesis.getVoices();
+      if (isHindiText) {
+        const hindiVoice = availableVoices.find(v => 
+          v.lang.includes("hi-IN") || v.lang.includes("hi_IN") || v.lang.includes("hi") ||
+          v.name.toLowerCase().includes("hindi") || v.name.toLowerCase().includes("swara") || v.name.toLowerCase().includes("madhur")
+        );
+        if (hindiVoice) utterance.voice = hindiVoice;
+      } else {
+        const indianEnglishVoice = availableVoices.find(v => 
+          v.lang.includes("en-IN") || v.lang.includes("en_IN") || 
+          v.name.toLowerCase().includes("india") || v.name.toLowerCase().includes("heera") || v.name.toLowerCase().includes("neerja")
+        );
+        if (indianEnglishVoice) utterance.voice = indianEnglishVoice;
+      }
+
+      utterance.onstart = () => {
+        console.log(`[TTS] WebSpeech started in ${utterance.lang} (Voice: ${utterance.voice?.name || "default"})`);
+        setAssistantState("speaking");
+      };
+      utterance.onend = () => {
+        console.log("[TTS] WebSpeech finished");
+        setAssistantState("ready");
+      };
+      utterance.onerror = () => {
+        console.error("[TTS Error] WebSpeech failed");
+        setAssistantState("ready");
+      };
 
       window.speechSynthesis.speak(utterance);
     } else {
@@ -313,6 +392,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
   };
 
   const handleAudioEnded = () => {
+    console.log("[TTS] Murf TTS finished playback");
     setAssistantState("ready");
   };
 
