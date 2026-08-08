@@ -481,10 +481,10 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
           {assistantState === "ready" && (
             <button
               onClick={handleStartCall}
-              className="flex items-center gap-2.5 px-8 py-3.5 rounded-2xl font-extrabold text-sm text-slate-950 bg-gradient-to-r from-teal-400 via-emerald-400 to-cyan-400 hover:from-teal-300 hover:to-cyan-300 shadow-xl shadow-teal-500/25 transition transform hover:scale-105 active:scale-95"
+              className="flex items-center gap-3 px-9 py-4 rounded-2xl font-extrabold text-sm text-slate-950 bg-gradient-to-r from-teal-400 via-emerald-400 to-cyan-400 hover:from-teal-300 hover:to-cyan-300 shadow-2xl shadow-teal-500/30 transition transform hover:scale-105 active:scale-95"
             >
               <Mic className="w-5 h-5 stroke-[2.5]" />
-              <span>{uiLanguage === "hi" ? "परामर्श शुरू करें (कॉल करें)" : "Start Consultation (Begin Call)"}</span>
+              <span>{uiLanguage === "hi" ? "परामर्श शुरू करें (कॉल करें)" : "Start Health Consultation (Begin Call)"}</span>
             </button>
           )}
 
@@ -507,19 +507,26 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
                 className="flex items-center gap-2 px-6 py-3 rounded-2xl text-xs font-bold bg-rose-600 hover:bg-rose-500 text-white shadow-lg shadow-rose-900/40 transition transform active:scale-95"
               >
                 <PhoneOff className="w-4 h-4" />
-                <span>{uiLanguage === "hi" ? "कॉल समाप्त करें" : "End Call"}</span>
+                <span>{uiLanguage === "hi" ? "कॉल समाप्त करें" : "End Consultation"}</span>
               </button>
             </div>
           )}
 
           {assistantState === "call_ended" && (
-            <div className="flex flex-col items-center gap-2.5">
-              <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800 text-xs text-slate-300 text-center">
-                <span>{uiLanguage === "hi" ? "कॉल समाप्त हो गई है। परामर्श पूरा हुआ।" : "Your consultation call has ended. You can start a new session anytime."}</span>
+            <div className="flex flex-col items-center gap-3 w-full max-w-md mx-auto">
+              <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 text-xs text-slate-300 text-center space-y-1 w-full shadow-inner">
+                <p className="font-bold text-white text-sm">
+                  {uiLanguage === "hi" ? "परामर्श पूरा हुआ" : "Consultation Concluded"}
+                </p>
+                <p className="text-slate-400 text-[11.5px]">
+                  {uiLanguage === "hi" 
+                    ? "आप नीचे दिए गए प्रतिलेख (Transcript) को देख सकते हैं या नया कॉल शुरू कर सकते हैं।" 
+                    : "You can review the conversation transcript below or start a fresh health session anytime."}
+                </p>
               </div>
               <button
                 onClick={handleStartCall}
-                className="flex items-center gap-2 px-8 py-3.5 rounded-2xl font-extrabold text-sm text-slate-950 bg-gradient-to-r from-teal-400 via-emerald-400 to-cyan-400 hover:from-teal-300 hover:to-cyan-300 shadow-xl shadow-teal-500/25 transition transform hover:scale-105 active:scale-95"
+                className="flex items-center gap-2.5 px-8 py-3.5 rounded-2xl font-extrabold text-sm text-slate-950 bg-gradient-to-r from-teal-400 via-emerald-400 to-cyan-400 hover:from-teal-300 hover:to-cyan-300 shadow-xl shadow-teal-500/25 transition transform hover:scale-105 active:scale-95"
               >
                 <RefreshCw className="w-4 h-4 stroke-[2.5]" />
                 <span>{uiLanguage === "hi" ? "नया परामर्श शुरू करें" : "Start New Consultation"}</span>
