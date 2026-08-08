@@ -39,6 +39,20 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
   // Ref to hold current handleSendUserMessage function avoiding stale closures
   const handleSendUserMessageRef = useRef<(text: string) => void>();
 
+  // Reference states to avoid closure capture issues
+  const shouldListenRef = useRef<boolean>(false);
+  const assistantStateRef = useRef<AssistantState>("ready");
+  const speechSilenceTimerRef = useRef<any>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const micStreamRef = useRef<MediaStream | null>(null);
+  const [micVolumeLevel, setMicVolumeLevel] = useState<number>(0);
+
+  // Sync state ref
+  useEffect(() => {
+    assistantStateRef.current = assistantState;
+  }, [assistantState]);
+
   // Connect LiveKit Room token on mount / start
   const connectLiveKit = async () => {
     try {
@@ -50,72 +64,147 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
       }
     } catch (err) {
       console.warn("LiveKit connection notice:", err);
-      // Still allow voice interaction via Web Speech & Murf TTS
       setIsLiveKitConnected(true);
+    }
+  };
+
+  // Start Web Audio Level Meter
+  const startAudioLevelMeter = async (stream: MediaStream) => {
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      const audioCtx = new AudioCtx();
+      const analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 256;
+      const source = audioCtx.createMediaStreamSource(stream);
+      source.connect(analyser);
+
+      audioContextRef.current = audioCtx;
+      analyserRef.current = analyser;
+
+      const dataArray = new Uint8Array(analyser.frequencyBinCount);
+      const checkVolume = () => {
+        if (!shouldListenRef.current) {
+          setMicVolumeLevel(0);
+          return;
+        }
+        analyser.getByteFrequencyData(dataArray);
+        let sum = 0;
+        for (let i = 0; i < dataArray.length; i++) {
+          sum += dataArray[i];
+        }
+        const avg = sum / dataArray.length;
+        const normalized = Math.min(100, Math.round((avg / 128) * 100));
+        setMicVolumeLevel(normalized);
+        requestAnimationFrame(checkVolume);
+      };
+      checkVolume();
+    } catch (e) {
+      console.warn("[Voice] Web Audio meter error:", e);
     }
   };
 
   useEffect(() => {
     connectLiveKit();
 
-    // Initialize Web Speech Recognition if available in browser
+    // Initialize Continuous Web Speech Recognition
     if (typeof window !== "undefined") {
       const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
       if (SpeechRecognition) {
         const recognition = new SpeechRecognition();
-        recognition.continuous = false;
+        recognition.continuous = true;
         recognition.interimResults = true;
         recognition.lang = uiLanguage === "hi" ? "hi-IN" : "en-IN"; // Indian English or Hindi speech recognition
 
         recognition.onstart = () => {
-          console.log("[Voice] Microphone started");
+          console.log("[Voice] Microphone listening started");
           setIsMicActive(true);
           setAssistantState("listening");
           setShowPermissionHelp(false);
         };
 
         recognition.onresult = (event: any) => {
-          const current = event.resultIndex;
-          const transcript = event.results[current][0]?.transcript || "";
-          
-          if (event.results[current].isFinal) {
-            const finalTranscript = transcript.trim();
-            setInterimText("");
-            setInputText(finalTranscript);
-            
-            // Validate that user has ACTUALLY spoken words before triggering AI
-            if (finalTranscript.length > 0) {
-              console.log("[Voice] Speech transcript received:", finalTranscript);
-              if (handleSendUserMessageRef.current) {
-                handleSendUserMessageRef.current(finalTranscript);
-              }
+          let interim = "";
+          let final = "";
+
+          for (let i = event.resultIndex; i < event.results.length; ++i) {
+            const transcriptChunk = event.results[i][0]?.transcript || "";
+            if (event.results[i].isFinal) {
+              final += transcriptChunk + " ";
+            } else {
+              interim += transcriptChunk;
             }
-          } else {
-            setInterimText(transcript);
-            setInputText(transcript);
+          }
+
+          if (interim.trim()) {
+            setInterimText(interim);
+            setInputText(interim);
+
+            // Silence fallback: If interim text is heard and no final event occurs within 1600ms, send it!
+            if (speechSilenceTimerRef.current) clearTimeout(speechSilenceTimerRef.current);
+            speechSilenceTimerRef.current = setTimeout(() => {
+              const currentInterim = interim.trim();
+              if (currentInterim.length > 0 && assistantStateRef.current === "listening") {
+                console.log("[Voice] Speech silence timer triggered with interim:", currentInterim);
+                setInterimText("");
+                setInputText(currentInterim);
+                if (handleSendUserMessageRef.current) {
+                  handleSendUserMessageRef.current(currentInterim);
+                }
+              }
+            }, 1600);
+          }
+
+          const cleanFinal = final.trim();
+          if (cleanFinal.length > 0) {
+            if (speechSilenceTimerRef.current) clearTimeout(speechSilenceTimerRef.current);
+            console.log("[Voice] Speech transcript captured:", cleanFinal);
+            setInterimText("");
+            setInputText(cleanFinal);
+            if (handleSendUserMessageRef.current) {
+              handleSendUserMessageRef.current(cleanFinal);
+            }
           }
         };
 
         recognition.onerror = (event: any) => {
-          console.error("[Voice Error] Speech Recognition Error:", event.error);
-          setIsMicActive(false);
+          console.warn("[Voice Warning] Speech Recognition event error:", event.error);
 
           if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+            setIsMicActive(false);
+            shouldListenRef.current = false;
             setAssistantState("error");
             setShowPermissionHelp(true);
             setErrorMessage("Microphone permission blocked! Click the Lock / Settings icon in your browser address bar and set Microphone to ALLOW.");
           } else if (event.error === "no-speech") {
-            setAssistantState("ready");
-            setErrorMessage("No speech detected. Please speak into your microphone after clicking the button.");
-          } else {
-            setAssistantState("error");
-            setErrorMessage(`Speech recognition error: ${event.error}`);
+            // Gracefully restart if consultation is still active
+            if (shouldListenRef.current && assistantStateRef.current === "listening") {
+              try {
+                recognition.start();
+              } catch (e) {}
+            }
+          } else if (event.error !== "aborted") {
+            console.error("[Voice Error]:", event.error);
           }
         };
 
         recognition.onend = () => {
-          console.log("[Voice] Microphone stopped");
-          setIsMicActive(false);
+          console.log("[Voice] Microphone cycle ended");
+          // Keep continuous listening loop alive while consultation session is active
+          if (shouldListenRef.current && assistantStateRef.current === "listening") {
+            try {
+              recognition.start();
+              setIsMicActive(true);
+            } catch (e) {
+              setTimeout(() => {
+                if (shouldListenRef.current && assistantStateRef.current === "listening") {
+                  try { recognition.start(); setIsMicActive(true); } catch (err) {}
+                }
+              }, 400);
+            }
+          } else if (assistantStateRef.current !== "speaking" && assistantStateRef.current !== "processing") {
+            setIsMicActive(false);
+          }
         };
 
         recognitionRef.current = recognition;
@@ -129,19 +218,23 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
     setErrorMessage("");
     setShowPermissionHelp(false);
     setAssistantState("connecting");
+    shouldListenRef.current = true;
 
     // Unlock browser audio context on user gesture
     if (audioRef.current) {
       audioRef.current.play().catch(() => {});
     }
 
-    // Explicitly prompt user for browser microphone access
+    // Explicitly prompt user for browser microphone access and attach level meter
     if (typeof window !== "undefined" && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
       try {
-        await navigator.mediaDevices.getUserMedia({ audio: true });
-        console.log("[Voice] Microphone permission granted");
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        micStreamRef.current = stream;
+        startAudioLevelMeter(stream);
+        console.log("[Voice] Microphone permission granted & audio meter active");
       } catch (err: any) {
         console.error("[Voice Error] Mic Permission Request Denied:", err);
+        shouldListenRef.current = false;
         setAssistantState("error");
         setShowPermissionHelp(true);
         setErrorMessage("Microphone permission denied! Click the Lock icon in your browser URL bar (left of http://127.0.0.1:3000) and set Microphone to ALLOW.");
@@ -151,25 +244,31 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
 
     // Smooth transition to listening state
     setTimeout(() => {
-      if (recognitionRef.current) {
+      if (recognitionRef.current && shouldListenRef.current) {
         try {
           recognitionRef.current.start();
           setAssistantState("listening");
         } catch (e: any) {
-          console.error("[Voice Error] Mic start exception:", e);
+          console.log("[Voice] Recognition start notice:", e.message || e);
           setAssistantState("listening");
         }
       } else {
         setAssistantState("listening");
       }
-    }, 1000);
+    }, 600);
   };
 
   // End Consultation Call (Transition to Call Ended)
   const handleEndCall = () => {
     console.log("[Voice] Ending consultation session");
-    if (isMicActive && recognitionRef.current) {
-      recognitionRef.current.stop();
+    shouldListenRef.current = false;
+    if (speechSilenceTimerRef.current) clearTimeout(speechSilenceTimerRef.current);
+    if (recognitionRef.current) {
+      try { recognitionRef.current.stop(); } catch (e) {}
+    }
+    if (micStreamRef.current) {
+      micStreamRef.current.getTracks().forEach(t => t.stop());
+      micStreamRef.current = null;
     }
     if (audioRef.current) {
       audioRef.current.pause();
@@ -178,6 +277,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
       window.speechSynthesis.cancel();
     }
     setIsMicActive(false);
+    setMicVolumeLevel(0);
     setAssistantState("call_ended");
   };
 
@@ -189,13 +289,19 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
     }
 
     if (isMicActive) {
-      if (recognitionRef.current) recognitionRef.current.stop();
+      shouldListenRef.current = false;
+      if (recognitionRef.current) {
+        try { recognitionRef.current.stop(); } catch (e) {}
+      }
       setIsMicActive(false);
       setAssistantState("ready");
     } else {
+      shouldListenRef.current = true;
       if (recognitionRef.current) {
         try {
           recognitionRef.current.start();
+          setIsMicActive(true);
+          setAssistantState("listening");
         } catch (e: any) {
           console.error("[Voice Error] Mic toggle exception:", e);
         }
@@ -545,6 +651,21 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
                 Dismiss
               </button>
             </div>
+          </div>
+        )}
+
+        {/* Live Microphone Audio Level Indicator */}
+        {isMicActive && (
+          <div className="flex items-center justify-center gap-2.5 px-4 py-2 rounded-2xl bg-slate-900/90 border border-teal-500/40 text-xs text-teal-300 animate-fadeIn max-w-sm mx-auto shadow-lg">
+            <Mic className="w-4 h-4 text-emerald-400 animate-pulse" />
+            <span className="font-bold">Live Mic Level:</span>
+            <div className="w-28 h-2.5 rounded-full bg-slate-800 overflow-hidden border border-slate-700">
+              <div 
+                className="h-full bg-gradient-to-r from-teal-400 via-emerald-400 to-green-300 transition-all duration-75"
+                style={{ width: `${Math.max(8, micVolumeLevel)}%` }}
+              />
+            </div>
+            <span className="text-[11px] font-mono text-teal-200 font-bold">{micVolumeLevel}%</span>
           </div>
         )}
 
