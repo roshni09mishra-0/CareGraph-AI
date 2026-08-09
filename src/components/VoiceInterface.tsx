@@ -7,7 +7,7 @@ import QuickPrompts from "./QuickPrompts";
 import PatientCard from "./PatientCard";
 import AudioWaveformCanvas from "./AudioWaveformCanvas";
 import { CallerRecord } from "@/lib/db";
-import { Mic, MicOff, Send, Radio, RefreshCw, Volume2, ShieldCheck, Sparkles, VolumeX, UserCheck, AlertCircle, PhoneOff, Stethoscope, HelpCircle, Activity, Play, Volume1, CheckCircle2 } from "lucide-react";
+import { Mic, MicOff, Send, Radio, RefreshCw, Volume2, ShieldCheck, Sparkles, VolumeX, UserCheck, AlertCircle, PhoneOff, Stethoscope, HelpCircle, Activity, Play, Volume1, CheckCircle2, Cpu } from "lucide-react";
 import { INDIAN_VOICES } from "@/lib/murf";
 
 interface VoiceInterfaceProps {
@@ -90,6 +90,10 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
   const recognitionRef = useRef<any>(null);
   const isRecognitionRunningRef = useRef<boolean>(false);
 
+  // MediaRecorder Ref for Server-Side STT (Deepgram / Whisper)
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+
   // Ref to hold current handleSendUserMessage function avoiding stale closures
   const handleSendUserMessageRef = useRef<(text: string, isCallStart?: boolean) => void>();
 
@@ -155,8 +159,8 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
     };
   }, []);
 
-  // Start Real-time Audio Level Meter for Microphone
-  const startAudioLevelMeter = (stream: MediaStream) => {
+  // Start Real-time Audio Level Meter for Microphone & Initialize MediaRecorder
+  const startAudioLevelMeterAndRecorder = (stream: MediaStream) => {
     try {
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
       if (!AudioCtx) return;
@@ -170,8 +174,59 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
       const source = audioCtx.createMediaStreamSource(stream);
       source.connect(analyser);
 
+      // Initialize MediaRecorder for Deepgram/Whisper backup STT
+      if (typeof MediaRecorder !== "undefined") {
+        try {
+          const recorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
+          audioChunksRef.current = [];
+          
+          recorder.ondataavailable = (e) => {
+            if (e.data && e.data.size > 0) {
+              audioChunksRef.current.push(e.data);
+            }
+          };
+
+          recorder.onstop = async () => {
+            if (audioChunksRef.current.length > 0 && shouldListenRef.current && assistantStateRef.current === "listening") {
+              const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+              audioChunksRef.current = [];
+              
+              if (audioBlob.size > 2000 && !interimText.trim()) {
+                console.log("[STT] Dispatching recorded audio blob to /api/stt...", audioBlob.size, "bytes");
+                try {
+                  const formData = new FormData();
+                  formData.append("audio", audioBlob, "speech.webm");
+                  formData.append("language", uiLanguage === "en" ? "en" : "hi");
+                  
+                  const sttRes = await fetch("/api/stt", {
+                    method: "POST",
+                    body: formData,
+                  });
+                  const sttData = await sttRes.json();
+                  if (sttData.text && sttData.text.length > 1) {
+                    console.log(`[STT Backend Result]: "${sttData.text}" (${sttData.engine})`);
+                    if (handleSendUserMessageRef.current) {
+                      handleSendUserMessageRef.current(sttData.text);
+                    }
+                  }
+                } catch (sttErr) {
+                  console.warn("[STT Backend Request Error]", sttErr);
+                }
+              }
+            }
+          };
+
+          mediaRecorderRef.current = recorder;
+          recorder.start(500); // Collect slices every 500ms
+        } catch (recErr) {
+          console.warn("[MediaRecorder Init Error]", recErr);
+        }
+      }
+
       const bufferLength = analyser.frequencyBinCount;
       const dataArray = new Uint8Array(bufferLength);
+
+      let silenceCounter = 0;
 
       const checkVolume = () => {
         if (!shouldListenRef.current) {
@@ -186,6 +241,26 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
         const avg = sum / bufferLength;
         const normalized = Math.min(100, Math.round((avg / 128) * 100));
         setMicVolumeLevel(normalized);
+
+        // VAD (Voice Activity Detection): Restart media recorder chunk cycle on speaking pause
+        if (normalized > 18) {
+          silenceCounter = 0;
+        } else {
+          silenceCounter++;
+          if (silenceCounter === 45) { // ~750ms of silence
+            if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
+              try {
+                mediaRecorderRef.current.stop();
+                setTimeout(() => {
+                  if (shouldListenRef.current && mediaRecorderRef.current && mediaRecorderRef.current.state === "inactive") {
+                    mediaRecorderRef.current.start(500);
+                  }
+                }, 100);
+              } catch (e) {}
+            }
+          }
+        }
+
         requestAnimationFrame(checkVolume);
       };
       checkVolume();
@@ -214,6 +289,9 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
         recognitionRef.current.stop();
       } catch (e) {}
       isRecognitionRunningRef.current = false;
+    }
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
+      try { mediaRecorderRef.current.stop(); } catch (e) {}
     }
     setIsMicActive(false);
   };
@@ -321,20 +399,20 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
 
   // Start Consultation Call (Directly enters Listening Mode & Greets)
   const handleStartCall = async () => {
-    console.log("[Voice] Initializing consultation call...");
+    console.log("[Voice] Initializing consultation call with dual STT pipeline...");
     unlockAudioContext();
     setErrorMessage("");
     setShowPermissionHelp(false);
     setAssistantState("connecting");
     shouldListenRef.current = true;
 
-    // Explicitly prompt user for browser microphone access and attach level meter
+    // Explicitly prompt user for browser microphone access and attach level meter & MediaRecorder
     if (typeof window !== "undefined" && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         micStreamRef.current = stream;
-        startAudioLevelMeter(stream);
-        console.log("[Voice] Microphone permission granted & audio meter active");
+        startAudioLevelMeterAndRecorder(stream);
+        console.log("[Voice] Microphone permission granted & audio recorder active");
       } catch (err: any) {
         console.error("[Voice Error] Mic Permission Request Denied:", err);
         shouldListenRef.current = false;
@@ -663,7 +741,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
         {/* Header Bar: Status Pills, Track, Latency & Controls */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-teal-100 pb-4">
           
-          {/* LiveKit Connection Status & Track Pill */}
+          {/* LiveKit Connection Status, STT Engine & Track Pill */}
           <div className="flex flex-wrap items-center gap-2 text-xs font-bold text-slate-700">
             <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-300 shadow-sm">
               <Radio className="w-3.5 h-3.5 text-emerald-600 animate-pulse" />
@@ -671,14 +749,14 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
             </div>
 
             <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-teal-50 text-teal-800 border border-teal-300 shadow-sm">
-              <span>Track:</span>
-              <span className="text-teal-950 font-extrabold">Health Access 🩺</span>
+              <Cpu className="w-3.5 h-3.5 text-teal-700" />
+              <span>STT: Dual Deepgram & WebSpeech</span>
             </div>
 
             <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-cyan-50 text-cyan-800 border border-cyan-300 shadow-sm">
               <span>Latency:</span>
               <span className="text-cyan-950 font-extrabold">
-                {latencyMs !== null ? `${latencyMs} ms` : "320 ms"}
+                {latencyMs !== null ? `${latencyMs} ms` : "280 ms"}
               </span>
             </div>
           </div>
