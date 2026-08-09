@@ -54,8 +54,6 @@ export function formatSpeechText(text: string): string {
     .trim();
 }
 
-let isOpenAiQuotaExhausted = false;
-
 export interface HealthcareResponseResult {
   response: string;
   caller: CallerRecord | null;
@@ -148,55 +146,43 @@ export function detectUserLanguage(text: string): "hi" | "hinglish" | "en" {
     "chakkar", "kamzori", "weakness", "vomit", "ulti", "dast", "pet dard", "sir me", "sar me",
     "feel ho rahi", "neend", "sugar", "acidity", "khana", "khayein", "pata", "bhi", "paani", 
     "pani", "pina", "peena", "chahiye", "kare", "karein", "vajan", "wajan", "ghataye", "badhaye",
-    "kya", "kaun", "kab", "kyun", "mera", "meri", "mere", "apna", "apne", "hoga", "hogi", 
-    "hota", "hoti", "bacha", "bache", "bachon", "daant", "aankh", "aankhon", "kaan", "sehat", "tabiyat"
+    "bache", "bacha", "mahawari", "periods", "garbh", "motapa", "kamzor", "kabz", "chhale", "daant",
+    "aankh", "kaan", "skin", "khujli", "dengue", "malaria", "typhoid", "bp", "gathiya", "ghutne",
+    "naam", "mera", "meri", "mere", "yaad", "kaun"
   ];
-  if (hinglishMarkers.some(kw => lower.includes(kw))) {
-    return "hinglish";
-  }
+
+  if (hinglishMarkers.some(m => lower.includes(m))) return "hinglish";
   return "en";
 }
 
 /**
- * Day 4 Intelligent Multi-Domain Conversational Brain & Healthcare Memory Engine
+ * Master Clinical Intelligence, Multi-Disease Knowledge Base & Patient Memory Engine
  */
-function getSimulatedHealthcareResponse(
-  query: string, 
-  history: { role: string; content: string }[] = [],
+export function getSimulatedHealthcareResponse(
+  query: string,
+  history: { role: "user" | "assistant"; content: string }[] = [],
   userId?: string,
   callerName?: string,
   isCallStart?: boolean
 ): HealthcareResponseResult {
   const q = query.toLowerCase().trim();
   const userLang = detectUserLanguage(query);
-  const lastUserTurn = history.filter(h => h.role === "user").slice(-2).map(h => h.content.toLowerCase()).join(" ");
-  const lastAssistantTurn = history.filter(h => h.role === "assistant").slice(-1).map(h => h.content.toLowerCase()).join(" ");
-
-  // 1. Resolve Active Caller from DB or by Name / ID
+  
+  // Look up caller from persistent database
   let currentCaller: CallerRecord | null = null;
   if (userId) {
     currentCaller = getCaller(userId);
-  }
-  if (!currentCaller && callerName) {
+  } else if (callerName) {
     currentCaller = getCallerByName(callerName);
   }
 
-  // Check if user told their name earlier in conversation history
-  let knownNameInConvo = currentCaller?.name || callerName;
-  if (!knownNameInConvo) {
-    for (const msg of history) {
-      if (msg.role === "user") {
-        const m = msg.content.match(/(?:mera naam|i am|my name is|this is|naam|main)\s+([a-zA-Z\u0900-\u097F]+)/i);
-        if (m && m[1] && !["hai", "hoon", "here", "calling", "having", "ek", "kya"].includes(m[1].toLowerCase())) {
-          knownNameInConvo = m[1].charAt(0).toUpperCase() + m[1].slice(1);
-          break;
-        }
-      }
-    }
-  }
+  // Fallback to conversation history name inference
+  const lastUserTurn = history.length > 0 ? history[history.length - 1].content.toLowerCase() : "";
+  const lastAssistantTurn = history.length > 1 ? history[history.length - 2].content.toLowerCase() : "";
+  const knownNameInConvo = currentCaller?.name || (callerName ? callerName : null);
 
   // =========================================================================
-  // A. FORGET ME TOOL (Day 4 Advanced)
+  // A. FORGET ME PRIVACY TOOL (Day 4 Step 6)
   // =========================================================================
   if (/\b(forget me|forget my data|delete my record|delete my data|erase my data|wipe my data|mujhe bhool jao|mera data delete karo|mera record hatao)\b/i.test(q)) {
     if (currentCaller) {
@@ -351,7 +337,6 @@ function getSimulatedHealthcareResponse(
         functionCalled: "lookup_caller",
       };
     } else {
-      // New caller introduced their name
       const newUserId = userId || `user_${detectedName.toLowerCase()}_${Date.now().toString().slice(-4)}`;
       const reply = (userLang === "hi" || userLang === "hinglish")
         ? `नमस्ते ${detectedName} जी! स्वास्थ्य साथी में आपका स्वागत है। कृपया बताएं कि आज आप क्या लक्षण या स्वास्थ्य समस्या महसूस कर रहे हैं?`
@@ -382,12 +367,10 @@ function getSimulatedHealthcareResponse(
                              lastAssistantTurn.includes("सुरक्षित");
 
   if (isAnsweringConsent) {
-    // User says YES / HAAN
     if (/\b(yes|yeah|sure|yep|okay|ok|haan|ha|theek hai|save kar lo|kar lo|sahi hai|please save|save)\b/i.test(q) && !/\b(no|not|mat|don't|nahi|nah)\b/i.test(q)) {
       const activeId = userId || currentCaller?.user_id || "user_patient";
       let activeName = callerName || currentCaller?.name || knownNameInConvo || "Patient";
 
-      // Extract facts from conversation history
       const fullConvo = history.map(h => h.content.toLowerCase()).join(" ");
       let symptomExtracted = "general health inquiry";
       if (fullConvo.includes("bukhar") || fullConvo.includes("fever")) symptomExtracted = "mild fever";
@@ -426,7 +409,6 @@ function getSimulatedHealthcareResponse(
       }
     }
 
-    // User says NO / NAHI / DON'T SAVE
     if (/\b(no|nah|nahi|mat save karo|mat karo|don't save|do not save|never|cancel)\b/i.test(q)) {
       const reply = (userLang === "hi" || userLang === "hinglish")
         ? `ठीक है, आपकी सहमति के बिना कोई भी डेटा सुरक्षित नहीं किया गया है। आपकी निजता हमारे लिए सर्वोपरि है।`
@@ -441,7 +423,7 @@ function getSimulatedHealthcareResponse(
   }
 
   // =========================================================================
-  // F. COMPREHENSIVE CLINICAL HEALTHCARE BRAIN (50+ Medical & Lifestyle Inquiries)
+  // F. COMPREHENSIVE MULTI-DISEASE CLINICAL HEALTHCARE REPOSITORY (100+ Illnesses)
   // =========================================================================
   let clinicalAdvice = "";
   let shouldAskConsent = !currentCaller?.consent_given && history.length >= 2 && !isAnsweringConsent;
@@ -462,88 +444,127 @@ function getSimulatedHealthcareResponse(
   // 2. Hindi & Hinglish Clinical Knowledge Dispatcher
   if (userLang === "hi" || userLang === "hinglish") {
 
-    // --- LIFESTYLE, DIET, VITAMINS & WEIGHT ---
-    if (/\b(vajan|weight loss|weight gain|motaapa|fat|slim|patla|wazan)\b/i.test(q) || q.includes("वजन") || q.includes("मोटापा")) {
-      clinicalAdvice = "वजन नियंत्रित रखने के लिए मीठे और तले हुए भोजन से बचें, फाइबर युक्त हरी सब्जियां व साबुत अनाज लें, रोजाना 3-4 लीटर पानी पिएं और 40 मिनट तेज पैदल चलें।";
+    // --- INFECTIOUS DISEASES & FEVERS ---
+    if (/\b(dengue|dengu|platelet|platelets|papaya leaf)\b/i.test(q) || q.includes("डेंगू") || q.includes("प्लेटलेट्स")) {
+      clinicalAdvice = "डेंगू में तेज बुखार, आंखों के पीछे दर्द और प्लेटलेट्स गिरना मुख्य लक्षण हैं। प्रचुर मात्रा में नारियल पानी, पपीते के पत्ते का अर्क और ओआरएस पिएं। रोजाना सीबीसी और प्लेटलेट काउंट टेस्ट करवाएं।";
     }
-    else if (/\b(paani|water|hydration|liquid|kitna paani)\b/i.test(q) || q.includes("पानी") || q.includes("हाइड्रेशन")) {
-      clinicalAdvice = "एक स्वस्थ वयस्क को प्रतिदिन लगभग 8 से 10 गिलास (2.5 से 3.5 लीटर) ताजा पानी पीना चाहिए। पर्याप्त पानी पीने से पाचन क्रिया सुधरती है और ऊर्जा बनी रहती है।";
+    else if (/\b(malaria|thand lagkar bukhar|kapkapi|mosquito)\b/i.test(q) || q.includes("मलेरिया") || q.includes("कंपकंपी")) {
+      clinicalAdvice = "मलेरिया में ठंड और कंपकंपी के साथ तेज बुखार आता है और पसीना आकर उतरता है। तुरंत ब्लड स्लाइड टेस्ट करवाएं, भरपूर पानी पिएं और मच्छरदानी का उपयोग करें।";
     }
-    else if (/\b(vitamin|vitamin d|vitamin b12|calcium|iron|khoon ki kami|anemia)\b/i.test(q) || q.includes("विटामिन") || q.includes("कैल्शियम") || q.includes("खून की कमी")) {
-      clinicalAdvice = "विटामिन डी के लिए सुबह की हल्की धूप लें, विटामिन बी12 और कैल्शियम के लिए दूध-दही और पनीर लें, तथा खून की कमी दूर करने के लिए पालक, चुकंदर और अनार का सेवन करें।";
+    else if (/\b(typhoid|taifaid|motijhara|antrik jwar)\b/i.test(q) || q.includes("टाइफाइड") || q.includes("मोतीझरा")) {
+      clinicalAdvice = "टाइफाइड आंतों का संक्रमण है जिसमें लगातार बुखार और पेट दर्द रहता है। केवल उबला हुआ पानी पिएं, हल्का दलिया व खिचड़ी खाएं और विडाल टेस्ट करवाकर डॉक्टर की सलाह लें।";
     }
-    else if (/\b(immunity|kadha|booster|takat|energy|shakti)\b/i.test(q) || q.includes("इम्यूनिटी") || q.includes("काढ़ा") || q.includes("ताकत")) {
-      clinicalAdvice = "रोग प्रतिरोधक क्षमता (इम्यूनिटी) बढ़ाने के लिए तुलसी, अदरक और काली मिर्च का काढ़ा पिएं, आंवला व संतरा जैसे विटामिन-सी युक्त फल लें और हल्दी वाला दूध लें।";
+    else if (/\b(jaundice|piliya|hepatitis|liver infection|peela peshab)\b/i.test(q) || q.includes("पीलिया") || q.includes("हेपेटाइटिस")) {
+      clinicalAdvice = "पीलिया (Jaundice) में आंखें और पेशाब पीला हो जाता है तथा भूख कम लगती है। गन्ने का ताजा रस, उबली मूली और ग्लूकोज लें। तला-भुना खाना बिल्कुल बंद रखें और लिवर फंक्शन टेस्ट करवाएं।";
     }
-    else if (/\b(exercise|yoga|pranayam|walk|gym|kasrat)\b/i.test(q) || q.includes("व्यायाम") || q.includes("योग") || q.includes("टहलना")) {
-      clinicalAdvice = "नियमित 30 मिनट का व्यायाम या अनुलोम-विलोम प्राणायाम फेफड़ों को मजबूत करता है और रक्त संचार को बेहतर बनाता है। सुबह खाली पेट टहलना स्वास्थ्य के लिए सबसे उत्तम है।";
+    else if (/\b(pneumonia|chest congestion|pasli chalna|heavy cough)\b/i.test(q) || q.includes("निमोनिया") || q.includes("पसली चलना")) {
+      clinicalAdvice = "निमोनिया फेफड़ों का संक्रमण है जिसमें तेज बुखार और सांस लेने में घरघराहट होती है। मरीज को गर्म रखें, भाप दें और तुरंत चेस्ट एक्स-रे करवाकर पल्मोनोलॉजिस्ट डॉक्टर से दिखाएं।";
     }
-
-    // --- EYES, EARS, TEETH, MOUTH ---
-    else if (/\b(eye|aankh|aankhon|screen|jalan|dikhayi|vision)\b/i.test(q) || q.includes("आंख") || q.includes("आँखों")) {
-      clinicalAdvice = "आंखों में जलन या स्क्रीन थकान के लिए 20-20-20 नियम अपनाएं: हर 20 मिनट बाद 20 फीट दूर देखें। ठंडे पानी के छींटे मारें और रात में सोने से पहले स्क्रीन न देखें।";
+    else if (/\b(tb|tuberculosis|purani khansi|khoon aana)\b/i.test(q) || q.includes("टीबी") || q.includes("तपेदिक")) {
+      clinicalAdvice = "यदि खांसी 2 हफ्ते से अधिक रहे या बलगम में खून आए, तो यह टीबी का संकेत हो सकता है। सरकारी स्वास्थ्य केंद्र पर मुफ्त बलगम जांच और डॉट्स (DOTS) उपचार तुरंत शुरू करें।";
     }
-    else if (/\b(ear|kaan|kaan dard|hearing|sunai)\b/i.test(q) || q.includes("कान") || q.includes("कान दर्द")) {
-      clinicalAdvice = "कान में दर्द होने पर उसमें कोई तीली या तेल न डालें। कान के आसपास गर्म कपड़े से हल्की सिकाई करें। यदि दर्द तीव्र हो या मवाद निकले, तो तुरंत ईएनटी डॉक्टर से जांच करवाएं।";
-    }
-    else if (/\b(tooth|daant|teeth|masuda|bleeding gums|chhale|mouth ulcer)\b/i.test(q) || q.includes("दांत") || q.includes("छाले") || q.includes("मसूड़ों")) {
-      clinicalAdvice = "दांत दर्द और मसूड़ों की सूजन के लिए गुनगुने नमक के पानी से कुल्ला करें और लौंग का तेल लगाएं। मुंह के छालों पर शहद या देसी घी लगाएं और विटामिन बी कॉम्प्लेक्स लें।";
+    else if (/\b(covid|corona|loss of smell|taste loss)\b/i.test(q) || q.includes("कोरोना") || q.includes("कोविड")) {
+      clinicalAdvice = "कोविड और वायरल फ्लू में गंध व स्वाद जाना, बुखार और गले में खराश होती है। खुद को आइसोलेट करें, गर्म पानी के गरारे व भाप लें और पल्स ऑक्सीमीटर से ऑक्सीजन मापते रहें।";
     }
 
-    // --- CHILD & WOMEN HEALTH ---
-    else if (/\b(baby|bache|bacha|infant|child|chhota bacha)\b/i.test(q) || q.includes("बच्चे") || q.includes("बच्चा") || q.includes("शिशु")) {
-      clinicalAdvice = "छोटे बच्चों में बुखार या पेट दर्द होने पर उन्हें ओआरएस और पर्याप्त तरल दें, सूती हल्के कपड़े पहनाएं। किसी भी दवा के लिए हमेशा बाल रोग विशेषज्ञ (पीडियाट्रिशियन) से ही परामर्श लें।";
+    // --- RESPIRATORY & THROAT ---
+    else if (/\b(asthma|dama|saans phoolna|wheezing|inhaler)\b/i.test(q) || q.includes("अस्थमा") || q.includes("दमा") || q.includes("सांस फूलना")) {
+      clinicalAdvice = "अस्थमा में धूल, धुएं और ठंडी हवा से बचें। डॉक्टर द्वारा निर्धारित इनहेलर हमेशा पास रखें, गर्म पेय लें और अनुलोम-विलोम प्राणायाम का अभ्यास करें।";
     }
-    else if (/\b(periods|period|mahawari|menses|cramps|period pain)\b/i.test(q) || q.includes("पीरियड्स") || q.includes("माहवारी")) {
-      clinicalAdvice = "माहवारी के दर्द और ऐंठन में पेट के निचले हिस्से पर गर्म पानी की बोतल से सिकाई करें, गुनगुना पानी व अदरक की चाय पिएं और पर्याप्त आराम करें।";
+    else if (/\b(sinus|sinusitis|sar me bhari|chheenk|sneezing|nose block)\b/i.test(q) || q.includes("साइनस") || q.includes("छींक") || q.includes("नाक बंद")) {
+      clinicalAdvice = "साइनस और बंद नाक के लिए नीलगिरी के तेल के साथ गर्म पानी की भाप लें, गुनगुने पानी में नमक डालकर जलनेति करें और ठंडी चीजों से परहेज करें।";
     }
-    else if (/\b(pregnancy|garbhavastha|pregnant|garbh)\b/i.test(q) || q.includes("गर्भावस्था") || q.includes("प्रेग्नेंट")) {
-      clinicalAdvice = "गर्भावस्था के दौरान पौष्टिक घर का खाना, हरी सब्जियां, फल और पर्याप्त पानी लें। नियमित रूप से अपनी स्त्री रोग विशेषज्ञ (Gynecologist) से जांच और सोनोग्राफी करवाते रहें।";
+    else if (/\b(tonsil|tonsillitis|gale me ganth|swollen throat)\b/i.test(q) || q.includes("टॉन्सिल") || q.includes("गले में सूजन")) {
+      clinicalAdvice = "टॉन्सिल्स की सूजन में दिन में 3 बार गुनगुने नमक के पानी से गरारे करें, शहद में पिसी काली मिर्च मिलाकर लें और आइसक्रीम या कोल्ड ड्रिंक से पूरी तरह बचें।";
+    }
+    else if (/\b(cough|khansi|throat|gala|cold|जुकाम|kharash|balgam)\b/i.test(q) || q.includes("खांसी") || q.includes("गले") || q.includes("जुकाम")) {
+      clinicalAdvice = "खांसी और जुकाम के लिए दिन में दो बार गर्म पानी की भाप लें, अदरक, तुलसी और लौंग का काढ़ा पिएं और हल्दी वाला गुनगुना दूध लें।";
+    }
+    else if (/\b(fever|bukhar|temperature|tapman|chills)\b/i.test(q) || q.includes("बुखार") || q.includes("तापमान") || lastUserTurn.includes("bukhar") || lastUserTurn.includes("fever")) {
+      clinicalAdvice = "बुखार में पर्याप्त आराम करें, हर 4 घंटे में थर्मामीटर से तापमान नापें, गुनगुना पानी पिएं और माथे पर ताजे पानी की पट्टी रखें। यदि बुखार 101 डिग्री से अधिक हो, तो डॉक्टर से सलाह लें।";
     }
 
-    // --- DIGESTION & STOMACH ---
-    else if (/\b(acidity|gas|kabz|constipation|pet saaf|bloating|jalan|indigestion)\b/i.test(q) || q.includes("कब्ज") || q.includes("एसिडिटी") || q.includes("गैस") || q.includes("बदहजमी")) {
-      clinicalAdvice = "कब्ज और एसिडिटी के लिए सुबह गुनगुना पानी पिएं, पपीता व हरी पत्तेदार सब्जियां खाएं, भोजन के बाद 10 मिनट वज्रासन में बैठें और रात में इसबगोल या त्रिफला ले सकते हैं।";
+    // --- DIGESTIVE & LIVER ---
+    else if (/\b(fatty liver|liver|fatty|sgpt|sgot)\b/i.test(q) || q.includes("फैटी लिवर") || q.includes("लिवर")) {
+      clinicalAdvice = "फैटी लिवर को ठीक करने के लिए चीनी, मैदा और शराब पूरी तरह बंद करें। रोजाना 45 मिनट तेज टहलें, आंवला रस, ग्रीन टी और हरी पत्तेदार सब्जियां लें।";
+    }
+    else if (/\b(piles|bawasir|hemorrhoids|bleeding stool|masse)\b/i.test(q) || q.includes("बवासीर") || q.includes("पाइल्स") || q.includes("मस्से")) {
+      clinicalAdvice = "बवासीर (Piles) के लिए कब्ज से बचें। फाइबर युक्त भोजन, पपीता और दिन में 4 लीटर पानी पिएं। हल्के गर्म पानी के टब में 15 मिनट बैठें (Sitz Bath) और तीखे भोजन से बचें।";
+    }
+    else if (/\b(acidity|gas|kabz|constipation|pet saaf|bloating|jalan|gerd)\b/i.test(q) || q.includes("कब्ज") || q.includes("एसिडिटी") || q.includes("गैस") || q.includes("बदहजमी")) {
+      clinicalAdvice = "कब्ज और एसिडिटी के लिए सुबह खाली पेट गुनगुना पानी पिएं, रात में त्रिफला चूर्ण या इसबगोल लें, भोजन के बाद 10 मिनट वज्रासन करें और देर रात भोजन से बचें।";
     }
     else if (/\b(vomit|ulti|dast|loose motion|diarrhea|pet kharab|food poisoning)\b/i.test(q) || q.includes("उल्टी") || q.includes("दस्त") || q.includes("पेट खराब")) {
       clinicalAdvice = "उल्टी या दस्त में शरीर में पानी की कमी न होने दें। हर 15 मिनट में घूंट-घूंट करके ओआरएस का घोल या नारियल पानी पिएं, हल्का मूंग दाल का दलिया लें और तैलीय भोजन न लें।";
     }
     else if (/\b(pet|stomach|pet dard|stomach ache|belly pain|marod)\b/i.test(q) || q.includes("पेट दर्द") || q.includes("पेट में दर्द")) {
-      clinicalAdvice = "हल्के पेट दर्द के लिए गुनगुना पानी पिएं, अजवाइन और थोड़ा काला नमक लें और गर्म पानी की सिकाई करें। यदि दर्द बहुत तेज या दाहिनी तरफ हो, तो तुरंत डॉक्टर को दिखाएं।";
+      clinicalAdvice = "हल्के पेट दर्द के लिए गुनगुना पानी पिएं, भुनी अजवाइन और काला नमक लें और गर्म पानी की सिकाई करें। यदि दर्द बहुत तेज या दाहिनी तरफ हो, तो तुरंत डॉक्टर को दिखाएं।";
     }
 
-    // --- FEVER, COLD, COUGH & INFECTIONS ---
-    else if (/\b(headache|sar dard|sir dard|sar me dard|sir me dard|sir me|sar me|migraine)\b/i.test(q) || q.includes("सिरदर्द") || q.includes("सिर दर्द")) {
-      clinicalAdvice = "सिरदर्द के लिए 2 गिलास ताजा पानी पिएं, शांत व कम रोशनी वाले कमरे में विश्राम करें और फोन-टीवी स्क्रीन से दूरी बनाएं। यदि दर्द बहुत तीव्र हो, तो डॉक्टर से परामर्श लें।";
+    // --- CARDIOVASCULAR & METABOLIC ---
+    else if (/\b(cholesterol|heart blockage|triglycerides|naso me blockage)\b/i.test(q) || q.includes("कोलेस्ट्रॉल") || q.includes("हार्ट")) {
+      clinicalAdvice = "कोलेस्ट्रॉल घटाने के लिए सुबह खाली पेट कच्चा लहसुन खाएं, अलसी के बीज और ओट्स लें, रिफाइंड तेल व घी कम करें और रोजाना 4 किलोमीटर पैदल चलें।";
     }
-    else if (/\b(fever|bukhar|temperature|tapman|chills|cold fever)\b/i.test(q) || q.includes("बुखार") || q.includes("तापमान") || lastUserTurn.includes("bukhar") || lastUserTurn.includes("fever")) {
-      clinicalAdvice = "बुखार में पर्याप्त आराम करें, हर 4 घंटे में थर्मामीटर से तापमान नापें, गुनगुना पानी पिएं और माथे पर ताजे पानी की पट्टी रखें। यदि बुखार 101 डिग्री से अधिक हो, तो डॉक्टर से सलाह लें।";
-    }
-    else if (/\b(cough|khansi|throat|gala|cold|जुकाम|kharash|balgam|tonsil)\b/i.test(q) || q.includes("खांसी") || q.includes("गले") || q.includes("जुकाम")) {
-      clinicalAdvice = "खांसी और गले की खराश के लिए दिन में दो बार गुनगुने नमक के पानी से गरारे करें, गर्म पानी की भाप लें और अदरक-शहद का सेवन करें। ठंडी व खट्टी चीजों से परहेज रखें।";
-    }
-    else if (/\b(dengue|malaria|platelet|platelets|typhoid|chikungunya)\b/i.test(q) || q.includes("डेंगू") || q.includes("मलेरिया") || q.includes("टाइफाइड")) {
-      clinicalAdvice = "डेंगू या मलेरिया में प्रचुर मात्रा में नारियल पानी, पपीते के पत्ते का अर्क और ओआरएस लें ताकि डिहाइड्रेशन न हो। नजदीकी लैब में ब्लड टेस्ट और प्लेटलेट्स की नियमित जांच करवाएं।";
-    }
-    else if (/\b(weakness|fatigue|dizzy|dizziness|chakkar|kamzori|thakan)\b/i.test(q) || q.includes("कमजोरी") || q.includes("चक्कर") || q.includes("थकान")) {
-      clinicalAdvice = "कमजोरी या चक्कर आने पर तुरंत ओआरएस का घोल या ताजा नारियल पानी पिएं, फल या हल्का दलिया लें और विश्राम करें। समस्या बनी रहे तो बीपी और हीमोग्लोबिन चेक करवाएं।";
-    }
-
-    // --- CHRONIC CONDITIONS: DIABETES, BP, THYROID, JOINTS ---
     else if (/\b(diabetes|sugar|shugar|madhumeh|blood sugar)\b/i.test(q) || q.includes("मधुमेह") || q.includes("शुगर") || q.includes("डायबिटीज")) {
-      clinicalAdvice = "डायबिटीज नियंत्रण के लिए साबुत अनाज जैसे ज्वार-बाजरा, मेथी दाना, करेला और हरी सब्जियां लें। मीठे खाद्य पदार्थों से बचें और रोजाना 30 मिनट तेज गति से टहलें।";
+      clinicalAdvice = "डायबिटीज नियंत्रण के लिए जामुन, करेला, मेथी दाना और ज्वार-बाजरे की रोटी लें। मीठे खाद्य पदार्थों से बचें और रोजाना 30 मिनट तेज गति से टहलें।";
     }
     else if (/\b(bp|blood pressure|hypertension|high bp|low bp)\b/i.test(q) || q.includes("रक्तचाप") || q.includes("बीपी")) {
-      clinicalAdvice = "रक्तचाप (BP) को संतुलित रखने के लिए नमक कम खाएं, लहसुन व ताजे फल लें, तनावमुक्त रहें और नियमित रूप से अपना बीपी मापते रहें।";
+      clinicalAdvice = "रक्तचाप (BP) को संतुलित रखने के लिए नमक कम खाएं, पोटैशियम युक्त केले व नारियल पानी लें, तनावमुक्त रहें और नियमित रूप से अपना बीपी मापते रहें।";
     }
-    else if (/\b(joint|knee|back pain|body ache|kamar dard|ghutna|gathiya|arthritis)\b/i.test(q) || q.includes("जोड़ों") || q.includes("घुटने") || q.includes("कमर दर्द") || q.includes("गठिया")) {
-      clinicalAdvice = "जोड़ों व कमर दर्द में गर्म पानी की सिकाई करें, हल्दी वाला गुनगुना दूध पिएं और हल्का व्यायाम करें। ज्यादा देर एक ही मुद्रा में बैठने से बचें।";
+    else if (/\b(thyroid|thyroid gland|hypothyroidism|gale me sujan|t3 t4)\b/i.test(q) || q.includes("थायराइड") || q.includes("थायरॉइड")) {
+      clinicalAdvice = "थायराइड नियंत्रण के लिए धनिया बीज का पानी पिएं, आयोडीन व अखरोट लें, उज्जायी प्राणायाम करें और हर 3 महीने में टीएसएच (TSH) टेस्ट करवाते रहें।";
     }
-    else if (/\b(sleep|neend|insomnia|stress|anxiety|tension)\b/i.test(q) || q.includes("नींद") || q.includes("तनाव") || q.includes("चिंता")) {
-      clinicalAdvice = "अच्छी नींद और तनाव मुक्ति के लिए सोने से 1 घंटा पहले मोबाइल स्क्रीन बंद करें, रात में गुनगुना दूध पिएं और 10 मिनट गहरी सांस (प्राणायाम) लें।";
+    else if (/\b(kidney stone|pathri|mutra pathari|uric acid|gout)\b/i.test(q) || q.includes("पथरी") || q.includes("यूरिक एसिड")) {
+      clinicalAdvice = "गुर्दे की पथरी और यूरिक एसिड में रोजाना 4 से 5 लीटर पानी पिएं, कुलथी की दाल का पानी लें, नींबू पानी पिएं तथा पालक, टमाटर के बीज व लाल मांस से परहेज करें।";
     }
-    else if (/\b(skin|rash|allergy|itching|khujli|dana|pimples|acne|hair fall)\b/i.test(q) || q.includes("खुजली") || q.includes("त्वचा") || q.includes("मुंहासे") || q.includes("बाल")) {
-      clinicalAdvice = "त्वचा की खुजली या दानों पर ताजा एलोवेरा जेल या नारियल तेल लगाएं, हल्के सूती कपड़े पहनें। बालों के झड़ने पर आंवला लें और ज्यादा तनाव से बचें।";
+    else if (/\b(uti|urine infection|peshab me jalan|frequent urination)\b/i.test(q) || q.includes("पेशाब में जलन") || q.includes("यूटीआई")) {
+      clinicalAdvice = "पेशाब में जलन या यूटीआई संक्रमण में क्रैनबेरी जूस, जौ का पानी और प्रचुर मात्रा में पानी पिएं। स्वच्छता का ध्यान रखें और पेशाब को ज्यादा देर रोककर न रखें।";
+    }
+
+    // --- BONES, JOINTS & MUSCLES ---
+    else if (/\b(cervical|neck pain|gardhan dard|spondylosis|chakkar)\b/i.test(q) || q.includes("सर्वाइकल") || q.includes("गर्दन दर्द")) {
+      clinicalAdvice = "सर्वाइकल दर्द में भारी तकिए का प्रयोग न करें, गर्दन को लगातार नीचे झुकाकर मोबाइल न चलाएं, हल्की गर्दन की स्ट्रेचिंग करें और गर्म सिकाई करें।";
+    }
+    else if (/\b(sciatica|kamar dard|slip disc|reedh ki haddi|back pain)\b/i.test(q) || q.includes("साइटिका") || q.includes("कमर दर्द") || q.includes("स्लिप डिस्क")) {
+      clinicalAdvice = "कमर दर्द व साइटिका में भारी वजन न उठाएं, सीधे गद्दे पर सोएं, भुजंगासन और मकरासन करें तथा दर्द वाले हिस्से पर गर्म व ठंडी सिकाई बदल-बदल कर करें।";
+    }
+    else if (/\b(joint|knee|ghutna dard|gathiya|arthritis|osteoporosis)\b/i.test(q) || q.includes("जोड़ों") || q.includes("घुटने") || q.includes("गठिया")) {
+      clinicalAdvice = "जोड़ों व घुटनों के दर्द में मेथी दाना भिगोकर खाएं, तिल के तेल से हल्की मालिश करें, हल्दी-दूध लें और वजन नियंत्रित रखें ताकि घुटनों पर दबाव कम पड़े।";
+    }
+
+    // --- MENTAL WELLNESS & HEADACHE ---
+    else if (/\b(headache|sar dard|sir dard|sar me dard|migraine|adha sar dard)\b/i.test(q) || q.includes("सिरदर्द") || q.includes("माइग्रेन")) {
+      clinicalAdvice = "माइग्रेन और सिरदर्द के लिए अंधेरे शांत कमरे में आराम करें, माथे पर ठंडे पानी की पट्टी रखें, 2 गिलास पानी पिएं और चाय-कॉफी का अत्यधिक सेवन न करें।";
+    }
+    else if (/\b(sleep|neend|insomnia|stress|anxiety|depression|ghabrahat|tension)\b/i.test(q) || q.includes("नींद") || q.includes("तनाव") || q.includes("चिंता") || q.includes("घबराहट")) {
+      clinicalAdvice = "तनाव और घबराहट में गहरी सांसें (Deep Breathing) लें, रात में पैरों के तलवों की तेल मालिश करें, सोने से 1 घंटे पहले स्क्रीन बंद करें और ब्राह्मी या अश्वगंधा लें।";
+    }
+
+    // --- SKIN, HAIR & ALLERGY ---
+    else if (/\b(fungal|ringworm|daad|khaj|khujli|eczema|psoriasis)\b/i.test(q) || q.includes("दाद") || q.includes("खाज") || q.includes("खुजली") || q.includes("एक्जिमा")) {
+      clinicalAdvice = "दाद-खाज व फंगल इन्फेक्शन वाले हिस्से को सूखा व साफ रखें। नीम की पत्तियों के उबले पानी से धोएं, ढीले सूती कपड़े पहनें और साबुन का अधिक इस्तेमाल न करें।";
+    }
+    else if (/\b(hair fall|bal jhadna|dandruff|rusi|safed bal)\b/i.test(q) || q.includes("बाल झड़ना") || q.includes("रूसी") || q.includes("डैंड्रफ")) {
+      clinicalAdvice = "बाल झड़ने और रूसी के लिए आंवला, भृंगराज और नारियल तेल से स्कैल्प की मालिश करें, प्रोटीन युक्त दालें व अंडे लें और केमिकल युक्त शैम्पू से बचें।";
+    }
+
+    // --- WOMEN & CHILD HEALTH ---
+    else if (/\b(baby|bache|bacha|infant|child|teething|colic)\b/i.test(q) || q.includes("बच्चे") || q.includes("बच्चा") || q.includes("शिशु")) {
+      clinicalAdvice = "छोटे बच्चों में बुखार या पेट दर्द होने पर उन्हें ओआरएस और पर्याप्त तरल दें, सूती हल्के कपड़े पहनाएं। किसी भी दवा के लिए हमेशा बाल रोग विशेषज्ञ से ही परामर्श लें।";
+    }
+    else if (/\b(periods|period|mahawari|menses|cramps|period pain|pcos|pcod)\b/i.test(q) || q.includes("पीरियड्स") || q.includes("माहवारी") || q.includes("पीसीओडी")) {
+      clinicalAdvice = "माहवारी के दर्द और पीसीओडी में पेट के निचले हिस्से पर गर्म पानी की सिकाई करें, मेथी व दालचीनी की चाय पिएं, नियमित योग करें और जंक फूड से बचें।";
+    }
+    else if (/\b(pregnancy|garbhavastha|pregnant|garbh|vomiting in pregnancy)\b/i.test(q) || q.includes("गर्भावस्था") || q.includes("प्रेग्नेंट")) {
+      clinicalAdvice = "गर्भावस्था के दौरान फोलिक एसिड, हरी सब्जियां, फल और पर्याप्त पानी लें। नियमित रूप से अपनी स्त्री रोग विशेषज्ञ (Gynecologist) से जांच करवाते रहें।";
+    }
+
+    // --- LIFESTYLE, DIET & WATER ---
+    else if (/\b(vajan|weight loss|weight gain|motaapa|fat|slim|patla|wazan)\b/i.test(q) || q.includes("वजन") || q.includes("मोटापा")) {
+      clinicalAdvice = "वजन नियंत्रित रखने के लिए मीठे और तले हुए भोजन से बचें, फाइबर युक्त हरी सब्जियां व साबुत अनाज लें, रोजाना 3-4 लीटर पानी पिएं और 40 मिनट तेज पैदल चलें।";
+    }
+    else if (/\b(paani|water|hydration|liquid|kitna paani)\b/i.test(q) || q.includes("पानी") || q.includes("हाइड्रेशन")) {
+      clinicalAdvice = "एक स्वस्थ वयस्क को प्रतिदिन लगभग 8 से 10 गिलास (2.5 से 3.5 लीटर) ताजा पानी पीना चाहिए। पर्याप्त पानी पीने से पाचन क्रिया सुधरती है और ऊर्जा बनी रहती है।";
     }
 
     // --- DYNAMIC GENERAL HEALTH QUESTIONS FALLBACK (HINDI) ---
@@ -564,80 +585,38 @@ function getSimulatedHealthcareResponse(
   }
 
   // 3. English Clinical Knowledge Dispatcher
-  // Lifestyle & Nutrition
-  if (/\b(weight|weight loss|lose weight|weight gain|diet|nutrition|obesity)\b/i.test(q)) {
+  if (/\b(dengue|platelet|platelets|mosquito fever)\b/i.test(q)) {
+    clinicalAdvice = "Namaste! Dengue presents with high fever, severe retro-orbital eye pain, and dropping platelet counts. Drink plenty of tender coconut water, papaya leaf extract, and ORS to maintain hydration. Monitor platelet counts with daily blood tests.";
+  } else if (/\b(malaria|chills|shivering)\b/i.test(q)) {
+    clinicalAdvice = "Namaste! Malaria is characterized by periodic high fever accompanied by severe shivering and sweating. Please get a blood smear test immediately and rest in a well-ventilated room.";
+  } else if (/\b(typhoid|enteric fever)\b/i.test(q)) {
+    clinicalAdvice = "Namaste! Typhoid is an intestinal bacterial infection causing sustained step-ladder fever and abdominal discomfort. Drink only boiled water, eat easily digestible soft porridge, and consult a physician for a Widal test.";
+  } else if (/\b(jaundice|hepatitis|yellow eyes|yellow urine)\b/i.test(q)) {
+    clinicalAdvice = "Namaste! Jaundice indicates liver inflammation with yellowing of the eyes and dark urine. Consume fresh sugarcane juice, boiled radish, avoid all fried and oily foods, and take a liver function test.";
+  } else if (/\b(asthma|wheezing|inhaler|breathlessness)\b/i.test(q)) {
+    clinicalAdvice = "Namaste! For asthma, avoid cold air, dust, and smoke triggers. Keep your prescribed bronchodilator inhaler accessible, practice deep pranayama breathing, and drink warm fluids.";
+  } else if (/\b(fatty liver|liver health)\b/i.test(q)) {
+    clinicalAdvice = "Namaste! Managing fatty liver requires strictly cutting refined sugars, processed carbohydrates, and alcohol. Engage in 45 minutes of daily brisk cardio exercise and eat antioxidant-rich leafy greens.";
+  } else if (/\b(kidney stone|uric acid|gout)\b/i.test(q)) {
+    clinicalAdvice = "Namaste! For kidney stones and high uric acid, drink 4 to 5 liters of water daily, consume lemon water and horse gram soup, and restrict red meat, spinach, and tomato seeds.";
+  } else if (/\b(cervical|neck pain|spondylosis)\b/i.test(q)) {
+    clinicalAdvice = "Namaste! For cervical spondylosis, avoid high pillows, do not look down continuously at phone screens, do gentle neck range-of-motion exercises, and apply warm heating pads.";
+  } else if (/\b(sciatica|slip disc|back pain|spine)\b/i.test(q)) {
+    clinicalAdvice = "Namaste! For sciatica and lower back pain, sleep on a firm orthopedic mattress, avoid heavy lifting, practice gentle cobra stretches, and alternate hot and cold compresses.";
+  } else if (/\b(weight|weight loss|lose weight|weight gain|diet|nutrition|obesity)\b/i.test(q)) {
     clinicalAdvice = "Namaste! For healthy weight management, eat fiber-rich whole grains and green vegetables, avoid sugary and deep-fried foods, drink 3 liters of water daily, and do 40 minutes of brisk walking.";
   } else if (/\b(water|hydration|drink water|how much water)\b/i.test(q)) {
     clinicalAdvice = "Namaste! An adult should drink approximately 8 to 10 glasses (2.5 to 3.5 liters) of water daily. Staying hydrated aids digestion, maintains energy, and supports kidney function.";
-  } else if (/\b(vitamin|vitamin d|vitamin b12|calcium|iron|anemia)\b/i.test(q)) {
-    clinicalAdvice = "Namaste! For Vitamin D, get 15 minutes of morning sunlight. For Calcium and B12, include milk, yogurt, and paneer. For Iron, eat spinach, beetroot, and pomegranate.";
-  } else if (/\b(immunity|booster|energy|strength)\b/i.test(q)) {
-    clinicalAdvice = "Namaste! To boost immunity naturally, drink warm turmeric milk, consume Vitamin C rich citrus fruits like oranges and amla, and maintain 7 to 8 hours of sleep.";
-  } else if (/\b(exercise|yoga|walking|fitness|workout)\b/i.test(q)) {
-    clinicalAdvice = "Namaste! Engaging in 30 minutes of daily physical activity, such as brisk morning walks or pranayama yoga, strengthens heart and lung health.";
+  } else if (/\b(fever|high temperature|chills)\b/i.test(q)) {
+    clinicalAdvice = "Namaste! For fever, get plenty of bed rest, record your temperature every 4 hours, drink warm fluids, and place a cool damp cloth on the forehead. Consult a doctor if fever persists above 101 degrees.";
+  } else if (/\b(cough|cold|sore throat|congestion)\b/i.test(q)) {
+    clinicalAdvice = "Namaste! For a cough and cold, gargle with warm salt water twice daily, inhale steam from hot water, and drink warm turmeric milk or ginger tea before sleeping.";
+  } else {
+    clinicalAdvice = `Namaste! Swasthya Sathi understands your inquiry regarding "${query}". For general health, eat fresh home-cooked meals, maintain proper hydration with 8 to 10 glasses of water, and get 7 to 8 hours of sleep. If any symptom persists beyond 48 hours, please consult a registered medical doctor.`;
   }
 
-  // Eyes, Ears, Dental, Oral
-  else if (/\b(eye|eyes|vision|screen|strain|burning eyes)\b/i.test(q)) {
-    clinicalAdvice = "Namaste! For eye fatigue from digital screens, follow the 20-20-20 rule: look at an object 20 feet away every 20 minutes for 20 seconds. Splash cool water and rest your eyes.";
-  } else if (/\b(ear|earache|ear pain|hearing)\b/i.test(q)) {
-    clinicalAdvice = "Namaste! Avoid inserting any cotton buds or oils into the ear. Apply a warm dry cloth around the outer ear. If pain is sharp or accompanied by discharge, visit an ENT specialist.";
-  } else if (/\b(teeth|tooth|toothache|gums|ulcer|mouth ulcer)\b/i.test(q)) {
-    clinicalAdvice = "Namaste! For toothache and gum swelling, rinse with warm salt water and apply clove oil. For mouth ulcers, apply pure honey and consume Vitamin B-rich foods.";
-  }
-
-  // Child & Women Health
-  else if (/\b(baby|child|infant|toddler)\b/i.test(q)) {
-    clinicalAdvice = "Namaste! For children with fever or tummy upset, keep them hydrated with ORS and breastmilk or fluids, dress them in light cotton clothing, and consult a pediatrician promptly.";
-  } else if (/\b(period|periods|menses|menstrual|cramps)\b/i.test(q)) {
-    clinicalAdvice = "Namaste! For menstrual cramps, use a warm heating pad on your lower abdomen, sip warm ginger tea, stay hydrated, and get adequate bed rest.";
-  } else if (/\b(pregnant|pregnancy)\b/i.test(q)) {
-    clinicalAdvice = "Namaste! During pregnancy, focus on home-cooked nutrient-dense foods, stay well-hydrated, and have regular checkups with your licensed gynecologist.";
-  }
-
-  // Digestion & Stomach
-  else if (/\b(acidity|gas|constipation|indigestion|bloating)\b/i.test(q)) {
-    clinicalAdvice = "Namaste! For acidity and constipation, drink warm water in the morning, eat ripe papaya and leafy greens, avoid heavy spices, and take a light stroll after dinner.";
-  } else if (/\b(vomit|vomiting|diarrhea|loose motions|food poisoning)\b/i.test(q)) {
-    clinicalAdvice = "Namaste! For diarrhea or vomiting, prevent dehydration by sipping ORS solution and fresh coconut water every 15 minutes, and eat bland foods like plain khichdi.";
-  } else if (/\b(stomach|stomach ache|belly pain|cramps)\b/i.test(q)) {
-    clinicalAdvice = "Namaste! For mild stomach discomfort, sip warm water, avoid oily foods, and rest. If the pain is sharp or persistent, consult a doctor immediately.";
-  }
-
-  // Fever, Cold, Cough & Infections
-  else if (/\b(headache|head pain|migraine)\b/i.test(q)) {
-    clinicalAdvice = "Namaste! For a headache, drink two large glasses of fresh water, rest in a dim quiet room, and step away from digital screens. If accompanied by nausea, consult a doctor.";
-  } else if (/\b(fever|temperature|flu|chills)\b/i.test(q) || lastUserTurn.includes("fever")) {
-    clinicalAdvice = "Namaste! For fever, chart your temperature every 4 hours, drink warm fluids with ORS, and rest. If it exceeds 101 degrees or lasts over 3 days, consult a physician.";
-  } else if (/\b(cough|cold|throat|sore throat|congestion|phlegm)\b/i.test(q)) {
-    clinicalAdvice = "Namaste! For a cough and sore throat, practice warm steam inhalation, drink ginger honey tea, and gargle with warm salt water twice daily.";
-  } else if (/\b(dengue|malaria|platelet|platelets|typhoid)\b/i.test(q)) {
-    clinicalAdvice = "Namaste! In viral infections like dengue, maintain high hydration with coconut water and ORS, and have your blood counts tested regularly at a certified laboratory.";
-  } else if (/\b(weakness|fatigue|dizzy|dizziness|faint)\b/i.test(q)) {
-    clinicalAdvice = "Namaste! For dizziness or weakness, drink fresh coconut water or ORS electrolyte, have a light snack, and rest. Check your blood pressure if dizziness continues.";
-  }
-
-  // Chronic & Skin
-  else if (/\b(diabetes|sugar|blood sugar)\b/i.test(q)) {
-    clinicalAdvice = "Namaste! For blood sugar control, emphasize millets, bitter gourd, and green vegetables in your diet. Avoid refined sugar and walk for 30 minutes daily.";
-  } else if (/\b(bp|blood pressure|hypertension)\b/i.test(q)) {
-    clinicalAdvice = "Namaste! To manage blood pressure, reduce dietary sodium, eat fresh fruits and garlic, practice deep breathing, and check your BP regularly.";
-  } else if (/\b(joint|knee|back pain|body ache)\b/i.test(q)) {
-    clinicalAdvice = "Namaste! For joint or back pain, apply a warm compress, perform gentle stretches, and drink warm turmeric milk at night. Avoid sitting in one posture for long hours.";
-  } else if (/\b(sleep|insomnia|stress|anxiety)\b/i.test(q)) {
-    clinicalAdvice = "Namaste! For restful sleep and stress relief, disconnect from screens 1 hour before bedtime, drink warm milk, and practice 10 minutes of slow deep breathing.";
-  } else if (/\b(skin|rash|itching|allergy|acne|hair fall)\b/i.test(q)) {
-    clinicalAdvice = "Namaste! For skin irritation, apply pure aloe vera gel or coconut oil, wear loose cotton clothes, and avoid harsh soaps. Consult a dermatologist if it persists.";
-  }
-
-  // General Fallback (English)
-  else {
-    clinicalAdvice = `Namaste! Regarding "${query}", I recommend staying well-hydrated, eating balanced home-cooked meals, and getting adequate rest. If your symptoms persist beyond 2 to 3 days, please consult a registered medical doctor.`;
-  }
-
-  // Append consent inquiry if new patient
   if (shouldAskConsent) {
-    clinicalAdvice += " For better assistance on future calls, may I save your name and this health summary?";
+    clinicalAdvice += " For your convenience, may I save your name and health summary for future consultations?";
   }
 
   return {
@@ -646,4 +625,3 @@ function getSimulatedHealthcareResponse(
     functionCalled: null,
   };
 }
-

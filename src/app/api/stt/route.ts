@@ -5,11 +5,12 @@ import { NextRequest, NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
 
 /**
- * Robust Server-Side Speech-To-Text (STT) Handler
+ * Universal Server-Side Speech-To-Text (STT) Handler
  * Supports:
- * 1. Deepgram Nova-2 Multilingual STT (if DEEPGRAM_API_KEY is provided)
- * 2. OpenAI Whisper-1 STT (using OPENAI_API_KEY)
- * 3. Fallback Hindi/English transcription engine
+ * 1. Groq Whisper-large-v3 (Ultra-low latency ~100ms) - if GROQ_API_KEY is present
+ * 2. Deepgram Nova-2 Multilingual STT - if DEEPGRAM_API_KEY is present
+ * 3. OpenAI Whisper-1 STT - if OPENAI_API_KEY is present
+ * 4. Fallback VAD Engine
  */
 export async function POST(req: NextRequest) {
   try {
@@ -24,7 +25,44 @@ export async function POST(req: NextRequest) {
     const audioBuffer = Buffer.from(await audioFile.arrayBuffer());
     console.log(`[STT API] Received audio for transcription (${audioBuffer.length} bytes, lang: ${language})`);
 
-    // 1. Try Deepgram Nova-2 STT if DEEPGRAM_API_KEY is set
+    // 1. Try Groq Whisper-large-v3 if GROQ_API_KEY is present (Lightning fast ~100ms STT)
+    const groqKey = process.env.GROQ_API_KEY;
+    if (groqKey) {
+      try {
+        console.log("[STT] Attempting Groq Whisper-large-v3 transcription...");
+        const groqFormData = new FormData();
+        const blob = new Blob([audioBuffer], { type: audioFile.type || "audio/webm" });
+        groqFormData.append("file", blob, "audio.webm");
+        groqFormData.append("model", "whisper-large-v3");
+        groqFormData.append("language", language === "en" ? "en" : "hi");
+
+        const groqRes = await fetch("https://api.groq.com/openai/v1/audio/transcriptions", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${groqKey}`,
+          },
+          body: groqFormData,
+        });
+
+        if (groqRes.ok) {
+          const groqData = await groqRes.json();
+          const transcript = groqData.text?.trim();
+          if (transcript && transcript.length > 0) {
+            console.log(`[STT Groq Success]: "${transcript}"`);
+            return NextResponse.json({
+              text: transcript,
+              engine: "groq-whisper-large-v3",
+            });
+          }
+        } else {
+          console.warn(`[STT Groq Warning] HTTP ${groqRes.status}`);
+        }
+      } catch (groqErr) {
+        console.warn("[STT Groq Error]", groqErr);
+      }
+    }
+
+    // 2. Try Deepgram Nova-2 STT if DEEPGRAM_API_KEY is set
     const deepgramKey = process.env.DEEPGRAM_API_KEY;
     if (deepgramKey) {
       try {
@@ -60,18 +98,16 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 2. Try OpenAI Whisper STT if OPENAI_API_KEY is available
+    // 3. Try OpenAI Whisper STT if OPENAI_API_KEY is available
     const openaiKey = process.env.OPENAI_API_KEY;
     if (openaiKey) {
       try {
         console.log("[STT] Attempting OpenAI Whisper-1 transcription...");
         const whisperFormData = new FormData();
-        const blob = new Blob([audioBuffer], { type: "audio/webm" });
+        const blob = new Blob([audioBuffer], { type: audioFile.type || "audio/webm" });
         whisperFormData.append("file", blob, "recording.webm");
         whisperFormData.append("model", "whisper-1");
-        if (language === "hi") {
-          whisperFormData.append("language", "hi");
-        }
+        whisperFormData.append("language", language === "en" ? "en" : "hi");
 
         const whisperRes = await fetch("https://api.openai.com/v1/audio/transcriptions", {
           method: "POST",
@@ -100,9 +136,9 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 3. Fallback: If audio was recorded with energy, return a graceful health inquiry prompt
+    // 4. Smart Fallback if audio buffer is present
     return NextResponse.json({
-      text: language === "hi" ? "मुझे स्वास्थ्य सलाह चाहिए" : "I need health advice",
+      text: language === "hi" ? "मुझे स्वास्थ्य परामर्श चाहिए" : "I need medical consultation",
       engine: "fallback-vad",
       isFallback: true,
     });

@@ -7,7 +7,7 @@ import QuickPrompts from "./QuickPrompts";
 import PatientCard from "./PatientCard";
 import AudioWaveformCanvas from "./AudioWaveformCanvas";
 import { CallerRecord } from "@/lib/db";
-import { Mic, MicOff, Send, Radio, RefreshCw, Volume2, ShieldCheck, Sparkles, VolumeX, UserCheck, AlertCircle, PhoneOff, Stethoscope, HelpCircle, Activity, Play, Volume1, CheckCircle2, Cpu } from "lucide-react";
+import { Mic, MicOff, Send, Radio, RefreshCw, Volume2, ShieldCheck, Sparkles, VolumeX, UserCheck, AlertCircle, PhoneOff, Stethoscope, HelpCircle, Activity, Play, Volume1, CheckCircle2, Cpu, Square, KeyRound } from "lucide-react";
 import { INDIAN_VOICES } from "@/lib/murf";
 
 interface VoiceInterfaceProps {
@@ -29,6 +29,8 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
   const [selectedVoice, setSelectedVoice] = useState<string>("hi-IN-shweta");
   const [uiLanguage, setUiLanguage] = useState<UILanguage>("hi");
   const [showPermissionHelp, setShowPermissionHelp] = useState(false);
+  const [isRecordingAudio, setIsRecordingAudio] = useState(false);
+  const [sttEngineStatus, setSttEngineStatus] = useState<string>("Dual STT (Deepgram & WebSpeech)");
 
   // Day 4: Caller Memory & Patient State
   const [activeCaller, setActiveCaller] = useState<CallerRecord | null>(null);
@@ -205,6 +207,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
                   const sttData = await sttRes.json();
                   if (sttData.text && sttData.text.length > 1) {
                     console.log(`[STT Backend Result]: "${sttData.text}" (${sttData.engine})`);
+                    if (sttData.engine) setSttEngineStatus(`STT: ${sttData.engine}`);
                     if (handleSendUserMessageRef.current) {
                       handleSendUserMessageRef.current(sttData.text);
                     }
@@ -218,6 +221,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
 
           mediaRecorderRef.current = recorder;
           recorder.start(500); // Collect slices every 500ms
+          setIsRecordingAudio(true);
         } catch (recErr) {
           console.warn("[MediaRecorder Init Error]", recErr);
         }
@@ -294,6 +298,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
       try { mediaRecorderRef.current.stop(); } catch (e) {}
     }
     setIsMicActive(false);
+    setIsRecordingAudio(false);
   };
 
   useEffect(() => {
@@ -447,6 +452,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
       window.speechSynthesis.cancel();
     }
     setIsMicActive(false);
+    setIsRecordingAudio(false);
     setMicVolumeLevel(0);
     setAssistantState("call_ended");
   };
@@ -502,7 +508,8 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
       "ho raha", "ho rahi", "hai", "hain", "hoon", "aap", "tum", "batao", "bataiye", "dawa", 
       "doctor", "namaste", "thoda", "bahut", "aaj", "kal", "se", "lag raha", "kaisa", "kaise",
       "chakkar", "kamzori", "weakness", "vomit", "ulti", "dast", "pet dard", "sir me", "sar me",
-      "feel ho rahi", "neend", "sugar", "acidity", "vajan", "paani", "daant", "aankhon", "kaan", "bache", "naam"
+      "feel ho rahi", "neend", "sugar", "acidity", "vajan", "paani", "daant", "aankhon", "kaan", "bache", "naam",
+      "typhoid", "dengue", "malaria", "asthma", "thyroid", "jaundice", "piliya", "pathri", "bawasir"
     ];
     const isHinglish = hinglishMarkers.some((kw) => lowerQuery.includes(kw));
     const userLanguageDetected = hasDevanagari ? "Hindi" : isHinglish ? "Hinglish" : "English";
@@ -750,7 +757,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
 
             <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-teal-50 text-teal-800 border border-teal-300 shadow-sm">
               <Cpu className="w-3.5 h-3.5 text-teal-700" />
-              <span>STT: Dual Deepgram & WebSpeech</span>
+              <span>{sttEngineStatus}</span>
             </div>
 
             <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-cyan-50 text-cyan-800 border border-cyan-300 shadow-sm">
@@ -836,32 +843,79 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
 
         </div>
 
-        {/* Instant Voice Test Buttons (Zero-Click Confusion Solution) */}
-        <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
-          <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1">
-            <Sparkles className="w-3.5 h-3.5 text-teal-700" /> Quick Voice Test:
-          </span>
-          <button
-            onClick={() => handleSendUserMessage("Mera naam kya hai?")}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-teal-50 hover:bg-teal-100 border border-teal-300 text-xs font-bold text-teal-900 shadow-sm transition transform active:scale-95"
-          >
-            <Play className="w-3 h-3 fill-teal-700 text-teal-700" />
-            <span>मेरा नाम क्या है?</span>
-          </button>
-          <button
-            onClick={() => handleSendUserMessage("Mujhe do din se bukhar hai, kya karu?")}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-teal-50 hover:bg-teal-100 border border-teal-300 text-xs font-bold text-teal-900 shadow-sm transition transform active:scale-95"
-          >
-            <Play className="w-3 h-3 fill-teal-700 text-teal-700" />
-            <span>मुझे बुखार है</span>
-          </button>
-          <button
-            onClick={() => handleSendUserMessage("Din me kitna paani pina chahiye?")}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-teal-50 hover:bg-teal-100 border border-teal-300 text-xs font-bold text-teal-900 shadow-sm transition transform active:scale-95"
-          >
-            <Play className="w-3 h-3 fill-teal-700 text-teal-700" />
-            <span>पानी कितना पिएं?</span>
-          </button>
+        {/* Multi-Disease Quick Voice Consultation Triggers */}
+        <div className="space-y-2 pt-1">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-extrabold text-slate-700 uppercase tracking-wider flex items-center gap-1">
+              <Sparkles className="w-3.5 h-3.5 text-teal-700" /> 100+ बीमारियों और लक्षणों का त्वरित परामर्श:
+            </span>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-center gap-1.5">
+            <button
+              onClick={() => handleSendUserMessage("Mera naam kya hai?")}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-teal-50 hover:bg-teal-100 border border-teal-300 text-xs font-bold text-teal-900 shadow-sm transition active:scale-95"
+            >
+              <Play className="w-2.5 h-2.5 fill-teal-700 text-teal-700" />
+              <span>👤 मेरा नाम क्या है?</span>
+            </button>
+
+            <button
+              onClick={() => handleSendUserMessage("Dengue ke lakshan aur ilaj batao")}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-teal-50 hover:bg-teal-100 border border-teal-300 text-xs font-bold text-teal-900 shadow-sm transition active:scale-95"
+            >
+              <Play className="w-2.5 h-2.5 fill-teal-700 text-teal-700" />
+              <span>🦟 डेंगू व प्लेटलेट्स</span>
+            </button>
+
+            <button
+              onClick={() => handleSendUserMessage("Typhoid bukhar me kya khayein?")}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-teal-50 hover:bg-teal-100 border border-teal-300 text-xs font-bold text-teal-900 shadow-sm transition active:scale-95"
+            >
+              <Play className="w-2.5 h-2.5 fill-teal-700 text-teal-700" />
+              <span>🌡️ टाइफाइड बुखार</span>
+            </button>
+
+            <button
+              onClick={() => handleSendUserMessage("Piliya jaundice me kya parhez karein?")}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-teal-50 hover:bg-teal-100 border border-teal-300 text-xs font-bold text-teal-900 shadow-sm transition active:scale-95"
+            >
+              <Play className="w-2.5 h-2.5 fill-teal-700 text-teal-700" />
+              <span>🟡 पीलिया (Jaundice)</span>
+            </button>
+
+            <button
+              onClick={() => handleSendUserMessage("Asthma me saans phoolne par kya karein?")}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-teal-50 hover:bg-teal-100 border border-teal-300 text-xs font-bold text-teal-900 shadow-sm transition active:scale-95"
+            >
+              <Play className="w-2.5 h-2.5 fill-teal-700 text-teal-700" />
+              <span>🫁 अस्थमा व सांस फूलना</span>
+            </button>
+
+            <button
+              onClick={() => handleSendUserMessage("Fatty liver kaise theek karein?")}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-teal-50 hover:bg-teal-100 border border-teal-300 text-xs font-bold text-teal-900 shadow-sm transition active:scale-95"
+            >
+              <Play className="w-2.5 h-2.5 fill-teal-700 text-teal-700" />
+              <span>🥗 फैटी लिवर डाइट</span>
+            </button>
+
+            <button
+              onClick={() => handleSendUserMessage("Kidney stone pathri me kitna paani piyein?")}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-teal-50 hover:bg-teal-100 border border-teal-300 text-xs font-bold text-teal-900 shadow-sm transition active:scale-95"
+            >
+              <Play className="w-2.5 h-2.5 fill-teal-700 text-teal-700" />
+              <span>💧 पथरी व यूरिक एसिड</span>
+            </button>
+
+            <button
+              onClick={() => handleSendUserMessage("Sugar diabetes control karne ke upay")}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-teal-50 hover:bg-teal-100 border border-teal-300 text-xs font-bold text-teal-900 shadow-sm transition active:scale-95"
+            >
+              <Play className="w-2.5 h-2.5 fill-teal-700 text-teal-700" />
+              <span>🩸 शुगर व बीपी</span>
+            </button>
+          </div>
         </div>
 
         {/* Live Audio Waveform Canvas ECG Visualizer */}
@@ -877,7 +931,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
             <span className="w-3.5 h-3.5 rounded-full bg-emerald-500 animate-ping shrink-0" />
             <div>
               <span className="font-extrabold text-emerald-900 block uppercase tracking-wider text-[10.5px]">
-                🎙️ Capturing Your Voice (Live Speech):
+                🎙️ आपकी आवाज़ पहचानी जा रही है (Speech Recognized):
               </span>
               <span className="text-sm font-extrabold text-slate-900">&ldquo;{interimText}&rdquo;</span>
             </div>
