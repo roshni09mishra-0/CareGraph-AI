@@ -7,7 +7,7 @@ import QuickPrompts from "./QuickPrompts";
 import PatientCard from "./PatientCard";
 import AudioWaveformCanvas from "./AudioWaveformCanvas";
 import { CallerRecord } from "@/lib/db";
-import { Mic, MicOff, Send, Radio, RefreshCw, Volume2, ShieldCheck, Sparkles, VolumeX, UserCheck, AlertCircle, PhoneOff, Stethoscope, HelpCircle, Activity } from "lucide-react";
+import { Mic, MicOff, Send, Radio, RefreshCw, Volume2, ShieldCheck, Sparkles, VolumeX, UserCheck, AlertCircle, PhoneOff, Stethoscope, HelpCircle, Activity, Play } from "lucide-react";
 import { INDIAN_VOICES } from "@/lib/murf";
 
 interface VoiceInterfaceProps {
@@ -223,7 +223,6 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
             setInterimText(interim);
             setInputText(interim);
 
-            // Silence fallback: If speech is heard and user pauses for 750ms, trigger AI response!
             if (speechSilenceTimerRef.current) clearTimeout(speechSilenceTimerRef.current);
             speechSilenceTimerRef.current = setTimeout(() => {
               const currentInterim = interim.trim();
@@ -261,7 +260,6 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
             setShowPermissionHelp(true);
             setErrorMessage("Microphone permission blocked! Click the Lock / Settings icon in your browser address bar and set Microphone to ALLOW.");
           } else if (event.error === "no-speech") {
-            // Chrome standard silence event, keep listening loop alive
             isRecognitionRunningRef.current = false;
             if (shouldListenRef.current && assistantStateRef.current === "listening") {
               setTimeout(safeStartRecognition, 100);
@@ -287,7 +285,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
     }
   }, [uiLanguage]);
 
-  // Start Consultation Call (Directly enters Listening Mode)
+  // Start Consultation Call (Directly enters Listening Mode & Greets)
   const handleStartCall = async () => {
     console.log("[Voice] Initializing consultation call...");
     setErrorMessage("");
@@ -317,11 +315,10 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
       }
     }
 
-    // Start listening to the user's voice immediately
+    // Greet user on first call start
     setTimeout(() => {
-      setAssistantState("listening");
-      safeStartRecognition();
-    }, 250);
+      handleSendUserMessage("Namaste", true);
+    }, 200);
   };
 
   // End Consultation Call (Transition to Call Ended)
@@ -388,11 +385,6 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
 
     // Barge-in: Stop any currently playing assistant audio immediately
     stopAllAssistantAudio();
-
-    if (isProcessingQueryRef.current) {
-      console.log("[Voice] Processing in flight, queuing query:", cleanText);
-    }
-    isProcessingQueryRef.current = true;
 
     // 1. Detect User Input Language
     const hasDevanagari = /[\u0900-\u097F]/.test(cleanText);
@@ -489,7 +481,6 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
       });
 
       const ttsData = await ttsRes.json();
-      isProcessingQueryRef.current = false;
 
       const aiMsgId = `ai-${Date.now()}`;
       const aiMsg: Message = {
@@ -516,7 +507,6 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
 
     } catch (err: any) {
       console.error("[Voice Error] AI chat/TTS failed:", err);
-      isProcessingQueryRef.current = false;
       setAssistantState("error");
       setErrorMessage("Service temporarily unavailable. Retrying...");
       setTimeout(() => returnToListeningMode(), 1500);
@@ -721,66 +711,33 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
 
         </div>
 
-        {/* Voice Justification & Interactive Indian Accent Selector Banner */}
-        <div className="p-3.5 rounded-2xl bg-teal-50/70 border border-teal-200/90 text-xs space-y-2">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-teal-900 font-bold">
-            <span className="flex items-center gap-1.5">
-              <Sparkles className="w-4 h-4 text-teal-700" />
-              Indian Voice Engine (Murf Falcon 2):
-            </span>
-
-            {/* Interactive Voice Selector */}
-            <div className="flex items-center gap-1.5 bg-white border border-teal-300 rounded-xl px-2.5 py-1 shadow-sm">
-              <UserCheck className="w-3.5 h-3.5 text-teal-700" />
-              <select
-                value={selectedVoice}
-                onChange={(e) => setSelectedVoice(e.target.value)}
-                className="bg-transparent text-teal-950 font-bold text-xs focus:outline-none cursor-pointer"
-              >
-                {INDIAN_VOICES.map((v) => (
-                  <option key={v.id} value={v.id} className="bg-white text-slate-800">
-                    🇮🇳 {v.name} ({v.style})
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <p className="text-slate-600 text-[11.5px] italic leading-relaxed font-medium">
-            &ldquo;For Health Access, authentic Indian English & Hindi voice profiles build clinical trust and deliver clear medical advice in familiar regional speech cadences.&rdquo;
-          </p>
+        {/* Instant Voice Test Buttons (Zero-Click Confusion Solution) */}
+        <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
+          <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1">
+            <Sparkles className="w-3.5 h-3.5 text-teal-700" /> Quick Voice Test:
+          </span>
+          <button
+            onClick={() => handleSendUserMessage("Mera naam kya hai?")}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-teal-50 hover:bg-teal-100 border border-teal-300 text-xs font-bold text-teal-900 shadow-sm transition transform active:scale-95"
+          >
+            <Play className="w-3 h-3 fill-teal-700 text-teal-700" />
+            <span>मेरा नाम क्या है?</span>
+          </button>
+          <button
+            onClick={() => handleSendUserMessage("Mujhe do din se bukhar hai, kya karu?")}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-teal-50 hover:bg-teal-100 border border-teal-300 text-xs font-bold text-teal-900 shadow-sm transition transform active:scale-95"
+          >
+            <Play className="w-3 h-3 fill-teal-700 text-teal-700" />
+            <span>मुझे बुखार है</span>
+          </button>
+          <button
+            onClick={() => handleSendUserMessage("Din me kitna paani pina chahiye?")}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-teal-50 hover:bg-teal-100 border border-teal-300 text-xs font-bold text-teal-900 shadow-sm transition transform active:scale-95"
+          >
+            <Play className="w-3 h-3 fill-teal-700 text-teal-700" />
+            <span>पानी कितना पिएं?</span>
+          </button>
         </div>
-
-        {/* Microphone Permission Diagnostic Card */}
-        {showPermissionHelp && (
-          <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-xs text-rose-900 space-y-2 animate-fadeIn">
-            <div className="flex items-center gap-2 font-bold text-rose-800 text-sm">
-              <AlertCircle className="w-5 h-5 text-rose-600" />
-              <span>Microphone Access Blocked</span>
-            </div>
-            <p className="leading-relaxed font-medium">
-              Your browser is blocking microphone access for <strong>http://127.0.0.1:3000</strong>. Follow these steps to enable voice input:
-            </p>
-            <ol className="list-decimal list-inside space-y-1 text-slate-700 text-[11.5px] pl-1 font-medium">
-              <li>Click the <strong>Lock 🔒</strong> icon on the left side of your browser address bar.</li>
-              <li>Toggle <strong>Microphone</strong> to <strong>Allow</strong>, then click the button below to retry.</li>
-            </ol>
-            <div className="pt-2 flex items-center gap-2">
-              <button
-                onClick={handleStartCall}
-                className="px-3.5 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs transition"
-              >
-                Retry Microphone
-              </button>
-              <button
-                onClick={() => setShowPermissionHelp(false)}
-                className="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs transition"
-              >
-                Dismiss
-              </button>
-            </div>
-          </div>
-        )}
 
         {/* Live Audio Waveform Canvas ECG Visualizer */}
         <AudioWaveformCanvas
@@ -818,7 +775,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
               className="flex items-center gap-3 px-9 py-4 rounded-2xl font-extrabold text-base text-white bg-gradient-to-r from-teal-600 via-teal-700 to-emerald-700 hover:from-teal-500 hover:to-emerald-600 shadow-xl shadow-teal-700/25 transition transform hover:scale-105 active:scale-95"
             >
               <Mic className="w-5 h-5 stroke-[2.5]" />
-              <span>{uiLanguage === "hi" ? "परामर्श शुरू करें (बोलिए)" : "Start Health Consultation (Tap to Speak)"}</span>
+              <span>{uiLanguage === "hi" ? "परामर्श शुरू करें (कॉल शुरू करें)" : "Start Health Consultation (Begin Call)"}</span>
             </button>
           )}
 
@@ -833,7 +790,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
                 }`}
               >
                 <Mic className="w-4 h-4" />
-                <span>{isMicActive ? "Listening (Active)" : "Tap to Speak"}</span>
+                <span>{isMicActive ? "Listening (Microphone Active)" : "Tap to Speak"}</span>
               </button>
 
               <button
