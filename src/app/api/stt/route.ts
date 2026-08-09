@@ -61,6 +61,12 @@ async function transcribeWithDeepgram(audioBuffer: Buffer, contentType: string, 
         resolve(null);
       });
 
+      // Set 8s timeout to avoid hangs
+      req.setTimeout(8000, () => {
+        req.destroy();
+        resolve(null);
+      });
+
       req.write(audioBuffer);
       req.end();
     } catch (err) {
@@ -87,7 +93,7 @@ export async function POST(req: NextRequest) {
     const contentType = audioFile.type || "audio/webm";
     console.log(`[STT API] Received audio for transcription (${audioBuffer.length} bytes, type: ${contentType}, lang: ${language})`);
 
-    // 1. Primary: Deepgram Nova-2 Multilingual Engine
+    // Primary: Deepgram Nova-2 Multilingual Engine
     const deepgramTranscript = await transcribeWithDeepgram(audioBuffer, contentType, language);
     if (deepgramTranscript) {
       return NextResponse.json({
@@ -97,11 +103,10 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // 2. Fallback VAD
     return NextResponse.json({
-      text: language === "hi" ? "मुझे स्वास्थ्य परामर्श चाहिए" : "I need medical consultation",
-      engine: "fallback-vad",
-      isFallback: true,
+      text: "",
+      engine: "none",
+      success: false,
     });
 
   } catch (error: any) {

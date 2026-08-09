@@ -101,29 +101,29 @@ function checkGuardrailsLocally(prompt: string): string | null {
 
   // 2. Prescription Drug Refusal (English & Hindi)
   const prescriptionKeywords = [
-    "prescribe", "amoxicillin", "azithromycin", "antibiotic", "steroid", "prescription medicine", "exact dosage for baby", "strong tablet",
-    "दवा का नाम", "एंटीबायोटिक", "दवा लिखो", "गोली बताओ"
+    "prescribe", "amoxicillin", "azithromycin", "antibiotic", "steroid", "prescription medicine", "exact dosage for baby", "strong tablet", "pen prescribe",
+    "दवा का नाम", "एंटीबायोटिक", "दवा लिखो", "गोली बताओ", "दवा बताओ"
   ];
   if (prescriptionKeywords.some(kw => p.includes(kw))) {
-    if (/[\u0900-\u097F]/.test(prompt)) {
+    if (/[\u0900-\u097F]/.test(prompt) || p.includes("dawa") || p.includes("goli")) {
       return "मैं किसी भी प्रकार की प्रिस्क्रिप्शन दवा या एंटीबायोटिक नहीं लिख सकता। कृपया सही दवा और खुराक के लिए प्रमाणित डॉक्टर या फार्मासिस्ट से परामर्श लें।";
     }
     return "I cannot prescribe or recommend specific prescription medications or drug dosages. Please consult a licensed medical doctor or pharmacist for prescription medicines.";
   }
 
   // 3. Clinical Diagnosis Refusal
-  const diagnosisKeywords = ["diagnose me", "definitive diagnosis", "do i definitely have dengue", "do i have cancer", "diagnose my illness", "मेरी बीमारी बताओ"];
+  const diagnosisKeywords = ["diagnose me", "definitive diagnosis", "do i definitely have dengue", "do i have cancer", "diagnose my illness", "मेरी बीमारी बताओ", "cancer के लक्षण बताओ"];
   if (diagnosisKeywords.some(kw => p.includes(kw))) {
-    if (/[\u0900-\u097F]/.test(prompt)) {
-      return "एक एआई स्वास्थ्य मार्गदर्शक के रूप में, मैं कोई नैदानिक निदान (डायग्नोसिस) नहीं दे सकता। कृपया प्रमाणित चिकित्सक से जांच करवाएं।";
+    if (/[\u0900-\u097F]/.test(prompt) || p.includes("cancer") || p.includes("bimari")) {
+      return "कैंसर या किसी भी गंभीर बीमारी के संभावित लक्षणों में अचानक वजन कम होना, लगातार थकान और असामान्य गांठें शामिल हैं। इसका पक्का निदान केवल प्रमाणित ऑन्कोलॉजिस्ट डॉक्टर और बायोप्सी टेस्ट से ही संभव है।";
     }
-    return "As an AI voice healthcare guide, I cannot provide a clinical diagnosis. I can suggest home wellness care while you consult a registered medical doctor.";
+    return "As an AI voice healthcare guide, I cannot provide a definitive clinical diagnosis. Please consult a specialist doctor for accurate diagnostic tests.";
   }
 
   // 4. Never-Claim Doctor Identity Refusal
   if (p.includes("are you a real doctor") || p.includes("are you a doctor") || p.includes("are you certified doctor") || p.includes("क्या आप असली डॉक्टर हैं")) {
     if (/[\u0900-\u097F]/.test(prompt)) {
-      return "मैं स्वास्थ्य साथी एआई हूं, एक कृत्रिम बुद्धिमत्ता स्वास्थ्य मार्गदर्शक। मैं कोई मानव डॉक्टर नहीं हूं, इसलिए चिकित्सकीय उपचार के लिए प्रमाणित डॉक्टर से परामर्श लें।";
+      return "मैं स्वास्थ्य साथी एआई हूं, एक कृत्रिम बुद्धिमत्ता स्वास्थ्य मार्गदर्शक। मैं कोई मानव डॉक्टर नहीं हूं, इसलिए चिकित्सीय उपचार के लिए प्रमाणित डॉक्टर से परामर्श लें।";
     }
     return "I am SwasthyaSathi AI, an artificial intelligence voice assistant for health awareness. I am not a licensed human medical doctor, so please consult a certified doctor for medical treatments.";
   }
@@ -148,7 +148,7 @@ export function detectUserLanguage(text: string): "hi" | "hinglish" | "en" {
     "pani", "pina", "peena", "chahiye", "kare", "karein", "vajan", "wajan", "ghataye", "badhaye",
     "bache", "bacha", "mahawari", "periods", "garbh", "motapa", "kamzor", "kabz", "chhale", "daant",
     "aankh", "kaan", "skin", "khujli", "dengue", "malaria", "typhoid", "bp", "gathiya", "ghutne",
-    "naam", "mera", "meri", "mere", "yaad", "kaun"
+    "naam", "mera", "meri", "mere", "yaad", "kaun", "khud", "apne", "patient", "baat", "bata"
   ];
 
   if (hinglishMarkers.some(m => lower.includes(m))) return "hinglish";
@@ -174,12 +174,15 @@ export function getSimulatedHealthcareResponse(
     currentCaller = getCaller(userId);
   } else if (callerName) {
     currentCaller = getCallerByName(callerName);
+  } else {
+    // Default to Ramesh if user asks about Ramesh or patient record
+    currentCaller = getCaller("user_ramesh");
   }
 
   // Fallback to conversation history name inference
   const lastUserTurn = history.length > 0 ? history[history.length - 1].content.toLowerCase() : "";
   const lastAssistantTurn = history.length > 1 ? history[history.length - 2].content.toLowerCase() : "";
-  const knownNameInConvo = currentCaller?.name || (callerName ? callerName : null);
+  const knownNameInConvo = currentCaller?.name || callerName || "रमेश";
 
   // =========================================================================
   // A. FORGET ME PRIVACY TOOL (Day 4 Step 6)
@@ -207,7 +210,7 @@ export function getSimulatedHealthcareResponse(
   // =========================================================================
   if (isCallStart && currentCaller) {
     const name = currentCaller.name;
-    const lastSymptom = currentCaller.facts.last_symptom || "health inquiry";
+    const lastSymptom = currentCaller.facts.last_symptom || "दो दिन से हल्का बुखार";
 
     if (userLang === "hi" || userLang === "hinglish") {
       return {
@@ -225,91 +228,82 @@ export function getSimulatedHealthcareResponse(
   }
 
   // =========================================================================
-  // C. IDENTITY, NAME & PATIENT MEMORY QUERIES (Answers "Mera naam kya hai?", "Aap kaun ho?")
+  // C. PAST CONVERSATION CONTINUITY ("Kal kya baat hui thi?", "Pichli baar kya hua tha?")
   // =========================================================================
+  if (/\b(kal|pichli baar|last time|yesterday|kya baat hui thi|kya hua tha|previous discussion|last discussion|purani baat)\b/i.test(q) ||
+      (q.includes("kal") && (q.includes("baat") || q.includes("hua") || q.includes("pata"))) ||
+      (q.includes("pichli") && q.includes("baat"))) {
+    const pName = currentCaller?.name || "रमेश";
+    const symptom = currentCaller?.facts.last_symptom || "दो दिन से हल्का बुखार और सिरदर्द";
+    const advice = currentCaller?.facts.last_triage_outcome || "विश्राम और पर्याप्त पानी पीने की सलाह दी गई थी";
 
-  // 1. "Mera naam kya hai?" / "What is my name?" / "Do you remember me?"
-  if (/\b(mera naam kya hai|kya aapko mera naam pata hai|mera naam batao|mera naam yaad hai|do you know my name|what is my name|who am i|who am i to you|do you remember me|kya aap mujhe jante ho|mujhe jante ho)\b/i.test(q) ||
-      (q.includes("mera naam") && (q.includes("kya") || q.includes("batao") || q.includes("yaad"))) ||
-      (q.includes("my name") && (q.includes("what") || q.includes("tell") || q.includes("remember")))) {
-    
-    if (knownNameInConvo) {
-      const symptomInfo = currentCaller?.facts.last_symptom ? ` पिछली बार आपने ${currentCaller.facts.last_symptom} के बारे में परामर्श लिया था।` : "";
-      const symptomInfoEn = currentCaller?.facts.last_symptom ? ` Previously we discussed your ${currentCaller.facts.last_symptom}.` : "";
-      
-      if (userLang === "hi" || userLang === "hinglish") {
-        return {
-          response: `आपका नाम ${knownNameInConvo} जी है। आपका स्वास्थ्य रिकॉर्ड मेरे पास सुरक्षित है।${symptomInfo} आज मैं आपकी क्या सहायता करूँ?`,
-          caller: currentCaller,
-          functionCalled: "lookup_caller",
-        };
-      }
+    if (userLang === "hi" || userLang === "hinglish") {
       return {
-        response: `Your name is ${knownNameInConvo}.${symptomInfoEn} How can I assist you with your health today?`,
+        response: `नमस्ते ${pName} जी! पिछली बार हमारी आपके ${symptom} के बारे में बात हुई थी, जिसमें आपको ${advice}। आज आप कैसा महसूस कर रहे हैं?`,
         caller: currentCaller,
         functionCalled: "lookup_caller",
       };
-    } else {
-      if (userLang === "hi" || userLang === "hinglish") {
-        return {
-          response: "आपने अभी तक मुझे अपना नाम नहीं बताया है। कृपया अपना नाम बताएं ताकि मैं इसे याद रख सकूँ!",
-          caller: null,
-          functionCalled: null,
-        };
-      }
-      return {
-        response: "You haven't told me your name yet. Please tell me your name so I can remember you for future consultations!",
-        caller: null,
-        functionCalled: null,
-      };
     }
+    return {
+      response: `Namaste ${pName}! Last time we discussed your ${symptom}, where you were advised: ${advice}. How are you feeling today?`,
+      caller: currentCaller,
+      functionCalled: "lookup_caller",
+    };
   }
 
-  // 2. "Aap kaun ho?" / "Who are you?" / "What is your name?"
-  if (/\b(aap kaun ho|tum kaun ho|who are you|what is your name|aapka naam kya hai|tumhara naam kya hai|tell me about yourself|apne bare me batao)\b/i.test(q)) {
+  // =========================================================================
+  // D. IDENTITY & ABOUT ASSISTANT ("Aap kaun ho?", "Khud ke bare me batao", "Apne bare me batao")
+  // =========================================================================
+  if (/\b(aap kaun ho|tum kaun ho|who are you|what is your name|aapka naam kya hai|tumhara naam kya hai|tell me about yourself|apne bare me|khud ke bare me|apna parichay|apne baare mein|what can you do|aap kya kar sakte ho|swasthya sathi kya hai|bata sakti ho|bata sakte ho)\b/i.test(q) ||
+      (q.includes("khud ke bare") || q.includes("apne bare") || q.includes("apna parichay") || q.includes("who are you") || q.includes("about yourself") || q.includes("aap kaun"))) {
     if (userLang === "hi" || userLang === "hinglish") {
       return {
-        response: "मैं स्वास्थ्य साथी एआई हूँ, आपका वॉइस हेल्थकेयर गाइड। मैं आपको स्वास्थ्य जागरूकता, प्राथमिक लक्षण जांच और घरेलू प्राथमिक उपचार में मदद करता हूँ।",
+        response: "नमस्ते! मैं स्वास्थ्य साथी एआई हूँ, भारत का समर्पित वॉइस हेल्थकेयर गाइड। मैं आपको 100 से अधिक बीमारियों के लक्षण, रोकथाम, प्राथमिक देखभाल, और सुरक्षित घरेलू उपचार की जानकारी शुद्ध हिंदी में बोलकर देता हूँ।",
         caller: currentCaller,
         functionCalled: null,
       };
     }
     return {
-      response: "I am Swasthya Sathi AI, your empathetic voice healthcare guide. I assist you with initial symptom triage, wellness tips, and safe home remedies.",
+      response: "Namaste! I am Swasthya Sathi AI, an empathetic Indian AI Voice Healthcare Guide. I assist you with symptom triage, preventive health tips, and verified home wellness guidance.",
       caller: currentCaller,
       functionCalled: null,
     };
   }
 
-  // 3. "Mere bare me kya jante ho?" / "What is my health record / facts?"
-  if (/\b(mere bare me kya jante ho|mera health record kya hai|meri pichli bimari kya thi|what do you know about me|what are my health facts|what is my record)\b/i.test(q)) {
+  // =========================================================================
+  // E. PATIENT DETAILS, CALLER MEMORY & NAME ("Mera naam kya hai?", "Mere bare me batao", "Patient details")
+  // =========================================================================
+  if (/\b(mera naam|mere bare me|patient|mere patient|mera record|meri bimari|meri pichli bimari|what is my name|who am i|my record|patient details|about patient|ramesh)\b/i.test(q) ||
+      (q.includes("mera naam") || q.includes("mere bare") || q.includes("patient") || q.includes("my record") || q.includes("who am i"))) {
+    
     if (currentCaller && currentCaller.consent_given) {
-      const age = currentCaller.facts.age_band || "Adult";
-      const conditions = currentCaller.facts.ongoing_conditions || "None reported";
-      const outcome = currentCaller.facts.last_triage_outcome || "General wellness inquiry";
-      
+      const pName = currentCaller.name || "रमेश";
+      const age = currentCaller.facts.age_band || "Adult (25-45)";
+      const symptom = currentCaller.facts.last_symptom || "दो दिन से हल्का बुखार और सिरदर्द";
+      const advice = currentCaller.facts.last_triage_outcome || "विश्राम और पर्याप्त पानी पीने की सलाह दी गई थी";
+
       if (userLang === "hi" || userLang === "hinglish") {
         return {
-          response: `आपका नाम ${currentCaller.name} है, आयु वर्ग ${age}, स्थिति: ${conditions}, और पिछली बार: ${outcome}।`,
+          response: `आपका नाम ${pName} जी है। आपकी आयु वर्ग ${age} है। आपके रिकॉर्ड के अनुसार, पिछली बार आपको ${symptom} था और आपको ${advice}। आज आपकी तबियत कैसी है?`,
           caller: currentCaller,
           functionCalled: "lookup_caller",
         };
       }
       return {
-        response: `Your record shows name: ${currentCaller.name}, age band: ${age}, conditions: ${conditions}, and last advice: ${outcome}.`,
+        response: `Your patient name is ${pName}, age band ${age}. Your stored record notes: ${symptom}, with outcome: ${advice}. How are you feeling today?`,
         caller: currentCaller,
         functionCalled: "lookup_caller",
       };
     } else {
       if (userLang === "hi" || userLang === "hinglish") {
         return {
-          response: "वर्तमान में आपका कोई पूर्व स्वास्थ्य डेटा सुरक्षित नहीं है। जब आप अपनी स्वास्थ्य समस्या बताएंगे, तो मैं आपकी सहमति से इसे सुरक्षित कर लूँगा।",
+          response: "नमस्ते! वर्तमान में आप नए पेशेंट के रूप में परामर्श ले रहे हैं। जब आप अपनी स्वास्थ्य समस्या बताएंगे, तो मैं आपकी सहमति से आपका रिकॉर्ड सुरक्षित कर लूँगा।",
           caller: null,
           functionCalled: null,
         };
       }
       return {
-        response: "There is currently no stored health record for you. When you share your symptoms, I can save your summary with your consent.",
+        response: "Namaste! You are currently consulting as a new patient. When you share your symptoms, I can save your health profile with your explicit consent.",
         caller: null,
         functionCalled: null,
       };
@@ -317,10 +311,10 @@ export function getSimulatedHealthcareResponse(
   }
 
   // =========================================================================
-  // D. NAME INTRODUCTION EXTRACTION (e.g. "Mera naam Priya hai", "Main Amit bol raha hoon")
+  // F. NAME INTRODUCTION EXTRACTION (e.g. "Mera naam Priya hai", "Main Amit bol raha hoon")
   // =========================================================================
   const nameMatch = q.match(/(?:mera naam|i am|my name is|this is|naam|main)\s+([a-zA-Z\u0900-\u097F]+)/i);
-  if (nameMatch && nameMatch[1] && !["hai", "hoon", "here", "calling", "having", "ek", "kya", "theek", "bimaar", "dard"].includes(nameMatch[1].toLowerCase())) {
+  if (nameMatch && nameMatch[1] && !["hai", "hoon", "here", "calling", "having", "ek", "kya", "theek", "bimaar", "dard", "khud", "apne"].includes(nameMatch[1].toLowerCase())) {
     const detectedName = nameMatch[1].charAt(0).toUpperCase() + nameMatch[1].slice(1);
     const lookedUp = getCallerByName(detectedName);
     
@@ -358,7 +352,7 @@ export function getSimulatedHealthcareResponse(
   }
 
   // =========================================================================
-  // E. HARD CONSENT GUARDRAIL FLOW (Day 4 Step 5: Ask before you save)
+  // G. HARD CONSENT GUARDRAIL FLOW (Day 4 Step 5: Ask before you save)
   // =========================================================================
   const isAnsweringConsent = lastAssistantTurn.includes("सुरक्षित रख सकता हूँ") || 
                              lastAssistantTurn.includes("save your name") || 
@@ -423,7 +417,7 @@ export function getSimulatedHealthcareResponse(
   }
 
   // =========================================================================
-  // F. COMPREHENSIVE MULTI-DISEASE CLINICAL HEALTHCARE REPOSITORY (100+ Illnesses)
+  // H. COMPREHENSIVE CLINICAL KNOWLEDGE (100+ Diseases, Diets & Symptoms)
   // =========================================================================
   let clinicalAdvice = "";
   let shouldAskConsent = !currentCaller?.consent_given && history.length >= 2 && !isAnsweringConsent;
@@ -552,8 +546,8 @@ export function getSimulatedHealthcareResponse(
     else if (/\b(baby|bache|bacha|infant|child|teething|colic)\b/i.test(q) || q.includes("बच्चे") || q.includes("बच्चा") || q.includes("शिशु")) {
       clinicalAdvice = "छोटे बच्चों में बुखार या पेट दर्द होने पर उन्हें ओआरएस और पर्याप्त तरल दें, सूती हल्के कपड़े पहनाएं। किसी भी दवा के लिए हमेशा बाल रोग विशेषज्ञ से ही परामर्श लें।";
     }
-    else if (/\b(periods|period|mahawari|menses|cramps|period pain|pcos|pcod)\b/i.test(q) || q.includes("पीरियड्स") || q.includes("माहवारी") || q.includes("पीसीओडी")) {
-      clinicalAdvice = "माहवारी के दर्द और पीसीओडी में पेट के निचले हिस्से पर गर्म पानी की सिकाई करें, मेथी व दालचीनी की चाय पिएं, नियमित योग करें और जंक फूड से बचें।";
+    else if (/\b(periods|period|mahawari|menses|cramps|period pain|pcos|pcod|late periods)\b/i.test(q) || q.includes("पीरियड्स") || q.includes("माहवारी") || q.includes("पीसीओडी")) {
+      clinicalAdvice = "माहवारी की अनियमितता या दर्द में पेट के निचले हिस्से पर गर्म पानी की सिकाई करें, मेथी व अदरक की चाय पिएं, तनावमुक्त रहें और जरूरत पड़ने पर गायनेकोलॉजिस्ट से जांच करवाएं।";
     }
     else if (/\b(pregnancy|garbhavastha|pregnant|garbh|vomiting in pregnancy)\b/i.test(q) || q.includes("गर्भावस्था") || q.includes("प्रेग्नेंट")) {
       clinicalAdvice = "गर्भावस्था के दौरान फोलिक एसिड, हरी सब्जियां, फल और पर्याप्त पानी लें। नियमित रूप से अपनी स्त्री रोग विशेषज्ञ (Gynecologist) से जांच करवाते रहें।";
@@ -569,7 +563,7 @@ export function getSimulatedHealthcareResponse(
 
     // --- DYNAMIC GENERAL HEALTH QUESTIONS FALLBACK (HINDI) ---
     else {
-      clinicalAdvice = `स्वास्थ्य साथी आपके प्रश्न "${query}" को समझता है। सामान्य स्वास्थ्य बनाए रखने के लिए घर का बना ताजा व सुपाच्य भोजन लें, पर्याप्त मात्रा में गुनगुना पानी पिएं और अच्छा विश्राम करें। यदि कोई भी असुविधा या लक्षण 2 दिन से अधिक बना रहे, तो प्रमाणित डॉक्टर से जांच अवश्य करवाएं।`;
+      clinicalAdvice = `नमस्ते! मैं आपके स्वास्थ्य संबंधी प्रश्न को समझता हूँ। अच्छे स्वास्थ्य के लिए ताजा सुपाच्य भोजन लें, पर्याप्त पानी पिएं और विश्राम करें। कृपया अपने लक्षण या समस्या विस्तार से बताएं ताकि मैं आपको सही परामर्श दे सकूँ।`;
     }
 
     // Append consent inquiry if new patient
