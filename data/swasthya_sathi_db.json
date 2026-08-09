@@ -1,0 +1,15 @@
+{
+  "user_ramesh": {
+    "user_id": "user_ramesh",
+    "name": "Ramesh",
+    "language_preference": "hinglish",
+    "facts": {
+      "age_band": "Adult (35-45)",
+      "ongoing_conditions": "None",
+      "last_triage_outcome": "Advised hydration, temperature charting & ORS for mild fever",
+      "last_symptom": "fever and body ache"
+    },
+    "consent_given": true,
+    "last_interaction": "2026-08-08T05:51:34.966Z"
+  }
+}

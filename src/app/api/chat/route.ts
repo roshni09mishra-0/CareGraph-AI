@@ -8,16 +8,24 @@ export const dynamic = "force-dynamic";
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { prompt, history } = body;
+    const { prompt, history, userId, callerName, isCallStart } = body;
 
     if (!prompt || typeof prompt !== "string") {
       return NextResponse.json({ error: "Prompt string is required" }, { status: 400 });
     }
 
-    const aiText = await generateHealthcareResponse(prompt, history || []);
+    const aiResult = await generateHealthcareResponse(
+      prompt, 
+      history || [], 
+      userId, 
+      callerName, 
+      isCallStart
+    );
 
     return NextResponse.json({
-      response: aiText,
+      response: typeof aiResult === "string" ? aiResult : aiResult.response,
+      caller: typeof aiResult === "object" ? aiResult.caller : null,
+      functionCalled: typeof aiResult === "object" ? aiResult.functionCalled : null,
       timestamp: new Date().toISOString(),
       agent: "SwasthyaSathi AI",
     });

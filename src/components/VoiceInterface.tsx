@@ -4,6 +4,8 @@ import { useState, useEffect, useRef } from "react";
 import StatusOrb, { AssistantState } from "./StatusOrb";
 import ChatBubbles, { Message } from "./ChatBubbles";
 import QuickPrompts from "./QuickPrompts";
+import PatientCard from "./PatientCard";
+import { CallerRecord } from "@/lib/db";
 import { Mic, MicOff, Send, Radio, RefreshCw, Volume2, ShieldCheck, Sparkles, VolumeX, UserCheck, AlertCircle, PhoneOff } from "lucide-react";
 import { INDIAN_VOICES } from "@/lib/murf";
 
@@ -26,6 +28,57 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
   const [selectedVoice, setSelectedVoice] = useState<string>("en-IN-priya");
   const [uiLanguage, setUiLanguage] = useState<UILanguage>("en");
   const [showPermissionHelp, setShowPermissionHelp] = useState(false);
+
+  // Day 4: Caller Memory & Patient State
+  const [activeCaller, setActiveCaller] = useState<CallerRecord | null>(null);
+  const [savedCallers, setSavedCallers] = useState<CallerRecord[]>([]);
+  const [isNewPatient, setIsNewPatient] = useState<boolean>(false);
+
+  // Fetch saved callers on mount
+  const fetchCallers = async () => {
+    try {
+      const res = await fetch("/api/caller?action=list");
+      const data = await res.json();
+      if (data.callers && Array.isArray(data.callers)) {
+        setSavedCallers(data.callers);
+        // Default to Ramesh if available for returning caller demo
+        const ramesh = data.callers.find((c: CallerRecord) => c.user_id === "user_ramesh");
+        if (ramesh && !activeCaller && !isNewPatient) {
+          setActiveCaller(ramesh);
+        }
+      }
+    } catch (e) {
+      console.warn("[Voice] Failed to load callers:", e);
+    }
+  };
+
+  useEffect(() => {
+    fetchCallers();
+  }, []);
+
+  const handleSelectCaller = (userId: string | null) => {
+    if (!userId) {
+      setActiveCaller(null);
+      setIsNewPatient(true);
+    } else {
+      setIsNewPatient(false);
+      const found = savedCallers.find((c) => c.user_id === userId);
+      if (found) {
+        setActiveCaller(found);
+      }
+    }
+  };
+
+  const handleForgetCaller = async (userId: string) => {
+    try {
+      await fetch(`/api/caller?user_id=${userId}`, { method: "DELETE" });
+      setActiveCaller(null);
+      setIsNewPatient(true);
+      await fetchCallers();
+    } catch (e) {
+      console.error("[Voice] Forget caller error:", e);
+    }
+  };
 
   // Time reference for latency tracking (end of speech -> audio output)
   const speechEndTimeRef = useRef<number>(0);
@@ -242,9 +295,12 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
       }
     }
 
-    // Smooth transition to listening state
+    // Smooth transition to listening state or returning caller greeting
     setTimeout(() => {
-      if (recognitionRef.current && shouldListenRef.current) {
+      if (activeCaller && !isNewPatient) {
+        // Greet returning patient by name immediately
+        handleSendUserMessage("Hello", true);
+      } else if (recognitionRef.current && shouldListenRef.current) {
         try {
           recognitionRef.current.start();
           setAssistantState("listening");
@@ -324,9 +380,9 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
   const lastSentQueryRef = useRef<string>("");
   const isProcessingQueryRef = useRef<boolean>(false);
 
-  const handleSendUserMessage = async (queryText: string) => {
+  const handleSendUserMessage = async (queryText: string, isCallStart: boolean = false) => {
     const cleanText = queryText.trim();
-    if (!cleanText || cleanText.length < 2) {
+    if (!isCallStart && (!cleanText || cleanText.length < 2)) {
       console.warn("[Voice] Empty or micro-noise query ignored.");
       return;
     }
@@ -335,7 +391,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
     stopAllAssistantAudio();
 
     // Prevent duplicate triggers
-    if (isProcessingQueryRef.current || lastSentQueryRef.current === cleanText) {
+    if (!isCallStart && (isProcessingQueryRef.current || lastSentQueryRef.current === cleanText)) {
       console.log("[Voice] Duplicate query ignored:", cleanText);
       return;
     }
@@ -361,15 +417,17 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
     console.log(`[Voice] DETECTED LANGUAGE: ${userLanguageDetected}`);
     speechEndTimeRef.current = Date.now();
 
-    const userMsgId = `user-${Date.now()}`;
-    const userMsg: Message = {
-      id: userMsgId,
-      sender: "user",
-      text: cleanText,
-      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-    };
+    if (!isCallStart) {
+      const userMsgId = `user-${Date.now()}`;
+      const userMsg: Message = {
+        id: userMsgId,
+        sender: "user",
+        text: cleanText,
+        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      };
+      setMessages((prev) => [...prev, userMsg]);
+    }
 
-    setMessages((prev) => [...prev, userMsg]);
     setInputText("");
     setInterimText("");
     
@@ -377,7 +435,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
     setAssistantState("processing");
 
     try {
-      console.log("[Voice] AI REQUEST STARTED");
+      console.log("[Voice] AI REQUEST STARTED (Caller:", activeCaller?.name || "New Patient", ")");
       // 2. Fetch AI Healthcare Response with multi-turn conversation memory
       const currentHistory = messages.map((m) => ({
         role: m.sender === "user" ? "user" : "assistant",
@@ -388,14 +446,27 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          prompt: cleanText,
+          prompt: isCallStart ? "Start Consultation" : cleanText,
           history: currentHistory,
+          userId: activeCaller?.user_id,
+          callerName: activeCaller?.name,
+          isCallStart: isCallStart,
         }),
       });
 
       const chatData = await chatRes.json();
       const aiResponseText = chatData.response || "Namaste! I am here to help. Could you please share more about what you are experiencing?";
       console.log("[Voice] AI RESPONSE RECEIVED:", aiResponseText);
+
+      // Sync active caller profile if updated or looked up
+      if (chatData.caller) {
+        setActiveCaller(chatData.caller);
+        fetchCallers();
+      } else if (chatData.functionCalled === "forget_caller" || chatData.functionCalled === "consent_denied") {
+        setActiveCaller(null);
+        setIsNewPatient(true);
+        fetchCallers();
+      }
 
       const isAiHindiResponse = /[\u0900-\u097F]/.test(aiResponseText) || userLanguageDetected === "Hindi" || userLanguageDetected === "Hinglish";
       const aiResponseLanguage = isAiHindiResponse ? "Hindi" : "English";
@@ -551,6 +622,15 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
       
       {/* Hidden Audio Player for Murf Falcon TTS */}
       <audio ref={audioRef} onEnded={handleAudioEnded} className="hidden" />
+
+      {/* Day 4: Patient Memory & Health Profile Card */}
+      <PatientCard
+        caller={activeCaller}
+        savedCallers={savedCallers}
+        onSelectCaller={handleSelectCaller}
+        onForgetCaller={handleForgetCaller}
+        isNewPatient={isNewPatient}
+      />
 
       {/* Main Voice Assistant Card */}
       <div className="glass-panel rounded-3xl border border-teal-500/30 p-5 sm:p-8 shadow-2xl space-y-6 relative overflow-hidden">
