@@ -7,7 +7,7 @@ import QuickPrompts from "./QuickPrompts";
 import PatientCard from "./PatientCard";
 import AudioWaveformCanvas from "./AudioWaveformCanvas";
 import { CallerRecord } from "@/lib/db";
-import { Mic, MicOff, Send, Radio, RefreshCw, Volume2, ShieldCheck, Sparkles, VolumeX, UserCheck, AlertCircle, PhoneOff, Stethoscope, HelpCircle, Activity, Play, Volume1 } from "lucide-react";
+import { Mic, MicOff, Send, Radio, RefreshCw, Volume2, ShieldCheck, Sparkles, VolumeX, UserCheck, AlertCircle, PhoneOff, Stethoscope, HelpCircle, Activity, Play, Volume1, CheckCircle2 } from "lucide-react";
 import { INDIAN_VOICES } from "@/lib/murf";
 
 interface VoiceInterfaceProps {
@@ -123,7 +123,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
     }
   };
 
-  // Unlock audio globally
+  // Unlock audio globally on first user interaction
   const unlockAudioContext = () => {
     try {
       if (typeof window !== "undefined") {
@@ -143,6 +143,17 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
       }
     } catch (e) {}
   };
+
+  // Attach global unlock listener to window
+  useEffect(() => {
+    const handleGlobalClick = () => unlockAudioContext();
+    window.addEventListener("click", handleGlobalClick, { once: true });
+    window.addEventListener("touchstart", handleGlobalClick, { once: true });
+    return () => {
+      window.removeEventListener("click", handleGlobalClick);
+      window.removeEventListener("touchstart", handleGlobalClick);
+    };
+  }, []);
 
   // Start Real-time Audio Level Meter for Microphone
   const startAudioLevelMeter = (stream: MediaStream) => {
@@ -183,7 +194,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
     }
   };
 
-  // Safe recognition starter
+  // Safe recognition starter with auto-recovery
   const safeStartRecognition = () => {
     if (recognitionRef.current && !isRecognitionRunningRef.current && shouldListenRef.current) {
       try {
@@ -191,7 +202,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
         isRecognitionRunningRef.current = true;
         setIsMicActive(true);
       } catch (e: any) {
-        console.log("[Voice] Safe start note:", e.message || e);
+        console.log("[Voice] Safe start status:", e.message || e);
       }
     }
   };
@@ -271,7 +282,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
         };
 
         recognition.onerror = (event: any) => {
-          console.warn("[Voice Warning] Speech Recognition event error:", event.error);
+          console.warn("[Voice Warning] Speech Recognition error:", event.error);
 
           if (event.error === "not-allowed" || event.error === "service-not-allowed") {
             isRecognitionRunningRef.current = false;
@@ -287,7 +298,9 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
             }
           } else if (event.error !== "aborted") {
             isRecognitionRunningRef.current = false;
-            console.error("[Voice Error]:", event.error);
+            if (shouldListenRef.current && assistantStateRef.current === "listening") {
+              setTimeout(safeStartRecognition, 200);
+            }
           }
         };
 
@@ -295,7 +308,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
           console.log("[Voice] Microphone cycle ended");
           isRecognitionRunningRef.current = false;
           if (shouldListenRef.current && (assistantStateRef.current === "listening" || assistantStateRef.current === "ready")) {
-            setTimeout(safeStartRecognition, 200);
+            setTimeout(safeStartRecognition, 150);
           } else if (assistantStateRef.current !== "speaking" && assistantStateRef.current !== "processing") {
             setIsMicActive(false);
           }
@@ -752,21 +765,21 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
           </span>
           <button
             onClick={() => handleSendUserMessage("Mera naam kya hai?")}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-teal-50 hover:bg-teal-100 border border-teal-300 text-xs font-bold text-teal-900 shadow-sm transition transform active:scale-95"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-teal-50 hover:bg-teal-100 border border-teal-300 text-xs font-bold text-teal-900 shadow-sm transition transform active:scale-95"
           >
             <Play className="w-3 h-3 fill-teal-700 text-teal-700" />
             <span>मेरा नाम क्या है?</span>
           </button>
           <button
             onClick={() => handleSendUserMessage("Mujhe do din se bukhar hai, kya karu?")}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-teal-50 hover:bg-teal-100 border border-teal-300 text-xs font-bold text-teal-900 shadow-sm transition transform active:scale-95"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-teal-50 hover:bg-teal-100 border border-teal-300 text-xs font-bold text-teal-900 shadow-sm transition transform active:scale-95"
           >
             <Play className="w-3 h-3 fill-teal-700 text-teal-700" />
             <span>मुझे बुखार है</span>
           </button>
           <button
             onClick={() => handleSendUserMessage("Din me kitna paani pina chahiye?")}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-teal-50 hover:bg-teal-100 border border-teal-300 text-xs font-bold text-teal-900 shadow-sm transition transform active:scale-95"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-teal-50 hover:bg-teal-100 border border-teal-300 text-xs font-bold text-teal-900 shadow-sm transition transform active:scale-95"
           >
             <Play className="w-3 h-3 fill-teal-700 text-teal-700" />
             <span>पानी कितना पिएं?</span>
