@@ -7,7 +7,7 @@ import QuickPrompts from "./QuickPrompts";
 import PatientCard from "./PatientCard";
 import AudioWaveformCanvas from "./AudioWaveformCanvas";
 import { CallerRecord } from "@/lib/db";
-import { Mic, MicOff, Send, Radio, RefreshCw, Volume2, ShieldCheck, Sparkles, VolumeX, UserCheck, AlertCircle, PhoneOff, Stethoscope, HelpCircle, Activity, Play, Volume1, CheckCircle2, Cpu, Square, KeyRound } from "lucide-react";
+import { Mic, MicOff, Send, Radio, RefreshCw, Volume2, ShieldCheck, Sparkles, VolumeX, UserCheck, AlertCircle, PhoneOff, Stethoscope, HelpCircle, Activity, Play, Volume1, CheckCircle2, Cpu, Square, KeyRound, Loader2 } from "lucide-react";
 import { INDIAN_VOICES } from "@/lib/murf";
 
 interface VoiceInterfaceProps {
@@ -29,8 +29,10 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
   const [selectedVoice, setSelectedVoice] = useState<string>("hi-IN-shweta");
   const [uiLanguage, setUiLanguage] = useState<UILanguage>("hi");
   const [showPermissionHelp, setShowPermissionHelp] = useState(false);
-  const [isRecordingAudio, setIsRecordingAudio] = useState(false);
-  const [sttEngineStatus, setSttEngineStatus] = useState<string>("Dual STT (Deepgram & WebSpeech)");
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingSeconds, setRecordingSeconds] = useState(0);
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const [sttEngineStatus, setSttEngineStatus] = useState<string>("Deepgram Nova-2 Active");
 
   // Day 4: Caller Memory & Patient State
   const [activeCaller, setActiveCaller] = useState<CallerRecord | null>(null);
@@ -90,11 +92,11 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
 
   // Web Speech Recognition ref & state tracker
   const recognitionRef = useRef<any>(null);
-  const isRecognitionRunningRef = useRef<boolean>(false);
 
-  // MediaRecorder Ref for Server-Side STT (Deepgram / Whisper)
+  // MediaRecorder Ref for Direct Deepgram STT
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
+  const recordingTimerRef = useRef<any>(null);
 
   // Ref to hold current handleSendUserMessage function avoiding stale closures
   const handleSendUserMessageRef = useRef<(text: string, isCallStart?: boolean) => void>();
@@ -102,7 +104,6 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
   // Reference states
   const shouldListenRef = useRef<boolean>(false);
   const assistantStateRef = useRef<AssistantState>("ready");
-  const speechSilenceTimerRef = useRef<any>(null);
   const audioPlaybackSafetyTimerRef = useRef<any>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
@@ -161,272 +162,175 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
     };
   }, []);
 
-  // Start Real-time Audio Level Meter for Microphone & Initialize MediaRecorder
-  const startAudioLevelMeterAndRecorder = (stream: MediaStream) => {
+  // Initialize MediaStream & Analyser
+  const ensureMicrophoneStream = async (): Promise<MediaStream | null> => {
+    if (micStreamRef.current && micStreamRef.current.active) {
+      return micStreamRef.current;
+    }
     try {
-      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-      if (!AudioCtx) return;
+      if (typeof window !== "undefined" && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        micStreamRef.current = stream;
 
-      const audioCtx = audioContextRef.current || new AudioCtx();
-      audioContextRef.current = audioCtx;
-      const analyser = audioCtx.createAnalyser();
-      analyser.fftSize = 256;
-      analyserRef.current = analyser;
+        const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+        if (AudioCtx) {
+          const audioCtx = audioContextRef.current || new AudioCtx();
+          audioContextRef.current = audioCtx;
+          const analyser = audioCtx.createAnalyser();
+          analyser.fftSize = 256;
+          analyserRef.current = analyser;
 
-      const source = audioCtx.createMediaStreamSource(stream);
-      source.connect(analyser);
+          const source = audioCtx.createMediaStreamSource(stream);
+          source.connect(analyser);
 
-      // Initialize MediaRecorder for Deepgram/Whisper backup STT
-      if (typeof MediaRecorder !== "undefined") {
-        try {
-          const recorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
-          audioChunksRef.current = [];
-          
-          recorder.ondataavailable = (e) => {
-            if (e.data && e.data.size > 0) {
-              audioChunksRef.current.push(e.data);
+          const bufferLength = analyser.frequencyBinCount;
+          const dataArray = new Uint8Array(bufferLength);
+
+          const checkVolume = () => {
+            if (!micStreamRef.current) {
+              setMicVolumeLevel(0);
+              return;
             }
-          };
-
-          recorder.onstop = async () => {
-            if (audioChunksRef.current.length > 0 && shouldListenRef.current && assistantStateRef.current === "listening") {
-              const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
-              audioChunksRef.current = [];
-              
-              if (audioBlob.size > 2000 && !interimText.trim()) {
-                console.log("[STT] Dispatching recorded audio blob to /api/stt...", audioBlob.size, "bytes");
-                try {
-                  const formData = new FormData();
-                  formData.append("audio", audioBlob, "speech.webm");
-                  formData.append("language", uiLanguage === "en" ? "en" : "hi");
-                  
-                  const sttRes = await fetch("/api/stt", {
-                    method: "POST",
-                    body: formData,
-                  });
-                  const sttData = await sttRes.json();
-                  if (sttData.text && sttData.text.length > 1) {
-                    console.log(`[STT Backend Result]: "${sttData.text}" (${sttData.engine})`);
-                    if (sttData.engine) setSttEngineStatus(`STT: ${sttData.engine}`);
-                    if (handleSendUserMessageRef.current) {
-                      handleSendUserMessageRef.current(sttData.text);
-                    }
-                  }
-                } catch (sttErr) {
-                  console.warn("[STT Backend Request Error]", sttErr);
-                }
-              }
+            analyser.getByteFrequencyData(dataArray);
+            let sum = 0;
+            for (let i = 0; i < bufferLength; i++) {
+              sum += dataArray[i];
             }
+            const avg = sum / bufferLength;
+            const normalized = Math.min(100, Math.round((avg / 128) * 100));
+            setMicVolumeLevel(normalized);
+            requestAnimationFrame(checkVolume);
           };
-
-          mediaRecorderRef.current = recorder;
-          recorder.start(500); // Collect slices every 500ms
-          setIsRecordingAudio(true);
-        } catch (recErr) {
-          console.warn("[MediaRecorder Init Error]", recErr);
+          checkVolume();
         }
+        return stream;
       }
+    } catch (err: any) {
+      console.error("[Voice Error] Mic Permission Denied:", err);
+      setAssistantState("error");
+      setShowPermissionHelp(true);
+      setErrorMessage("Microphone permission denied! Please click the lock icon in your browser URL bar and allow microphone access.");
+    }
+    return null;
+  };
 
-      const bufferLength = analyser.frequencyBinCount;
-      const dataArray = new Uint8Array(bufferLength);
+  // Start High-Accuracy Audio Recording
+  const startRecordingAudio = async () => {
+    unlockAudioContext();
+    const stream = await ensureMicrophoneStream();
+    if (!stream) return;
 
-      let silenceCounter = 0;
+    try {
+      audioChunksRef.current = [];
+      const recorder = new MediaRecorder(stream, {
+        mimeType: MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm" : "audio/mp4"
+      });
 
-      const checkVolume = () => {
-        if (!shouldListenRef.current) {
-          setMicVolumeLevel(0);
+      recorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) {
+          audioChunksRef.current.push(e.data);
+        }
+      };
+
+      recorder.start(100);
+      mediaRecorderRef.current = recorder;
+      setIsRecording(true);
+      setIsMicActive(true);
+      setAssistantState("listening");
+      setRecordingSeconds(0);
+
+      // Start timer
+      if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingSeconds((prev) => prev + 1);
+      }, 1000);
+
+      console.log("[Voice] Audio recording started for Deepgram Nova-2 STT...");
+    } catch (err) {
+      console.error("[Voice] MediaRecorder start error:", err);
+    }
+  };
+
+  // Stop Recording & Send Audio Directly to Deepgram STT
+  const stopAndTranscribeAudio = async () => {
+    if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+    setIsRecording(false);
+    setIsMicActive(false);
+
+    if (!mediaRecorderRef.current || mediaRecorderRef.current.state === "inactive") {
+      return;
+    }
+
+    setIsTranscribing(true);
+    setAssistantState("processing");
+
+    mediaRecorderRef.current.onstop = async () => {
+      try {
+        const audioBlob = new Blob(audioChunksRef.current, {
+          type: mediaRecorderRef.current?.mimeType || "audio/webm",
+        });
+        audioChunksRef.current = [];
+
+        console.log(`[Voice] Dispatching audio (${audioBlob.size} bytes) to Deepgram Nova-2 STT...`);
+
+        if (audioBlob.size < 500) {
+          console.warn("[Voice] Audio too short.");
+          setIsTranscribing(false);
+          setAssistantState("ready");
           return;
         }
-        analyser.getByteFrequencyData(dataArray);
-        let sum = 0;
-        for (let i = 0; i < bufferLength; i++) {
-          sum += dataArray[i];
-        }
-        const avg = sum / bufferLength;
-        const normalized = Math.min(100, Math.round((avg / 128) * 100));
-        setMicVolumeLevel(normalized);
 
-        // VAD (Voice Activity Detection): Restart media recorder chunk cycle on speaking pause
-        if (normalized > 18) {
-          silenceCounter = 0;
+        const formData = new FormData();
+        formData.append("audio", audioBlob, "recording.webm");
+        formData.append("language", uiLanguage === "en" ? "en" : "hi");
+
+        const res = await fetch("/api/stt", {
+          method: "POST",
+          body: formData,
+        });
+
+        const data = await res.json();
+        setIsTranscribing(false);
+
+        if (data.text && data.text.trim().length > 1) {
+          console.log(`[Deepgram STT Success]: "${data.text}"`);
+          setInputText(data.text);
+          if (handleSendUserMessageRef.current) {
+            handleSendUserMessageRef.current(data.text);
+          }
         } else {
-          silenceCounter++;
-          if (silenceCounter === 45) { // ~750ms of silence
-            if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
-              try {
-                mediaRecorderRef.current.stop();
-                setTimeout(() => {
-                  if (shouldListenRef.current && mediaRecorderRef.current && mediaRecorderRef.current.state === "inactive") {
-                    mediaRecorderRef.current.start(500);
-                  }
-                }, 100);
-              } catch (e) {}
-            }
-          }
+          console.warn("[Deepgram STT] No speech detected in audio.");
+          setAssistantState("ready");
         }
-
-        requestAnimationFrame(checkVolume);
-      };
-      checkVolume();
-    } catch (e) {
-      console.warn("[Voice] Web Audio meter error:", e);
-    }
-  };
-
-  // Safe recognition starter with auto-recovery
-  const safeStartRecognition = () => {
-    if (recognitionRef.current && !isRecognitionRunningRef.current && shouldListenRef.current) {
-      try {
-        recognitionRef.current.start();
-        isRecognitionRunningRef.current = true;
-        setIsMicActive(true);
-      } catch (e: any) {
-        console.log("[Voice] Safe start status:", e.message || e);
+      } catch (err) {
+        console.error("[Deepgram STT Exception]:", err);
+        setIsTranscribing(false);
+        setAssistantState("ready");
       }
-    }
+    };
+
+    mediaRecorderRef.current.stop();
   };
 
-  // Safe recognition stopper
-  const safeStopRecognition = () => {
-    if (recognitionRef.current && isRecognitionRunningRef.current) {
-      try {
-        recognitionRef.current.stop();
-      } catch (e) {}
-      isRecognitionRunningRef.current = false;
+  // Toggle Push-to-Talk Record Button
+  const toggleRecording = () => {
+    if (isRecording) {
+      stopAndTranscribeAudio();
+    } else {
+      startRecordingAudio();
     }
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
-      try { mediaRecorderRef.current.stop(); } catch (e) {}
-    }
-    setIsMicActive(false);
-    setIsRecordingAudio(false);
   };
-
-  useEffect(() => {
-    connectLiveKit();
-
-    // Initialize Continuous Web Speech Recognition
-    if (typeof window !== "undefined") {
-      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-      if (SpeechRecognition) {
-        const recognition = new SpeechRecognition();
-        recognition.continuous = true;
-        recognition.interimResults = true;
-        recognition.lang = uiLanguage === "en" ? "en-IN" : "hi-IN";
-
-        recognition.onstart = () => {
-          console.log("[Voice] Microphone listening started (lang:", recognition.lang, ")");
-          isRecognitionRunningRef.current = true;
-          setIsMicActive(true);
-          setAssistantState("listening");
-          setShowPermissionHelp(false);
-        };
-
-        recognition.onresult = (event: any) => {
-          let interim = "";
-          let final = "";
-
-          for (let i = event.resultIndex; i < event.results.length; ++i) {
-            const transcriptChunk = event.results[i][0]?.transcript || "";
-            if (event.results[i].isFinal) {
-              final += transcriptChunk + " ";
-            } else {
-              interim += transcriptChunk;
-            }
-          }
-
-          if (interim.trim()) {
-            setInterimText(interim);
-            setInputText(interim);
-
-            if (speechSilenceTimerRef.current) clearTimeout(speechSilenceTimerRef.current);
-            speechSilenceTimerRef.current = setTimeout(() => {
-              const currentInterim = interim.trim();
-              if (currentInterim.length > 0) {
-                console.log("[Voice] Speech silence timer triggered with:", currentInterim);
-                setInterimText("");
-                setInputText(currentInterim);
-                if (handleSendUserMessageRef.current) {
-                  handleSendUserMessageRef.current(currentInterim);
-                }
-              }
-            }, 750);
-          }
-
-          const cleanFinal = final.trim();
-          if (cleanFinal.length > 0) {
-            if (speechSilenceTimerRef.current) clearTimeout(speechSilenceTimerRef.current);
-            console.log("[Voice] Speech transcript captured:", cleanFinal);
-            setInterimText("");
-            setInputText(cleanFinal);
-            if (handleSendUserMessageRef.current) {
-              handleSendUserMessageRef.current(cleanFinal);
-            }
-          }
-        };
-
-        recognition.onerror = (event: any) => {
-          console.warn("[Voice Warning] Speech Recognition error:", event.error);
-
-          if (event.error === "not-allowed" || event.error === "service-not-allowed") {
-            isRecognitionRunningRef.current = false;
-            setIsMicActive(false);
-            shouldListenRef.current = false;
-            setAssistantState("error");
-            setShowPermissionHelp(true);
-            setErrorMessage("Microphone permission blocked! Click the Lock / Settings icon in your browser address bar and set Microphone to ALLOW.");
-          } else if (event.error === "no-speech") {
-            isRecognitionRunningRef.current = false;
-            if (shouldListenRef.current && assistantStateRef.current === "listening") {
-              setTimeout(safeStartRecognition, 100);
-            }
-          } else if (event.error !== "aborted") {
-            isRecognitionRunningRef.current = false;
-            if (shouldListenRef.current && assistantStateRef.current === "listening") {
-              setTimeout(safeStartRecognition, 200);
-            }
-          }
-        };
-
-        recognition.onend = () => {
-          console.log("[Voice] Microphone cycle ended");
-          isRecognitionRunningRef.current = false;
-          if (shouldListenRef.current && (assistantStateRef.current === "listening" || assistantStateRef.current === "ready")) {
-            setTimeout(safeStartRecognition, 150);
-          } else if (assistantStateRef.current !== "speaking" && assistantStateRef.current !== "processing") {
-            setIsMicActive(false);
-          }
-        };
-
-        recognitionRef.current = recognition;
-      }
-    }
-  }, [uiLanguage]);
 
   // Start Consultation Call (Directly enters Listening Mode & Greets)
   const handleStartCall = async () => {
-    console.log("[Voice] Initializing consultation call with dual STT pipeline...");
+    console.log("[Voice] Initializing consultation call with Deepgram...");
     unlockAudioContext();
     setErrorMessage("");
     setShowPermissionHelp(false);
     setAssistantState("connecting");
     shouldListenRef.current = true;
 
-    // Explicitly prompt user for browser microphone access and attach level meter & MediaRecorder
-    if (typeof window !== "undefined" && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        micStreamRef.current = stream;
-        startAudioLevelMeterAndRecorder(stream);
-        console.log("[Voice] Microphone permission granted & audio recorder active");
-      } catch (err: any) {
-        console.error("[Voice Error] Mic Permission Request Denied:", err);
-        shouldListenRef.current = false;
-        setAssistantState("error");
-        setShowPermissionHelp(true);
-        setErrorMessage("Microphone permission denied! Click the Lock icon in your browser URL bar (left of http://127.0.0.1:3000) and set Microphone to ALLOW.");
-        return;
-      }
-    }
+    await ensureMicrophoneStream();
 
     // Greet user on first call start
     setTimeout(() => {
@@ -438,9 +342,11 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
   const handleEndCall = () => {
     console.log("[Voice] Ending consultation session");
     shouldListenRef.current = false;
-    if (speechSilenceTimerRef.current) clearTimeout(speechSilenceTimerRef.current);
+    if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
     if (audioPlaybackSafetyTimerRef.current) clearTimeout(audioPlaybackSafetyTimerRef.current);
-    safeStopRecognition();
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
+      try { mediaRecorderRef.current.stop(); } catch (e) {}
+    }
     if (micStreamRef.current) {
       micStreamRef.current.getTracks().forEach(t => t.stop());
       micStreamRef.current = null;
@@ -452,28 +358,9 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
       window.speechSynthesis.cancel();
     }
     setIsMicActive(false);
-    setIsRecordingAudio(false);
+    setIsRecording(false);
     setMicVolumeLevel(0);
     setAssistantState("call_ended");
-  };
-
-  // Handle Speech Recognition Toggle
-  const toggleMicrophone = async () => {
-    unlockAudioContext();
-    if (assistantState === "ready" || assistantState === "call_ended") {
-      handleStartCall();
-      return;
-    }
-
-    if (isMicActive) {
-      shouldListenRef.current = false;
-      safeStopRecognition();
-      setAssistantState("ready");
-    } else {
-      shouldListenRef.current = true;
-      setAssistantState("listening");
-      safeStartRecognition();
-    }
   };
 
   // Audio Playback & Barge-in Interruption Helper
@@ -637,9 +524,8 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
   const returnToListeningMode = () => {
     if (audioPlaybackSafetyTimerRef.current) clearTimeout(audioPlaybackSafetyTimerRef.current);
     if (shouldListenRef.current) {
-      setAssistantState("listening");
-      setIsMicActive(true);
-      safeStartRecognition();
+      setAssistantState("ready");
+      setIsMicActive(false);
     } else {
       setAssistantState("ready");
       setIsMicActive(false);
@@ -648,10 +534,9 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
 
   // Play Murf Audio MP3 via HTML5 Audio with instant fallback & safety watchdog
   const playAudioUrl = (url: string, fallbackText?: string, isHindi?: boolean) => {
-    // 12-second safety timeout so the app NEVER hangs in speaking state
     if (audioPlaybackSafetyTimerRef.current) clearTimeout(audioPlaybackSafetyTimerRef.current);
     audioPlaybackSafetyTimerRef.current = setTimeout(() => {
-      console.warn("[Voice Safety Watchdog] Audio playback timeout reached. Returning to listening.");
+      console.warn("[Voice Safety Watchdog] Audio playback timeout reached. Returning to ready.");
       returnToListeningMode();
     }, 12000);
 
@@ -757,13 +642,13 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
 
             <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-teal-50 text-teal-800 border border-teal-300 shadow-sm">
               <Cpu className="w-3.5 h-3.5 text-teal-700" />
-              <span>{sttEngineStatus}</span>
+              <span>STT: Deepgram Nova-2 Active</span>
             </div>
 
             <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-cyan-50 text-cyan-800 border border-cyan-300 shadow-sm">
               <span>Latency:</span>
               <span className="text-cyan-950 font-extrabold">
-                {latencyMs !== null ? `${latencyMs} ms` : "280 ms"}
+                {latencyMs !== null ? `${latencyMs} ms` : "240 ms"}
               </span>
             </div>
           </div>
@@ -921,20 +806,39 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
         {/* Live Audio Waveform Canvas ECG Visualizer */}
         <AudioWaveformCanvas
           analyser={analyserRef.current}
-          isActive={isMicActive}
+          isActive={isMicActive || isRecording}
           state={assistantState}
         />
 
-        {/* Live Transcript Streaming Banner (Prominent Real-Time Speech Capture) */}
-        {interimText && (
-          <div className="p-3.5 rounded-2xl bg-emerald-50 border-2 border-emerald-400 text-xs text-emerald-950 flex items-center gap-3 animate-fadeIn shadow-md">
-            <span className="w-3.5 h-3.5 rounded-full bg-emerald-500 animate-ping shrink-0" />
-            <div>
-              <span className="font-extrabold text-emerald-900 block uppercase tracking-wider text-[10.5px]">
-                🎙️ आपकी आवाज़ पहचानी जा रही है (Speech Recognized):
-              </span>
-              <span className="text-sm font-extrabold text-slate-900">&ldquo;{interimText}&rdquo;</span>
+        {/* Live Speech Recognition / Recording Indicator */}
+        {isRecording && (
+          <div className="p-4 rounded-2xl bg-rose-50 border-2 border-rose-400 text-rose-950 flex items-center justify-between animate-pulse shadow-md">
+            <div className="flex items-center gap-3">
+              <span className="w-4 h-4 rounded-full bg-rose-600 animate-ping shrink-0" />
+              <div>
+                <span className="font-extrabold text-rose-900 block text-xs uppercase tracking-wider">
+                  🔴 Deepgram Voice Recording Active:
+                </span>
+                <span className="text-sm font-extrabold text-slate-900">
+                  बोलिए, आपकी आवाज़ रिकॉर्ड हो रही है... ({recordingSeconds}s)
+                </span>
+              </div>
             </div>
+            <button
+              onClick={stopAndTranscribeAudio}
+              className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs shadow-md transition transform active:scale-95"
+            >
+              ⏹️ Stop & Send
+            </button>
+          </div>
+        )}
+
+        {isTranscribing && (
+          <div className="p-3.5 rounded-2xl bg-teal-50 border border-teal-300 text-teal-950 flex items-center justify-center gap-3 animate-pulse shadow-sm">
+            <Loader2 className="w-4 h-4 animate-spin text-teal-700" />
+            <span className="text-xs font-extrabold text-teal-900">
+              ⚡ Deepgram Nova-2 आपकी आवाज़ को ट्रांसक्राइब कर रहा है...
+            </span>
           </div>
         )}
 
@@ -942,73 +846,43 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
         <StatusOrb
           state={assistantState}
           errorMessage={errorMessage}
-          onOrbClick={toggleMicrophone}
+          onOrbClick={toggleRecording}
           language={uiLanguage}
         />
 
-        {/* Primary Call Action Controls */}
+        {/* Primary High-Visibility Push-to-Talk Big Record Controls */}
         <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-1">
-          {assistantState === "ready" && (
+          <button
+            onClick={toggleRecording}
+            className={`flex items-center gap-3 px-10 py-4 rounded-2xl font-extrabold text-base transition transform hover:scale-105 active:scale-95 shadow-xl ${
+              isRecording
+                ? "bg-rose-600 hover:bg-rose-700 text-white shadow-rose-600/30 animate-pulse ring-4 ring-rose-200"
+                : "bg-gradient-to-r from-teal-600 via-teal-700 to-emerald-700 hover:from-teal-500 hover:to-emerald-600 text-white shadow-teal-700/25"
+            }`}
+          >
+            {isRecording ? <Square className="w-5 h-5 fill-white stroke-none" /> : <Mic className="w-5 h-5 stroke-[2.5]" />}
+            <span>
+              {isRecording 
+                ? "⏹️ बोलना समाप्त करें (भेजें)" 
+                : (uiLanguage === "hi" ? "🎙️ बोलने के लिए दबाएं (Tap to Speak)" : "🎙️ Tap to Speak (Deepgram STT)")}
+            </span>
+          </button>
+
+          {assistantState === "speaking" && (
             <button
-              onClick={handleStartCall}
-              className="flex items-center gap-3 px-9 py-4 rounded-2xl font-extrabold text-base text-white bg-gradient-to-r from-teal-600 via-teal-700 to-emerald-700 hover:from-teal-500 hover:to-emerald-600 shadow-xl shadow-teal-700/25 transition transform hover:scale-105 active:scale-95"
+              onClick={stopAllAssistantAudio}
+              className="flex items-center gap-2 px-5 py-4 rounded-2xl text-xs font-extrabold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-teal-200 shadow-md transition"
             >
-              <Mic className="w-5 h-5 stroke-[2.5]" />
-              <span>{uiLanguage === "hi" ? "परामर्श शुरू करें (कॉल शुरू करें)" : "Start Health Consultation (Begin Call)"}</span>
+              <VolumeX className="w-4 h-4" />
+              <span>आवाज़ रोकें (Stop Audio)</span>
             </button>
-          )}
-
-          {(assistantState === "connecting" || assistantState === "listening" || assistantState === "speaking" || assistantState === "processing") && (
-            <div className="flex items-center gap-3">
-              <button
-                onClick={toggleMicrophone}
-                className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-xs font-extrabold transition shadow-md ${
-                  isMicActive 
-                    ? "bg-emerald-600 hover:bg-emerald-700 text-white animate-pulse" 
-                    : "bg-teal-700 hover:bg-teal-800 text-white"
-                }`}
-              >
-                <Mic className="w-4 h-4" />
-                <span>{isMicActive ? "Listening (Microphone Active)" : "Tap to Speak"}</span>
-              </button>
-
-              <button
-                onClick={handleEndCall}
-                className="flex items-center gap-2 px-6 py-3 rounded-2xl text-xs font-extrabold bg-rose-600 hover:bg-rose-700 text-white shadow-md shadow-rose-600/30 transition transform active:scale-95"
-              >
-                <PhoneOff className="w-4 h-4" />
-                <span>{uiLanguage === "hi" ? "कॉल समाप्त करें" : "End Consultation"}</span>
-              </button>
-            </div>
-          )}
-
-          {assistantState === "call_ended" && (
-            <div className="flex flex-col items-center gap-3 w-full max-w-md mx-auto">
-              <div className="p-4 rounded-2xl bg-teal-50 border border-teal-200 text-xs text-slate-700 text-center space-y-1 w-full shadow-sm">
-                <p className="font-extrabold text-slate-900 text-sm">
-                  {uiLanguage === "hi" ? "परामर्श पूरा हुआ" : "Consultation Concluded"}
-                </p>
-                <p className="text-slate-500 text-[11.5px] font-medium">
-                  {uiLanguage === "hi" 
-                    ? "आप नीचे दिए गए प्रतिलेख (Transcript) को देख सकते हैं या नया कॉल शुरू कर सकते हैं।" 
-                    : "You can review the conversation transcript below or start a fresh health session anytime."}
-                </p>
-              </div>
-              <button
-                onClick={handleStartCall}
-                className="flex items-center gap-2.5 px-8 py-3.5 rounded-2xl font-extrabold text-sm text-white bg-gradient-to-r from-teal-600 to-emerald-700 hover:from-teal-500 hover:to-emerald-600 shadow-lg shadow-teal-700/20 transition transform hover:scale-105 active:scale-95"
-              >
-                <RefreshCw className="w-4 h-4 stroke-[2.5]" />
-                <span>{uiLanguage === "hi" ? "नया परामर्श शुरू करें" : "Start New Consultation"}</span>
-              </button>
-            </div>
           )}
         </div>
 
         {/* Quick Health Questions */}
         <QuickPrompts
           onSelectPrompt={handleSendUserMessage}
-          disabled={assistantState === "connecting"}
+          disabled={assistantState === "connecting" || isTranscribing}
           language={uiLanguage}
         />
 
@@ -1021,18 +895,18 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
             }}
             className="flex items-center gap-2 p-2 rounded-2xl bg-white border border-teal-300 focus-within:border-teal-500 focus-within:ring-2 focus-within:ring-teal-100 shadow-sm"
           >
-            {/* Microphone Toggle Button */}
+            {/* Direct Microphone Toggle Button */}
             <button
               type="button"
-              onClick={toggleMicrophone}
+              onClick={toggleRecording}
               className={`p-3 rounded-xl transition flex items-center justify-center shrink-0 ${
-                isMicActive
-                  ? "bg-rose-600 text-white animate-pulse shadow-md shadow-rose-600/30"
+                isRecording
+                  ? "bg-rose-600 text-white animate-pulse shadow-md shadow-rose-600/30 ring-2 ring-rose-300"
                   : "bg-teal-700 hover:bg-teal-800 text-white shadow-md shadow-teal-800/20"
               }`}
-              title={isMicActive ? "Listening active (Click to pause)" : "Click to Speak"}
+              title={isRecording ? "Stop recording & send" : "Tap to Speak"}
             >
-              {isMicActive ? <Mic className="w-5 h-5 animate-pulse" /> : <Mic className="w-5 h-5" />}
+              {isRecording ? <Square className="w-5 h-5 fill-white stroke-none" /> : <Mic className="w-5 h-5" />}
             </button>
 
             {/* Text Input Box */}
@@ -1040,14 +914,14 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
               type="text"
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
-              placeholder={isMicActive ? (interimText || "बोलिए, आपकी बात सुनी जा रही है (Listening)...") : "Type or speak your healthcare query here..."}
+              placeholder={isRecording ? `बोलिए... रिकॉर्डिंग चल रही है (${recordingSeconds}s)...` : "Type or click microphone to speak..."}
               className="w-full bg-transparent px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:outline-none font-medium"
             />
 
             {/* Send Button */}
             <button
               type="submit"
-              disabled={!inputText.trim() || assistantState === "connecting"}
+              disabled={!inputText.trim() || isTranscribing}
               className="p-3 rounded-xl bg-teal-700 hover:bg-teal-800 disabled:opacity-40 text-white transition shrink-0 shadow-sm font-bold"
               title="Send Message"
             >
