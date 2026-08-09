@@ -5,8 +5,9 @@ import StatusOrb, { AssistantState } from "./StatusOrb";
 import ChatBubbles, { Message } from "./ChatBubbles";
 import QuickPrompts from "./QuickPrompts";
 import PatientCard from "./PatientCard";
+import AudioWaveformCanvas from "./AudioWaveformCanvas";
 import { CallerRecord } from "@/lib/db";
-import { Mic, MicOff, Send, Radio, RefreshCw, Volume2, ShieldCheck, Sparkles, VolumeX, UserCheck, AlertCircle, PhoneOff, Stethoscope } from "lucide-react";
+import { Mic, MicOff, Send, Radio, RefreshCw, Volume2, ShieldCheck, Sparkles, VolumeX, UserCheck, AlertCircle, PhoneOff, Stethoscope, HelpCircle, Activity } from "lucide-react";
 import { INDIAN_VOICES } from "@/lib/murf";
 
 interface VoiceInterfaceProps {
@@ -79,7 +80,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
     }
   };
 
-  // Time reference for latency tracking (end of speech -> audio output)
+  // Time reference for latency tracking
   const speechEndTimeRef = useRef<number>(0);
 
   // Audio HTML element ref for Murf Falcon TTS playback
@@ -91,7 +92,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
   // Ref to hold current handleSendUserMessage function avoiding stale closures
   const handleSendUserMessageRef = useRef<(text: string, isCallStart?: boolean) => void>();
 
-  // Reference states to avoid closure capture issues
+  // Reference states
   const shouldListenRef = useRef<boolean>(false);
   const assistantStateRef = useRef<AssistantState>("ready");
   const speechSilenceTimerRef = useRef<any>(null);
@@ -105,7 +106,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
     assistantStateRef.current = assistantState;
   }, [assistantState]);
 
-  // Connect LiveKit Room token on mount / start
+  // Connect LiveKit Room token on mount
   const connectLiveKit = async () => {
     try {
       const res = await fetch("/api/livekit/token?room=swasthya-room");
@@ -196,7 +197,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
             setInterimText(interim);
             setInputText(interim);
 
-            // Silence fallback: If speech is heard and user pauses for 1000ms, trigger AI response!
+            // Silence fallback: If speech is heard and user pauses for 800ms, trigger AI response!
             if (speechSilenceTimerRef.current) clearTimeout(speechSilenceTimerRef.current);
             speechSilenceTimerRef.current = setTimeout(() => {
               const currentInterim = interim.trim();
@@ -208,7 +209,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
                   handleSendUserMessageRef.current(currentInterim);
                 }
               }
-            }, 1000);
+            }, 800);
           }
 
           const cleanFinal = final.trim();
@@ -252,7 +253,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
                 if (shouldListenRef.current && assistantStateRef.current === "listening") {
                   try { recognition.start(); setIsMicActive(true); } catch (err) {}
                 }
-              }, 300);
+              }, 250);
             }
           } else if (assistantStateRef.current !== "speaking" && assistantStateRef.current !== "processing") {
             setIsMicActive(false);
@@ -307,7 +308,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
       } else {
         setAssistantState("listening");
       }
-    }, 400);
+    }, 300);
   };
 
   // End Consultation Call (Transition to Call Ended)
@@ -394,7 +395,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
 
     lastSentQueryRef.current = cleanText;
     isProcessingQueryRef.current = true;
-    setTimeout(() => { isProcessingQueryRef.current = false; }, 1500);
+    setTimeout(() => { isProcessingQueryRef.current = false; }, 1400);
 
     // 1. Detect User Input Language
     const hasDevanagari = /[\u0900-\u097F]/.test(cleanText);
@@ -777,30 +778,22 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
           </div>
         )}
 
-        {/* Live Microphone Audio Level Indicator */}
-        {isMicActive && (
-          <div className="flex items-center justify-center gap-2.5 px-4 py-2 rounded-2xl bg-emerald-50 border border-emerald-300 text-xs text-emerald-900 animate-fadeIn max-w-sm mx-auto shadow-sm">
-            <Mic className="w-4 h-4 text-emerald-700 animate-pulse" />
-            <span className="font-bold">Live Mic Level:</span>
-            <div className="w-28 h-2.5 rounded-full bg-slate-200 overflow-hidden border border-slate-300">
-              <div 
-                className="h-full bg-gradient-to-r from-teal-500 to-emerald-600 transition-all duration-75"
-                style={{ width: `${Math.max(8, micVolumeLevel)}%` }}
-              />
-            </div>
-            <span className="text-[11px] font-mono text-emerald-950 font-extrabold">{micVolumeLevel}%</span>
-          </div>
-        )}
+        {/* Live Audio Waveform Canvas ECG Visualizer */}
+        <AudioWaveformCanvas
+          analyser={analyserRef.current}
+          isActive={isMicActive}
+          state={assistantState}
+        />
 
         {/* Live Transcript Streaming Banner (Prominent Real-Time Speech Capture) */}
         {interimText && (
           <div className="p-3.5 rounded-2xl bg-emerald-50 border-2 border-emerald-400 text-xs text-emerald-950 flex items-center gap-3 animate-fadeIn shadow-md">
-            <span className="w-3 h-3 rounded-full bg-emerald-500 animate-ping shrink-0" />
+            <span className="w-3.5 h-3.5 rounded-full bg-emerald-500 animate-ping shrink-0" />
             <div>
               <span className="font-extrabold text-emerald-900 block uppercase tracking-wider text-[10.5px]">
                 🎙️ Capturing Your Voice (Live Speech):
               </span>
-              <span className="text-sm font-bold text-slate-900">&ldquo;{interimText}&rdquo;</span>
+              <span className="text-sm font-extrabold text-slate-900">&ldquo;{interimText}&rdquo;</span>
             </div>
           </div>
         )}
@@ -814,14 +807,14 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
         />
 
         {/* Primary Call Action Controls */}
-        <div className="flex items-center justify-center gap-3 pt-1">
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-1">
           {assistantState === "ready" && (
             <button
               onClick={handleStartCall}
-              className="flex items-center gap-3 px-9 py-4 rounded-2xl font-extrabold text-sm text-white bg-gradient-to-r from-teal-600 via-teal-700 to-emerald-700 hover:from-teal-500 hover:to-emerald-600 shadow-xl shadow-teal-700/25 transition transform hover:scale-105 active:scale-95"
+              className="flex items-center gap-3 px-9 py-4 rounded-2xl font-extrabold text-base text-white bg-gradient-to-r from-teal-600 via-teal-700 to-emerald-700 hover:from-teal-500 hover:to-emerald-600 shadow-xl shadow-teal-700/25 transition transform hover:scale-105 active:scale-95"
             >
               <Mic className="w-5 h-5 stroke-[2.5]" />
-              <span>{uiLanguage === "hi" ? "परामर्श शुरू करें (कॉल शुरू करें)" : "Start Health Consultation (Begin Call)"}</span>
+              <span>{uiLanguage === "hi" ? "परामर्श शुरू करें (बोलिए)" : "Start Health Consultation (Tap to Speak)"}</span>
             </button>
           )}
 
@@ -832,11 +825,11 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
                 className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-xs font-extrabold transition shadow-md ${
                   isMicActive 
                     ? "bg-emerald-600 hover:bg-emerald-700 text-white animate-pulse" 
-                    : "bg-slate-700 hover:bg-slate-800 text-white"
+                    : "bg-teal-700 hover:bg-teal-800 text-white"
                 }`}
               >
                 <Mic className="w-4 h-4" />
-                <span>{isMicActive ? "Listening (Active)" : "Unmute Mic"}</span>
+                <span>{isMicActive ? "Listening (Microphone Active)" : "Tap to Speak"}</span>
               </button>
 
               <button
@@ -915,7 +908,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
             <button
               type="submit"
               disabled={!inputText.trim() || assistantState === "connecting"}
-              className="p-3 rounded-xl bg-teal-700 hover:bg-teal-800 disabled:opacity-40 text-white transition shrink-0 shadow-sm"
+              className="p-3 rounded-xl bg-teal-700 hover:bg-teal-800 disabled:opacity-40 text-white transition shrink-0 shadow-sm font-bold"
               title="Send Message"
             >
               <Send className="w-4 h-4" />
