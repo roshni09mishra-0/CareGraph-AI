@@ -1,6 +1,6 @@
 /**
  * Murf AI Falcon Voice Integration Service
- * Target Voice: Indian English (en-IN-priya profile)
+ * Target Voice: Indian English (en-IN-priya profile) & Pure Hindi (hi-IN-shweta profile)
  */
 
 if (process.env.NODE_ENV === "development") {
@@ -62,7 +62,7 @@ export async function generateMurfFalconSpeech(options: MurfTTSOptions): Promise
         pitch: options.pitch || 0,
         sampleRate: 24000,
         format: "MP3",
-        encodeAsBase64: false,
+        encodeAsBase64: true,
       }),
     });
 
@@ -76,8 +76,12 @@ export async function generateMurfFalconSpeech(options: MurfTTSOptions): Promise
     }
 
     const data = await response.json();
+    const directAudioUrl = data.encodedAudio 
+      ? `data:audio/mp3;base64,${data.encodedAudio}` 
+      : (data.audioFile || data.url || data.audioUrl);
+
     return {
-      audioUrl: data.audioFile || data.url || data.audioUrl,
+      audioUrl: directAudioUrl,
       encodedAudio: data.encodedAudio,
       isFallback: false,
     };

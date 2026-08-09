@@ -7,7 +7,7 @@ import QuickPrompts from "./QuickPrompts";
 import PatientCard from "./PatientCard";
 import AudioWaveformCanvas from "./AudioWaveformCanvas";
 import { CallerRecord } from "@/lib/db";
-import { Mic, MicOff, Send, Radio, RefreshCw, Volume2, ShieldCheck, Sparkles, VolumeX, UserCheck, AlertCircle, PhoneOff, Stethoscope, HelpCircle, Activity, Play } from "lucide-react";
+import { Mic, MicOff, Send, Radio, RefreshCw, Volume2, ShieldCheck, Sparkles, VolumeX, UserCheck, AlertCircle, PhoneOff, Stethoscope, HelpCircle, Activity, Play, Volume1 } from "lucide-react";
 import { INDIAN_VOICES } from "@/lib/murf";
 
 interface VoiceInterfaceProps {
@@ -123,13 +123,34 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
     }
   };
 
+  // Unlock audio globally
+  const unlockAudioContext = () => {
+    try {
+      if (typeof window !== "undefined") {
+        const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+        if (AudioCtx && !audioContextRef.current) {
+          audioContextRef.current = new AudioCtx();
+        }
+        if (audioContextRef.current && audioContextRef.current.state === "suspended") {
+          audioContextRef.current.resume();
+        }
+        if (audioRef.current) {
+          audioRef.current.play().catch(() => {});
+        }
+        if ("speechSynthesis" in window) {
+          window.speechSynthesis.resume();
+        }
+      }
+    } catch (e) {}
+  };
+
   // Start Real-time Audio Level Meter for Microphone
   const startAudioLevelMeter = (stream: MediaStream) => {
     try {
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
       if (!AudioCtx) return;
 
-      const audioCtx = new AudioCtx();
+      const audioCtx = audioContextRef.current || new AudioCtx();
       audioContextRef.current = audioCtx;
       const analyser = audioCtx.createAnalyser();
       analyser.fftSize = 256;
@@ -288,15 +309,11 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
   // Start Consultation Call (Directly enters Listening Mode & Greets)
   const handleStartCall = async () => {
     console.log("[Voice] Initializing consultation call...");
+    unlockAudioContext();
     setErrorMessage("");
     setShowPermissionHelp(false);
     setAssistantState("connecting");
     shouldListenRef.current = true;
-
-    // Unlock browser audio context on user gesture
-    if (audioRef.current) {
-      audioRef.current.play().catch(() => {});
-    }
 
     // Explicitly prompt user for browser microphone access and attach level meter
     if (typeof window !== "undefined" && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
@@ -345,6 +362,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
 
   // Handle Speech Recognition Toggle
   const toggleMicrophone = async () => {
+    unlockAudioContext();
     if (assistantState === "ready" || assistantState === "call_ended") {
       handleStartCall();
       return;
@@ -374,9 +392,8 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
   };
 
   // Process User Query with OpenAI API + Murf Falcon TTS
-  const isProcessingQueryRef = useRef<boolean>(false);
-
   const handleSendUserMessage = async (queryText: string, isCallStart: boolean = false) => {
+    unlockAudioContext();
     const cleanText = queryText.trim();
     if (!isCallStart && (!cleanText || cleanText.length < 2)) {
       console.warn("[Voice] Empty query ignored.");
@@ -566,6 +583,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
   const speakBrowserTTS = (text: string, isHindi?: boolean) => {
     if (typeof window !== "undefined" && "speechSynthesis" in window) {
       window.speechSynthesis.cancel();
+      window.speechSynthesis.resume();
       const isHindiText = isHindi !== undefined ? isHindi : /[\u0900-\u097F]/.test(text);
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.rate = 0.95;
@@ -652,12 +670,26 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
             </div>
           </div>
 
-          {/* Controls: Language Switcher, Audio Mute & Reset */}
+          {/* Controls: Sound Test, Language Switcher, Audio Mute & Reset */}
           <div className="flex items-center gap-2 self-end sm:self-auto">
+            {/* Direct Sound Test Button */}
+            <button
+              onClick={() => {
+                unlockAudioContext();
+                speakBrowserTTS("नमस्ते! आपकी आवाज़ और साउंड बिल्कुल सही काम कर रहे हैं।", true);
+              }}
+              className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-teal-50 hover:bg-teal-100 border border-teal-300 text-[11px] font-bold text-teal-800 shadow-sm transition"
+              title="Test speaker sound"
+            >
+              <Volume1 className="w-3.5 h-3.5 text-teal-700" />
+              <span>🔊 Sound Test</span>
+            </button>
+
             {/* UI Language Switcher */}
             <div className="flex items-center bg-slate-100 border border-teal-200 rounded-xl p-0.5 text-[11px] font-bold shadow-inner">
               <button
                 onClick={() => {
+                  unlockAudioContext();
                   setUiLanguage("hi");
                   setSelectedVoice("hi-IN-shweta");
                 }}
@@ -668,6 +700,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
               </button>
               <button
                 onClick={() => {
+                  unlockAudioContext();
                   setUiLanguage("en");
                   setSelectedVoice("en-IN-priya");
                 }}
@@ -678,6 +711,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
               </button>
               <button
                 onClick={() => {
+                  unlockAudioContext();
                   setUiLanguage("hinglish");
                   setSelectedVoice("hi-IN-kabir");
                 }}
@@ -886,6 +920,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
           <ChatBubbles
             messages={messages}
             onPlayAudio={(text, url) => {
+              unlockAudioContext();
               if (url) playAudioUrl(url, text);
               else speakBrowserTTS(text);
             }}
