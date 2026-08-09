@@ -86,8 +86,9 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
   // Audio HTML element ref for Murf Falcon TTS playback
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Web Speech Recognition ref
+  // Web Speech Recognition ref & state tracker
   const recognitionRef = useRef<any>(null);
+  const isRecognitionRunningRef = useRef<boolean>(false);
 
   // Ref to hold current handleSendUserMessage function avoiding stale closures
   const handleSendUserMessageRef = useRef<(text: string, isCallStart?: boolean) => void>();
@@ -96,6 +97,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
   const shouldListenRef = useRef<boolean>(false);
   const assistantStateRef = useRef<AssistantState>("ready");
   const speechSilenceTimerRef = useRef<any>(null);
+  const audioPlaybackSafetyTimerRef = useRef<any>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const micStreamRef = useRef<MediaStream | null>(null);
@@ -160,21 +162,45 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
     }
   };
 
+  // Safe recognition starter
+  const safeStartRecognition = () => {
+    if (recognitionRef.current && !isRecognitionRunningRef.current && shouldListenRef.current) {
+      try {
+        recognitionRef.current.start();
+        isRecognitionRunningRef.current = true;
+        setIsMicActive(true);
+      } catch (e: any) {
+        console.log("[Voice] Safe start note:", e.message || e);
+      }
+    }
+  };
+
+  // Safe recognition stopper
+  const safeStopRecognition = () => {
+    if (recognitionRef.current && isRecognitionRunningRef.current) {
+      try {
+        recognitionRef.current.stop();
+      } catch (e) {}
+      isRecognitionRunningRef.current = false;
+    }
+    setIsMicActive(false);
+  };
+
   useEffect(() => {
     connectLiveKit();
 
-    // Initialize Continuous Web Speech Recognition with accurate language detection
+    // Initialize Continuous Web Speech Recognition
     if (typeof window !== "undefined") {
       const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
       if (SpeechRecognition) {
         const recognition = new SpeechRecognition();
         recognition.continuous = true;
         recognition.interimResults = true;
-        // Default to hi-IN or en-IN based on active language
         recognition.lang = uiLanguage === "en" ? "en-IN" : "hi-IN";
 
         recognition.onstart = () => {
           console.log("[Voice] Microphone listening started (lang:", recognition.lang, ")");
+          isRecognitionRunningRef.current = true;
           setIsMicActive(true);
           setAssistantState("listening");
           setShowPermissionHelp(false);
@@ -197,11 +223,11 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
             setInterimText(interim);
             setInputText(interim);
 
-            // Silence fallback: If speech is heard and user pauses for 800ms, trigger AI response!
+            // Silence fallback: If speech is heard and user pauses for 750ms, trigger AI response!
             if (speechSilenceTimerRef.current) clearTimeout(speechSilenceTimerRef.current);
             speechSilenceTimerRef.current = setTimeout(() => {
               const currentInterim = interim.trim();
-              if (currentInterim.length > 0 && assistantStateRef.current === "listening") {
+              if (currentInterim.length > 0) {
                 console.log("[Voice] Speech silence timer triggered with:", currentInterim);
                 setInterimText("");
                 setInputText(currentInterim);
@@ -209,7 +235,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
                   handleSendUserMessageRef.current(currentInterim);
                 }
               }
-            }, 800);
+            }, 750);
           }
 
           const cleanFinal = final.trim();
@@ -228,33 +254,29 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
           console.warn("[Voice Warning] Speech Recognition event error:", event.error);
 
           if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+            isRecognitionRunningRef.current = false;
             setIsMicActive(false);
             shouldListenRef.current = false;
             setAssistantState("error");
             setShowPermissionHelp(true);
             setErrorMessage("Microphone permission blocked! Click the Lock / Settings icon in your browser address bar and set Microphone to ALLOW.");
           } else if (event.error === "no-speech") {
+            // Chrome standard silence event, keep listening loop alive
+            isRecognitionRunningRef.current = false;
             if (shouldListenRef.current && assistantStateRef.current === "listening") {
-              try { recognition.start(); } catch (e) {}
+              setTimeout(safeStartRecognition, 100);
             }
           } else if (event.error !== "aborted") {
+            isRecognitionRunningRef.current = false;
             console.error("[Voice Error]:", event.error);
           }
         };
 
         recognition.onend = () => {
           console.log("[Voice] Microphone cycle ended");
-          if (shouldListenRef.current && assistantStateRef.current === "listening") {
-            try {
-              recognition.start();
-              setIsMicActive(true);
-            } catch (e) {
-              setTimeout(() => {
-                if (shouldListenRef.current && assistantStateRef.current === "listening") {
-                  try { recognition.start(); setIsMicActive(true); } catch (err) {}
-                }
-              }, 250);
-            }
+          isRecognitionRunningRef.current = false;
+          if (shouldListenRef.current && (assistantStateRef.current === "listening" || assistantStateRef.current === "ready")) {
+            setTimeout(safeStartRecognition, 200);
           } else if (assistantStateRef.current !== "speaking" && assistantStateRef.current !== "processing") {
             setIsMicActive(false);
           }
@@ -297,18 +319,9 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
 
     // Start listening to the user's voice immediately
     setTimeout(() => {
-      if (recognitionRef.current && shouldListenRef.current) {
-        try {
-          recognitionRef.current.start();
-          setAssistantState("listening");
-        } catch (e: any) {
-          console.log("[Voice] Recognition start notice:", e.message || e);
-          setAssistantState("listening");
-        }
-      } else {
-        setAssistantState("listening");
-      }
-    }, 300);
+      setAssistantState("listening");
+      safeStartRecognition();
+    }, 250);
   };
 
   // End Consultation Call (Transition to Call Ended)
@@ -316,9 +329,8 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
     console.log("[Voice] Ending consultation session");
     shouldListenRef.current = false;
     if (speechSilenceTimerRef.current) clearTimeout(speechSilenceTimerRef.current);
-    if (recognitionRef.current) {
-      try { recognitionRef.current.stop(); } catch (e) {}
-    }
+    if (audioPlaybackSafetyTimerRef.current) clearTimeout(audioPlaybackSafetyTimerRef.current);
+    safeStopRecognition();
     if (micStreamRef.current) {
       micStreamRef.current.getTracks().forEach(t => t.stop());
       micStreamRef.current = null;
@@ -343,27 +355,18 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
 
     if (isMicActive) {
       shouldListenRef.current = false;
-      if (recognitionRef.current) {
-        try { recognitionRef.current.stop(); } catch (e) {}
-      }
-      setIsMicActive(false);
+      safeStopRecognition();
       setAssistantState("ready");
     } else {
       shouldListenRef.current = true;
-      if (recognitionRef.current) {
-        try {
-          recognitionRef.current.start();
-          setIsMicActive(true);
-          setAssistantState("listening");
-        } catch (e: any) {
-          console.error("[Voice Error] Mic toggle exception:", e);
-        }
-      }
+      setAssistantState("listening");
+      safeStartRecognition();
     }
   };
 
   // Audio Playback & Barge-in Interruption Helper
   const stopAllAssistantAudio = () => {
+    if (audioPlaybackSafetyTimerRef.current) clearTimeout(audioPlaybackSafetyTimerRef.current);
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
@@ -374,28 +377,22 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
   };
 
   // Process User Query with OpenAI API + Murf Falcon TTS
-  const lastSentQueryRef = useRef<string>("");
   const isProcessingQueryRef = useRef<boolean>(false);
 
   const handleSendUserMessage = async (queryText: string, isCallStart: boolean = false) => {
     const cleanText = queryText.trim();
     if (!isCallStart && (!cleanText || cleanText.length < 2)) {
-      console.warn("[Voice] Empty or micro-noise query ignored.");
+      console.warn("[Voice] Empty query ignored.");
       return;
     }
 
     // Barge-in: Stop any currently playing assistant audio immediately
     stopAllAssistantAudio();
 
-    // Prevent duplicate triggers
-    if (!isCallStart && (isProcessingQueryRef.current || lastSentQueryRef.current === cleanText)) {
-      console.log("[Voice] Duplicate query ignored:", cleanText);
-      return;
+    if (isProcessingQueryRef.current) {
+      console.log("[Voice] Processing in flight, queuing query:", cleanText);
     }
-
-    lastSentQueryRef.current = cleanText;
     isProcessingQueryRef.current = true;
-    setTimeout(() => { isProcessingQueryRef.current = false; }, 1400);
 
     // 1. Detect User Input Language
     const hasDevanagari = /[\u0900-\u097F]/.test(cleanText);
@@ -405,7 +402,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
       "ho raha", "ho rahi", "hai", "hain", "hoon", "aap", "tum", "batao", "bataiye", "dawa", 
       "doctor", "namaste", "thoda", "bahut", "aaj", "kal", "se", "lag raha", "kaisa", "kaise",
       "chakkar", "kamzori", "weakness", "vomit", "ulti", "dast", "pet dard", "sir me", "sar me",
-      "feel ho rahi", "neend", "sugar", "acidity", "vajan", "paani", "daant", "aankhon", "kaan", "bache"
+      "feel ho rahi", "neend", "sugar", "acidity", "vajan", "paani", "daant", "aankhon", "kaan", "bache", "naam"
     ];
     const isHinglish = hinglishMarkers.some((kw) => lowerQuery.includes(kw));
     const userLanguageDetected = hasDevanagari ? "Hindi" : isHinglish ? "Hinglish" : "English";
@@ -492,6 +489,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
       });
 
       const ttsData = await ttsRes.json();
+      isProcessingQueryRef.current = false;
 
       const aiMsgId = `ai-${Date.now()}`;
       const aiMsg: Message = {
@@ -505,7 +503,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
 
       setMessages((prev) => [...prev, aiMsg]);
 
-      // 4. Play Audio with proper language voice
+      // 4. Play Audio with proper language voice and safety watchdog
       if (!audioMuted) {
         if (ttsData.audioUrl) {
           playAudioUrl(ttsData.audioUrl, aiResponseText, isAiHindiResponse);
@@ -518,9 +516,10 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
 
     } catch (err: any) {
       console.error("[Voice Error] AI chat/TTS failed:", err);
+      isProcessingQueryRef.current = false;
       setAssistantState("error");
       setErrorMessage("Service temporarily unavailable. Retrying...");
-      setTimeout(() => returnToListeningMode(), 2000);
+      setTimeout(() => returnToListeningMode(), 1500);
     }
   };
 
@@ -531,24 +530,26 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
 
   // Seamless Return to Continuous Listening Mode
   const returnToListeningMode = () => {
+    if (audioPlaybackSafetyTimerRef.current) clearTimeout(audioPlaybackSafetyTimerRef.current);
     if (shouldListenRef.current) {
       setAssistantState("listening");
       setIsMicActive(true);
-      if (recognitionRef.current) {
-        try {
-          recognitionRef.current.start();
-        } catch (e: any) {
-          console.log("[Voice] Recognition re-listen notice:", e.message || e);
-        }
-      }
+      safeStartRecognition();
     } else {
       setAssistantState("ready");
       setIsMicActive(false);
     }
   };
 
-  // Play Murf Audio MP3 via HTML5 Audio with fallback
+  // Play Murf Audio MP3 via HTML5 Audio with instant fallback & safety watchdog
   const playAudioUrl = (url: string, fallbackText?: string, isHindi?: boolean) => {
+    // 12-second safety timeout so the app NEVER hangs in speaking state
+    if (audioPlaybackSafetyTimerRef.current) clearTimeout(audioPlaybackSafetyTimerRef.current);
+    audioPlaybackSafetyTimerRef.current = setTimeout(() => {
+      console.warn("[Voice Safety Watchdog] Audio playback timeout reached. Returning to listening.");
+      returnToListeningMode();
+    }, 12000);
+
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current.src = url;
@@ -556,15 +557,18 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
       audioRef.current.play().then(() => {
         const playbackLatency = Date.now() - speechEndTimeRef.current;
         setLatencyMs(playbackLatency);
-        console.log(`[Voice] Audio playback started in ${playbackLatency}ms`);
+        console.log(`[Voice] Murf Audio playback started in ${playbackLatency}ms`);
       }).catch(e => {
-        console.warn("[TTS Warning] Murf Audio Playback Error (falling back to WebSpeech):", e);
+        console.warn("[TTS Warning] Murf HTML5 Audio Playback Error (instant WebSpeech fallback):", e);
         if (fallbackText) {
           speakBrowserTTS(fallbackText, isHindi);
         } else {
           returnToListeningMode();
         }
       });
+    } else {
+      if (fallbackText) speakBrowserTTS(fallbackText, isHindi);
+      else returnToListeningMode();
     }
   };
 
@@ -818,7 +822,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
             </button>
           )}
 
-          {(assistantState === "connecting" || assistantState === "listening" || assistantState === "speaking") && (
+          {(assistantState === "connecting" || assistantState === "listening" || assistantState === "speaking" || assistantState === "processing") && (
             <div className="flex items-center gap-3">
               <button
                 onClick={toggleMicrophone}
@@ -829,7 +833,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
                 }`}
               >
                 <Mic className="w-4 h-4" />
-                <span>{isMicActive ? "Listening (Microphone Active)" : "Tap to Speak"}</span>
+                <span>{isMicActive ? "Listening (Active)" : "Tap to Speak"}</span>
               </button>
 
               <button
