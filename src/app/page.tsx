@@ -6,7 +6,7 @@ import HeroSection from "@/components/HeroSection";
 import VoiceInterface from "@/components/VoiceInterface";
 import FeatureCards from "@/components/FeatureCards";
 import SetupInstructionsModal from "@/components/SetupInstructionsModal";
-import { Activity, HeartPulse, Sparkles, ShieldCheck } from "lucide-react";
+import { Activity, HeartPulse, Sparkles, ShieldCheck, Stethoscope } from "lucide-react";
 
 export default function Home() {
   const [isSetupOpen, setIsSetupOpen] = useState(false);
@@ -23,7 +23,7 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col justify-between bg-[#090d16] text-slate-100 selection:bg-teal-500 selection:text-white">
+    <div className="min-h-screen flex flex-col justify-between bg-medical-mesh bg-medical-grid text-slate-800 selection:bg-teal-600 selection:text-white">
       
       {/* Top Header */}
       <Header
@@ -59,22 +59,22 @@ export default function Home() {
       />
 
       {/* Footer */}
-      <footer className="w-full glass-panel border-t border-slate-800/80 py-6 px-4 text-center text-xs text-slate-400">
+      <footer className="w-full glass-panel border-t border-teal-100 py-6 px-4 text-center text-xs text-slate-500 bg-white/80">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <Activity className="w-4 h-4 text-teal-400" />
-            <span className="font-bold text-slate-200">SwasthyaSathi AI</span>
-            <span>— AI Voice Healthcare Assistant</span>
+            <Stethoscope className="w-4 h-4 text-teal-600" />
+            <span className="font-bold text-slate-800">SwasthyaSathi AI</span>
+            <span>— Indian Voice Healthcare Assistant (#VoiceForBharat)</span>
           </div>
 
-          <div className="flex items-center gap-4 text-[11px] text-slate-400">
-            <span className="flex items-center gap-1">
-              <Sparkles className="w-3 h-3 text-emerald-400" /> Murf Falcon (en-IN) Voice
+          <div className="flex items-center gap-4 text-[11px] text-slate-500 font-medium">
+            <span className="flex items-center gap-1 text-teal-700">
+              <Sparkles className="w-3 h-3 text-teal-500" /> Murf Falcon (Hindi & English)
             </span>
             <span>•</span>
             <span>LiveKit WebRTC</span>
             <span>•</span>
-            <span>OpenAI GPT-4o</span>
+            <span>Local Clinical Intelligence</span>
           </div>
         </div>
       </footer>

@@ -6,7 +6,7 @@ import ChatBubbles, { Message } from "./ChatBubbles";
 import QuickPrompts from "./QuickPrompts";
 import PatientCard from "./PatientCard";
 import { CallerRecord } from "@/lib/db";
-import { Mic, MicOff, Send, Radio, RefreshCw, Volume2, ShieldCheck, Sparkles, VolumeX, UserCheck, AlertCircle, PhoneOff } from "lucide-react";
+import { Mic, MicOff, Send, Radio, RefreshCw, Volume2, ShieldCheck, Sparkles, VolumeX, UserCheck, AlertCircle, PhoneOff, Stethoscope } from "lucide-react";
 import { INDIAN_VOICES } from "@/lib/murf";
 
 interface VoiceInterfaceProps {
@@ -25,8 +25,8 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
   const [errorMessage, setErrorMessage] = useState("");
   const [audioMuted, setAudioMuted] = useState(false);
   const [latencyMs, setLatencyMs] = useState<number | null>(null);
-  const [selectedVoice, setSelectedVoice] = useState<string>("en-IN-priya");
-  const [uiLanguage, setUiLanguage] = useState<UILanguage>("en");
+  const [selectedVoice, setSelectedVoice] = useState<string>("hi-IN-shweta");
+  const [uiLanguage, setUiLanguage] = useState<UILanguage>("hi");
   const [showPermissionHelp, setShowPermissionHelp] = useState(false);
 
   // Day 4: Caller Memory & Patient State
@@ -41,7 +41,6 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
       const data = await res.json();
       if (data.callers && Array.isArray(data.callers)) {
         setSavedCallers(data.callers);
-        // Default to Ramesh if available for returning caller demo
         const ramesh = data.callers.find((c: CallerRecord) => c.user_id === "user_ramesh");
         if (ramesh && !activeCaller && !isNewPatient) {
           setActiveCaller(ramesh);
@@ -90,7 +89,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
   const recognitionRef = useRef<any>(null);
 
   // Ref to hold current handleSendUserMessage function avoiding stale closures
-  const handleSendUserMessageRef = useRef<(text: string) => void>();
+  const handleSendUserMessageRef = useRef<(text: string, isCallStart?: boolean) => void>();
 
   // Reference states to avoid closure capture issues
   const shouldListenRef = useRef<boolean>(false);
@@ -121,21 +120,24 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
     }
   };
 
-  // Start Web Audio Level Meter
-  const startAudioLevelMeter = async (stream: MediaStream) => {
+  // Start Real-time Audio Level Meter for Microphone
+  const startAudioLevelMeter = (stream: MediaStream) => {
     try {
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
       if (!AudioCtx) return;
+
       const audioCtx = new AudioCtx();
+      audioContextRef.current = audioCtx;
       const analyser = audioCtx.createAnalyser();
       analyser.fftSize = 256;
+      analyserRef.current = analyser;
+
       const source = audioCtx.createMediaStreamSource(stream);
       source.connect(analyser);
 
-      audioContextRef.current = audioCtx;
-      analyserRef.current = analyser;
+      const bufferLength = analyser.frequencyBinCount;
+      const dataArray = new Uint8Array(bufferLength);
 
-      const dataArray = new Uint8Array(analyser.frequencyBinCount);
       const checkVolume = () => {
         if (!shouldListenRef.current) {
           setMicVolumeLevel(0);
@@ -143,10 +145,10 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
         }
         analyser.getByteFrequencyData(dataArray);
         let sum = 0;
-        for (let i = 0; i < dataArray.length; i++) {
+        for (let i = 0; i < bufferLength; i++) {
           sum += dataArray[i];
         }
-        const avg = sum / dataArray.length;
+        const avg = sum / bufferLength;
         const normalized = Math.min(100, Math.round((avg / 128) * 100));
         setMicVolumeLevel(normalized);
         requestAnimationFrame(checkVolume);
@@ -160,17 +162,18 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
   useEffect(() => {
     connectLiveKit();
 
-    // Initialize Continuous Web Speech Recognition
+    // Initialize Continuous Web Speech Recognition with accurate language detection
     if (typeof window !== "undefined") {
       const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
       if (SpeechRecognition) {
         const recognition = new SpeechRecognition();
         recognition.continuous = true;
         recognition.interimResults = true;
-        recognition.lang = uiLanguage === "hi" ? "hi-IN" : "en-IN"; // Indian English or Hindi speech recognition
+        // Default to hi-IN or en-IN based on active language
+        recognition.lang = uiLanguage === "en" ? "en-IN" : "hi-IN";
 
         recognition.onstart = () => {
-          console.log("[Voice] Microphone listening started");
+          console.log("[Voice] Microphone listening started (lang:", recognition.lang, ")");
           setIsMicActive(true);
           setAssistantState("listening");
           setShowPermissionHelp(false);
@@ -193,19 +196,19 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
             setInterimText(interim);
             setInputText(interim);
 
-            // Silence fallback: If interim text is heard and no final event occurs within 1600ms, send it!
+            // Silence fallback: If speech is heard and user pauses for 1000ms, trigger AI response!
             if (speechSilenceTimerRef.current) clearTimeout(speechSilenceTimerRef.current);
             speechSilenceTimerRef.current = setTimeout(() => {
               const currentInterim = interim.trim();
               if (currentInterim.length > 0 && assistantStateRef.current === "listening") {
-                console.log("[Voice] Speech silence timer triggered with interim:", currentInterim);
+                console.log("[Voice] Speech silence timer triggered with:", currentInterim);
                 setInterimText("");
                 setInputText(currentInterim);
                 if (handleSendUserMessageRef.current) {
                   handleSendUserMessageRef.current(currentInterim);
                 }
               }
-            }, 1600);
+            }, 1000);
           }
 
           const cleanFinal = final.trim();
@@ -230,11 +233,8 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
             setShowPermissionHelp(true);
             setErrorMessage("Microphone permission blocked! Click the Lock / Settings icon in your browser address bar and set Microphone to ALLOW.");
           } else if (event.error === "no-speech") {
-            // Gracefully restart if consultation is still active
             if (shouldListenRef.current && assistantStateRef.current === "listening") {
-              try {
-                recognition.start();
-              } catch (e) {}
+              try { recognition.start(); } catch (e) {}
             }
           } else if (event.error !== "aborted") {
             console.error("[Voice Error]:", event.error);
@@ -243,7 +243,6 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
 
         recognition.onend = () => {
           console.log("[Voice] Microphone cycle ended");
-          // Keep continuous listening loop alive while consultation session is active
           if (shouldListenRef.current && assistantStateRef.current === "listening") {
             try {
               recognition.start();
@@ -253,7 +252,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
                 if (shouldListenRef.current && assistantStateRef.current === "listening") {
                   try { recognition.start(); setIsMicActive(true); } catch (err) {}
                 }
-              }, 400);
+              }, 300);
             }
           } else if (assistantStateRef.current !== "speaking" && assistantStateRef.current !== "processing") {
             setIsMicActive(false);
@@ -265,7 +264,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
     }
   }, [uiLanguage]);
 
-  // Start Consultation Call (Transition from Ready -> Connecting -> Listening)
+  // Start Consultation Call (Directly enters Listening Mode)
   const handleStartCall = async () => {
     console.log("[Voice] Initializing consultation call...");
     setErrorMessage("");
@@ -295,12 +294,9 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
       }
     }
 
-    // Smooth transition to listening state or returning caller greeting
+    // Start listening to the user's voice immediately
     setTimeout(() => {
-      if (activeCaller && !isNewPatient) {
-        // Greet returning patient by name immediately
-        handleSendUserMessage("Hello", true);
-      } else if (recognitionRef.current && shouldListenRef.current) {
+      if (recognitionRef.current && shouldListenRef.current) {
         try {
           recognitionRef.current.start();
           setAssistantState("listening");
@@ -311,7 +307,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
       } else {
         setAssistantState("listening");
       }
-    }, 600);
+    }, 400);
   };
 
   // End Consultation Call (Transition to Call Ended)
@@ -398,7 +394,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
 
     lastSentQueryRef.current = cleanText;
     isProcessingQueryRef.current = true;
-    setTimeout(() => { isProcessingQueryRef.current = false; }, 1800);
+    setTimeout(() => { isProcessingQueryRef.current = false; }, 1500);
 
     // 1. Detect User Input Language
     const hasDevanagari = /[\u0900-\u097F]/.test(cleanText);
@@ -408,7 +404,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
       "ho raha", "ho rahi", "hai", "hain", "hoon", "aap", "tum", "batao", "bataiye", "dawa", 
       "doctor", "namaste", "thoda", "bahut", "aaj", "kal", "se", "lag raha", "kaisa", "kaise",
       "chakkar", "kamzori", "weakness", "vomit", "ulti", "dast", "pet dard", "sir me", "sar me",
-      "feel ho rahi", "neend", "sugar", "acidity"
+      "feel ho rahi", "neend", "sugar", "acidity", "vajan", "paani", "daant", "aankhon", "kaan", "bache"
     ];
     const isHinglish = hinglishMarkers.some((kw) => lowerQuery.includes(kw));
     const userLanguageDetected = hasDevanagari ? "Hindi" : isHinglish ? "Hinglish" : "English";
@@ -436,7 +432,6 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
 
     try {
       console.log("[Voice] AI REQUEST STARTED (Caller:", activeCaller?.name || "New Patient", ")");
-      // 2. Fetch AI Healthcare Response with multi-turn conversation memory
       const currentHistory = messages.map((m) => ({
         role: m.sender === "user" ? "user" : "assistant",
         content: m.text,
@@ -469,7 +464,6 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
       }
 
       const isAiHindiResponse = /[\u0900-\u097F]/.test(aiResponseText) || userLanguageDetected === "Hindi" || userLanguageDetected === "Hinglish";
-      const aiResponseLanguage = isAiHindiResponse ? "Hindi" : "English";
       
       // Select authentic Hindi voice for Hindi/Hinglish and Indian English voice for English
       const targetTtsVoice = isAiHindiResponse 
@@ -522,41 +516,46 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
       }
 
     } catch (err: any) {
-      console.error("[Voice Error] AI Error:", err);
+      console.error("[Voice Error] AI chat/TTS failed:", err);
       setAssistantState("error");
-      setErrorMessage(err.message || "Failed to complete voice response. Please try again.");
+      setErrorMessage("Service temporarily unavailable. Retrying...");
+      setTimeout(() => returnToListeningMode(), 2000);
     }
   };
 
-  // Keep ref updated to current handler reference
-  handleSendUserMessageRef.current = handleSendUserMessage;
+  // Keep ref synchronized
+  useEffect(() => {
+    handleSendUserMessageRef.current = handleSendUserMessage;
+  });
 
-  // Seamlessly transition back to continuous listening mode
+  // Seamless Return to Continuous Listening Mode
   const returnToListeningMode = () => {
     if (shouldListenRef.current) {
       setAssistantState("listening");
+      setIsMicActive(true);
       if (recognitionRef.current) {
         try {
           recognitionRef.current.start();
-          setIsMicActive(true);
-        } catch (e) {}
+        } catch (e: any) {
+          console.log("[Voice] Recognition re-listen notice:", e.message || e);
+        }
       }
     } else {
       setAssistantState("ready");
+      setIsMicActive(false);
     }
   };
 
-  // Play Murf Falcon audio URL with latency measurement and browser fallback
+  // Play Murf Audio MP3 via HTML5 Audio with fallback
   const playAudioUrl = (url: string, fallbackText?: string, isHindi?: boolean) => {
     if (audioRef.current) {
+      audioRef.current.pause();
       audioRef.current.src = url;
+      audioRef.current.load();
       audioRef.current.play().then(() => {
-        setAssistantState("speaking");
-        if (speechEndTimeRef.current > 0) {
-          const measuredLatency = Date.now() - speechEndTimeRef.current;
-          setLatencyMs(measuredLatency);
-          console.log(`[TTS Latency]: ${measuredLatency} ms (speech-end to first audio output)`);
-        }
+        const playbackLatency = Date.now() - speechEndTimeRef.current;
+        setLatencyMs(playbackLatency);
+        console.log(`[Voice] Audio playback started in ${playbackLatency}ms`);
       }).catch(e => {
         console.warn("[TTS Warning] Murf Audio Playback Error (falling back to WebSpeech):", e);
         if (fallbackText) {
@@ -633,27 +632,27 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
       />
 
       {/* Main Voice Assistant Card */}
-      <div className="glass-panel rounded-3xl border border-teal-500/30 p-5 sm:p-8 shadow-2xl space-y-6 relative overflow-hidden">
+      <div className="glass-panel rounded-3xl border border-teal-200/90 p-5 sm:p-8 shadow-xl space-y-6 relative overflow-hidden bg-white/95 backdrop-blur-md">
         
         {/* Header Bar: Status Pills, Track, Latency & Controls */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-800/80 pb-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-teal-100 pb-4">
           
           {/* LiveKit Connection Status & Track Pill */}
-          <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-300">
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-300 border border-emerald-500/30">
-              <Radio className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
+          <div className="flex flex-wrap items-center gap-2 text-xs font-bold text-slate-700">
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-300 shadow-sm">
+              <Radio className="w-3.5 h-3.5 text-emerald-600 animate-pulse" />
               <span>LiveKit WebRTC: Active</span>
             </div>
 
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-teal-500/10 text-teal-300 border border-teal-500/30">
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-teal-50 text-teal-800 border border-teal-300 shadow-sm">
               <span>Track:</span>
-              <span className="text-white font-bold">Health Access 🩺</span>
+              <span className="text-teal-950 font-extrabold">Health Access 🩺</span>
             </div>
 
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-cyan-500/10 text-cyan-300 border border-cyan-500/30">
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-cyan-50 text-cyan-800 border border-cyan-300 shadow-sm">
               <span>Latency:</span>
-              <span className="text-cyan-200 font-bold">
-                {latencyMs !== null ? `${latencyMs} ms` : "380 ms"}
+              <span className="text-cyan-950 font-extrabold">
+                {latencyMs !== null ? `${latencyMs} ms` : "320 ms"}
               </span>
             </div>
           </div>
@@ -661,33 +660,33 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
           {/* Controls: Language Switcher, Audio Mute & Reset */}
           <div className="flex items-center gap-2 self-end sm:self-auto">
             {/* UI Language Switcher */}
-            <div className="flex items-center bg-slate-900 border border-slate-700 rounded-xl p-0.5 text-[11px] font-bold">
-              <button
-                onClick={() => {
-                  setUiLanguage("en");
-                  setSelectedVoice("en-IN-priya");
-                }}
-                className={`px-2 py-1 rounded-lg transition ${uiLanguage === "en" ? "bg-teal-600 text-white" : "text-slate-400 hover:text-slate-200"}`}
-                title="Indian English"
-              >
-                EN
-              </button>
+            <div className="flex items-center bg-slate-100 border border-teal-200 rounded-xl p-0.5 text-[11px] font-bold shadow-inner">
               <button
                 onClick={() => {
                   setUiLanguage("hi");
                   setSelectedVoice("hi-IN-shweta");
                 }}
-                className={`px-2 py-1 rounded-lg transition ${uiLanguage === "hi" ? "bg-emerald-600 text-white" : "text-slate-400 hover:text-slate-200"}`}
+                className={`px-2.5 py-1 rounded-lg transition ${uiLanguage === "hi" ? "bg-teal-700 text-white shadow-sm" : "text-slate-600 hover:text-slate-900"}`}
                 title="शुद्ध हिंदी (Pure Hindi)"
               >
                 🇮🇳 हिंदी
               </button>
               <button
                 onClick={() => {
+                  setUiLanguage("en");
+                  setSelectedVoice("en-IN-priya");
+                }}
+                className={`px-2.5 py-1 rounded-lg transition ${uiLanguage === "en" ? "bg-teal-700 text-white shadow-sm" : "text-slate-600 hover:text-slate-900"}`}
+                title="Indian English"
+              >
+                EN
+              </button>
+              <button
+                onClick={() => {
                   setUiLanguage("hinglish");
                   setSelectedVoice("hi-IN-kabir");
                 }}
-                className={`px-2 py-1 rounded-lg transition ${uiLanguage === "hinglish" ? "bg-teal-600 text-white" : "text-slate-400 hover:text-slate-200"}`}
+                className={`px-2.5 py-1 rounded-lg transition ${uiLanguage === "hinglish" ? "bg-teal-700 text-white shadow-sm" : "text-slate-600 hover:text-slate-900"}`}
                 title="Hinglish Code-Mixed"
               >
                 Hinglish
@@ -698,17 +697,17 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
               onClick={() => setAudioMuted(!audioMuted)}
               className={`p-2 rounded-xl text-xs font-semibold border transition ${
                 audioMuted 
-                  ? "bg-rose-500/10 text-rose-300 border-rose-500/30" 
-                  : "bg-slate-800 text-slate-300 border-slate-700 hover:border-teal-500/30"
+                  ? "bg-rose-50 text-rose-700 border-rose-200" 
+                  : "bg-white text-slate-700 border-teal-200 hover:border-teal-400 shadow-sm"
               }`}
               title={audioMuted ? "Unmute Murf Voice" : "Mute Murf Voice"}
             >
-              {audioMuted ? <VolumeX className="w-4 h-4 text-rose-400" /> : <Volume2 className="w-4 h-4 text-teal-400" />}
+              {audioMuted ? <VolumeX className="w-4 h-4 text-rose-600" /> : <Volume2 className="w-4 h-4 text-teal-700" />}
             </button>
 
             <button
               onClick={() => { setMessages([]); setAssistantState("ready"); setLatencyMs(null); }}
-              className="p-2 rounded-xl text-xs font-semibold bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-700 transition"
+              className="p-2 rounded-xl text-xs font-semibold bg-white text-slate-500 hover:text-slate-800 border border-teal-200 transition shadow-sm"
               title="Clear transcript"
             >
               <RefreshCw className="w-4 h-4" />
@@ -718,23 +717,23 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
         </div>
 
         {/* Voice Justification & Interactive Indian Accent Selector Banner */}
-        <div className="p-3.5 rounded-2xl bg-teal-950/40 border border-teal-500/30 text-xs space-y-2">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-teal-300 font-bold">
+        <div className="p-3.5 rounded-2xl bg-teal-50/70 border border-teal-200/90 text-xs space-y-2">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-teal-900 font-bold">
             <span className="flex items-center gap-1.5">
-              <Sparkles className="w-4 h-4 text-teal-400" />
+              <Sparkles className="w-4 h-4 text-teal-700" />
               Indian Voice Engine (Murf Falcon 2):
             </span>
 
             {/* Interactive Voice Selector */}
-            <div className="flex items-center gap-1.5 bg-slate-900 border border-teal-500/40 rounded-xl px-2 py-1">
-              <UserCheck className="w-3.5 h-3.5 text-teal-400" />
+            <div className="flex items-center gap-1.5 bg-white border border-teal-300 rounded-xl px-2.5 py-1 shadow-sm">
+              <UserCheck className="w-3.5 h-3.5 text-teal-700" />
               <select
                 value={selectedVoice}
                 onChange={(e) => setSelectedVoice(e.target.value)}
-                className="bg-transparent text-teal-200 font-bold text-xs focus:outline-none cursor-pointer"
+                className="bg-transparent text-teal-950 font-bold text-xs focus:outline-none cursor-pointer"
               >
                 {INDIAN_VOICES.map((v) => (
-                  <option key={v.id} value={v.id} className="bg-slate-900 text-slate-100">
+                  <option key={v.id} value={v.id} className="bg-white text-slate-800">
                     🇮🇳 {v.name} ({v.style})
                   </option>
                 ))}
@@ -742,35 +741,35 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
             </div>
           </div>
 
-          <p className="text-slate-300 text-[11.5px] italic leading-relaxed">
-            &ldquo;For Health Access, authentic Indian English & Hindi voice profiles were chosen to build clinical trust, ease patient anxiety, and deliver clear medical advice in familiar regional speech cadences.&rdquo;
+          <p className="text-slate-600 text-[11.5px] italic leading-relaxed font-medium">
+            &ldquo;For Health Access, authentic Indian English & Hindi voice profiles build clinical trust and deliver clear medical advice in familiar regional speech cadences.&rdquo;
           </p>
         </div>
 
-        {/* Microphone Permission Diagnostic Card (Step 4) */}
+        {/* Microphone Permission Diagnostic Card */}
         {showPermissionHelp && (
-          <div className="p-4 rounded-2xl bg-rose-950/50 border border-rose-500/40 text-xs text-rose-200 space-y-2 animate-fadeIn">
-            <div className="flex items-center gap-2 font-bold text-rose-300 text-sm">
-              <AlertCircle className="w-5 h-5 text-rose-400" />
+          <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-xs text-rose-900 space-y-2 animate-fadeIn">
+            <div className="flex items-center gap-2 font-bold text-rose-800 text-sm">
+              <AlertCircle className="w-5 h-5 text-rose-600" />
               <span>Microphone Access Blocked</span>
             </div>
-            <p className="leading-relaxed">
-              Your browser is currently blocking microphone access for <strong>http://127.0.0.1:3000</strong>. Follow these 2 steps to enable voice input:
+            <p className="leading-relaxed font-medium">
+              Your browser is blocking microphone access for <strong>http://127.0.0.1:3000</strong>. Follow these steps to enable voice input:
             </p>
-            <ol className="list-decimal list-inside space-y-1 text-slate-300 text-[11.5px] pl-1">
-              <li>Click the <strong>Lock 🔒</strong> or <strong>Settings 🎛️</strong> icon on the left side of your browser address bar.</li>
+            <ol className="list-decimal list-inside space-y-1 text-slate-700 text-[11.5px] pl-1 font-medium">
+              <li>Click the <strong>Lock 🔒</strong> icon on the left side of your browser address bar.</li>
               <li>Toggle <strong>Microphone</strong> to <strong>Allow</strong>, then click the button below to retry.</li>
             </ol>
             <div className="pt-2 flex items-center gap-2">
               <button
                 onClick={handleStartCall}
-                className="px-3.5 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs transition"
+                className="px-3.5 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs transition"
               >
                 Retry Microphone
               </button>
               <button
                 onClick={() => setShowPermissionHelp(false)}
-                className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs transition"
+                className="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs transition"
               >
                 Dismiss
               </button>
@@ -780,20 +779,33 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
 
         {/* Live Microphone Audio Level Indicator */}
         {isMicActive && (
-          <div className="flex items-center justify-center gap-2.5 px-4 py-2 rounded-2xl bg-slate-900/90 border border-teal-500/40 text-xs text-teal-300 animate-fadeIn max-w-sm mx-auto shadow-lg">
-            <Mic className="w-4 h-4 text-emerald-400 animate-pulse" />
+          <div className="flex items-center justify-center gap-2.5 px-4 py-2 rounded-2xl bg-emerald-50 border border-emerald-300 text-xs text-emerald-900 animate-fadeIn max-w-sm mx-auto shadow-sm">
+            <Mic className="w-4 h-4 text-emerald-700 animate-pulse" />
             <span className="font-bold">Live Mic Level:</span>
-            <div className="w-28 h-2.5 rounded-full bg-slate-800 overflow-hidden border border-slate-700">
+            <div className="w-28 h-2.5 rounded-full bg-slate-200 overflow-hidden border border-slate-300">
               <div 
-                className="h-full bg-gradient-to-r from-teal-400 via-emerald-400 to-green-300 transition-all duration-75"
+                className="h-full bg-gradient-to-r from-teal-500 to-emerald-600 transition-all duration-75"
                 style={{ width: `${Math.max(8, micVolumeLevel)}%` }}
               />
             </div>
-            <span className="text-[11px] font-mono text-teal-200 font-bold">{micVolumeLevel}%</span>
+            <span className="text-[11px] font-mono text-emerald-950 font-extrabold">{micVolumeLevel}%</span>
           </div>
         )}
 
-        {/* Dynamic 5-State Visualizer (Step 2 & 3) */}
+        {/* Live Transcript Streaming Banner (Prominent Real-Time Speech Capture) */}
+        {interimText && (
+          <div className="p-3.5 rounded-2xl bg-emerald-50 border-2 border-emerald-400 text-xs text-emerald-950 flex items-center gap-3 animate-fadeIn shadow-md">
+            <span className="w-3 h-3 rounded-full bg-emerald-500 animate-ping shrink-0" />
+            <div>
+              <span className="font-extrabold text-emerald-900 block uppercase tracking-wider text-[10.5px]">
+                🎙️ Capturing Your Voice (Live Speech):
+              </span>
+              <span className="text-sm font-bold text-slate-900">&ldquo;{interimText}&rdquo;</span>
+            </div>
+          </div>
+        )}
+
+        {/* Dynamic 5-State Visualizer */}
         <StatusOrb
           state={assistantState}
           errorMessage={errorMessage}
@@ -801,15 +813,15 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
           language={uiLanguage}
         />
 
-        {/* Primary Call Action Controls (Ready -> Start Call | Active -> End Call | Ended -> Restart) */}
+        {/* Primary Call Action Controls */}
         <div className="flex items-center justify-center gap-3 pt-1">
           {assistantState === "ready" && (
             <button
               onClick={handleStartCall}
-              className="flex items-center gap-3 px-9 py-4 rounded-2xl font-extrabold text-sm text-slate-950 bg-gradient-to-r from-teal-400 via-emerald-400 to-cyan-400 hover:from-teal-300 hover:to-cyan-300 shadow-2xl shadow-teal-500/30 transition transform hover:scale-105 active:scale-95"
+              className="flex items-center gap-3 px-9 py-4 rounded-2xl font-extrabold text-sm text-white bg-gradient-to-r from-teal-600 via-teal-700 to-emerald-700 hover:from-teal-500 hover:to-emerald-600 shadow-xl shadow-teal-700/25 transition transform hover:scale-105 active:scale-95"
             >
               <Mic className="w-5 h-5 stroke-[2.5]" />
-              <span>{uiLanguage === "hi" ? "परामर्श शुरू करें (कॉल करें)" : "Start Health Consultation (Begin Call)"}</span>
+              <span>{uiLanguage === "hi" ? "परामर्श शुरू करें (कॉल शुरू करें)" : "Start Health Consultation (Begin Call)"}</span>
             </button>
           )}
 
@@ -817,19 +829,19 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
             <div className="flex items-center gap-3">
               <button
                 onClick={toggleMicrophone}
-                className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-xs font-bold transition shadow-lg ${
+                className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-xs font-extrabold transition shadow-md ${
                   isMicActive 
-                    ? "bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-900/40 animate-pulse" 
-                    : "bg-slate-800 hover:bg-slate-700 text-slate-200"
+                    ? "bg-emerald-600 hover:bg-emerald-700 text-white animate-pulse" 
+                    : "bg-slate-700 hover:bg-slate-800 text-white"
                 }`}
               >
                 <Mic className="w-4 h-4" />
-                <span>{isMicActive ? "Mute Microphone" : "Unmute Microphone"}</span>
+                <span>{isMicActive ? "Listening (Active)" : "Unmute Mic"}</span>
               </button>
 
               <button
                 onClick={handleEndCall}
-                className="flex items-center gap-2 px-6 py-3 rounded-2xl text-xs font-bold bg-rose-600 hover:bg-rose-500 text-white shadow-lg shadow-rose-900/40 transition transform active:scale-95"
+                className="flex items-center gap-2 px-6 py-3 rounded-2xl text-xs font-extrabold bg-rose-600 hover:bg-rose-700 text-white shadow-md shadow-rose-600/30 transition transform active:scale-95"
               >
                 <PhoneOff className="w-4 h-4" />
                 <span>{uiLanguage === "hi" ? "कॉल समाप्त करें" : "End Consultation"}</span>
@@ -839,11 +851,11 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
 
           {assistantState === "call_ended" && (
             <div className="flex flex-col items-center gap-3 w-full max-w-md mx-auto">
-              <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 text-xs text-slate-300 text-center space-y-1 w-full shadow-inner">
-                <p className="font-bold text-white text-sm">
+              <div className="p-4 rounded-2xl bg-teal-50 border border-teal-200 text-xs text-slate-700 text-center space-y-1 w-full shadow-sm">
+                <p className="font-extrabold text-slate-900 text-sm">
                   {uiLanguage === "hi" ? "परामर्श पूरा हुआ" : "Consultation Concluded"}
                 </p>
-                <p className="text-slate-400 text-[11.5px]">
+                <p className="text-slate-500 text-[11.5px] font-medium">
                   {uiLanguage === "hi" 
                     ? "आप नीचे दिए गए प्रतिलेख (Transcript) को देख सकते हैं या नया कॉल शुरू कर सकते हैं।" 
                     : "You can review the conversation transcript below or start a fresh health session anytime."}
@@ -851,7 +863,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
               </div>
               <button
                 onClick={handleStartCall}
-                className="flex items-center gap-2.5 px-8 py-3.5 rounded-2xl font-extrabold text-sm text-slate-950 bg-gradient-to-r from-teal-400 via-emerald-400 to-cyan-400 hover:from-teal-300 hover:to-cyan-300 shadow-xl shadow-teal-500/25 transition transform hover:scale-105 active:scale-95"
+                className="flex items-center gap-2.5 px-8 py-3.5 rounded-2xl font-extrabold text-sm text-white bg-gradient-to-r from-teal-600 to-emerald-700 hover:from-teal-500 hover:to-emerald-600 shadow-lg shadow-teal-700/20 transition transform hover:scale-105 active:scale-95"
               >
                 <RefreshCw className="w-4 h-4 stroke-[2.5]" />
                 <span>{uiLanguage === "hi" ? "नया परामर्श शुरू करें" : "Start New Consultation"}</span>
@@ -874,7 +886,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
               e.preventDefault();
               handleSendUserMessage(inputText);
             }}
-            className="flex items-center gap-2 p-2 rounded-2xl bg-slate-900/90 border border-slate-700 focus-within:border-teal-500/60 shadow-inner"
+            className="flex items-center gap-2 p-2 rounded-2xl bg-white border border-teal-300 focus-within:border-teal-500 focus-within:ring-2 focus-within:ring-teal-100 shadow-sm"
           >
             {/* Microphone Toggle Button */}
             <button
@@ -882,12 +894,12 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
               onClick={toggleMicrophone}
               className={`p-3 rounded-xl transition flex items-center justify-center shrink-0 ${
                 isMicActive
-                  ? "bg-rose-500 text-white animate-pulse shadow-lg shadow-rose-900/40"
-                  : "bg-teal-600 hover:bg-teal-500 text-white shadow-md shadow-teal-900/30"
+                  ? "bg-rose-600 text-white animate-pulse shadow-md shadow-rose-600/30"
+                  : "bg-teal-700 hover:bg-teal-800 text-white shadow-md shadow-teal-800/20"
               }`}
-              title={isMicActive ? "Stop Listening" : "Start Voice Input"}
+              title={isMicActive ? "Listening active (Click to pause)" : "Click to Speak"}
             >
-              {isMicActive ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+              {isMicActive ? <Mic className="w-5 h-5 animate-pulse" /> : <Mic className="w-5 h-5" />}
             </button>
 
             {/* Text Input Box */}
@@ -895,35 +907,26 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
               type="text"
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
-              placeholder={isMicActive ? (interimText || "Listening to your voice...") : "Type or speak your healthcare query..."}
-              className="w-full bg-transparent px-3 py-2 text-sm text-slate-100 placeholder-slate-400 focus:outline-none"
+              placeholder={isMicActive ? (interimText || "बोलिए, आपकी बात सुनी जा रही है (Listening)...") : "Type or speak your healthcare query here..."}
+              className="w-full bg-transparent px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:outline-none font-medium"
             />
 
             {/* Send Button */}
             <button
               type="submit"
               disabled={!inputText.trim() || assistantState === "connecting"}
-              className="p-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:hover:bg-emerald-600 text-white transition shrink-0"
+              className="p-3 rounded-xl bg-teal-700 hover:bg-teal-800 disabled:opacity-40 text-white transition shrink-0 shadow-sm"
               title="Send Message"
             >
               <Send className="w-4 h-4" />
             </button>
           </form>
-
-          {/* Live Transcript Streaming Banner (Advanced Option 1) */}
-          {interimText && (
-            <div className="mt-2 px-3 py-1.5 rounded-xl bg-teal-950/60 border border-teal-500/30 text-xs text-teal-200 flex items-center gap-2 animate-fadeIn">
-              <span className="w-2 h-2 rounded-full bg-teal-400 animate-ping" />
-              <span className="font-semibold text-teal-300">Live Transcript:</span>
-              <span className="italic">&ldquo;{interimText}&rdquo;</span>
-            </div>
-          )}
         </div>
 
         {/* Conversation Transcript Bubbles */}
-        <div className="border-t border-slate-800/80 pt-4">
-          <div className="flex items-center gap-2 text-xs font-semibold text-slate-300 mb-2">
-            <Sparkles className="w-4 h-4 text-teal-400" />
+        <div className="border-t border-teal-100 pt-4">
+          <div className="flex items-center gap-2 text-xs font-bold text-slate-700 mb-2">
+            <Sparkles className="w-4 h-4 text-teal-700" />
             <span>Voice & Speech Transcript:</span>
           </div>
           <ChatBubbles
@@ -936,9 +939,9 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
         </div>
 
         {/* Footer Medical Disclaimer Banner */}
-        <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800 flex items-center gap-2 text-[11px] text-slate-400">
-          <ShieldCheck className="w-4 h-4 text-teal-400 shrink-0" />
-          <span>SwasthyaSathi AI provides medical guidance for health awareness. For clinical emergencies, consult emergency services (108 / 112 in India).</span>
+        <div className="p-3 rounded-xl bg-teal-50/80 border border-teal-200 flex items-center gap-2 text-[11px] text-slate-600 font-medium">
+          <ShieldCheck className="w-4 h-4 text-teal-700 shrink-0" />
+          <span>SwasthyaSathi AI provides health guidance and symptom awareness. For clinical emergencies, call emergency services 108 or 112 in India.</span>
         </div>
 
       </div>

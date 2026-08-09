@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { User, Bot, Volume2, Copy, Check, Sparkles, HeartPulse } from "lucide-react";
+import { User, Bot, Volume2, Copy, Check, Sparkles, HeartPulse, Stethoscope } from "lucide-react";
 
 export interface Message {
   id: string;
@@ -28,13 +28,13 @@ export default function ChatBubbles({ messages, onPlayAudio }: ChatBubblesProps)
 
   if (messages.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center p-8 text-center space-y-3 glass-panel rounded-2xl border border-slate-800/80 my-4">
-        <div className="w-12 h-12 rounded-2xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center text-teal-400">
-          <HeartPulse className="w-6 h-6 animate-pulse" />
+      <div className="flex flex-col items-center justify-center p-8 text-center space-y-3 glass-panel rounded-2xl border border-teal-200 my-4 bg-white/90 shadow-sm">
+        <div className="w-12 h-12 rounded-2xl bg-teal-50 border border-teal-200 flex items-center justify-center text-teal-700">
+          <Stethoscope className="w-6 h-6 animate-pulse" />
         </div>
-        <h4 className="text-base font-semibold text-slate-200">No voice conversation yet</h4>
-        <p className="text-xs text-slate-400 max-w-sm">
-          Click <strong className="text-teal-300">&quot;Start Talking&quot;</strong> or choose a quick health query below to start interacting with SwasthyaSathi AI.
+        <h4 className="text-base font-bold text-slate-800">No voice conversation yet</h4>
+        <p className="text-xs text-slate-500 max-w-sm font-medium">
+          Click <strong className="text-teal-800">&quot;Start Health Consultation&quot;</strong> or speak your question into the microphone.
         </p>
       </div>
     );
@@ -54,61 +54,69 @@ export default function ChatBubbles({ messages, onPlayAudio }: ChatBubblesProps)
             <div
               className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 text-sm font-bold shadow-md ${
                 isUser
-                  ? "bg-gradient-to-br from-teal-500 to-cyan-600 text-slate-950"
-                  : "bg-gradient-to-br from-emerald-600 to-teal-800 text-white border border-emerald-400/30"
+                  ? "bg-gradient-to-br from-teal-700 to-teal-900 text-white"
+                  : "bg-gradient-to-br from-emerald-600 to-teal-700 text-white border border-teal-300"
               }`}
             >
-              {isUser ? <User className="w-5 h-5" /> : <Bot className="w-5 h-5" />}
+              {isUser ? <User className="w-4 h-4" /> : <Stethoscope className="w-4 h-4" />}
             </div>
 
             {/* Message Card */}
             <div
-              className={`relative max-w-[85%] sm:max-w-[75%] rounded-2xl p-4 shadow-lg text-sm leading-relaxed transition-all ${
+              className={`relative max-w-[85%] sm:max-w-[78%] rounded-2xl p-4 shadow-md text-sm leading-relaxed transition-all ${
                 isUser
-                  ? "bg-teal-950/80 border border-teal-500/30 text-teal-50 rounded-tr-none"
-                  : "glass-card border border-emerald-500/30 text-slate-100 rounded-tl-none"
+                  ? "bg-teal-700 text-white border border-teal-800 rounded-tr-none"
+                  : "bg-white text-slate-800 border border-teal-200/90 rounded-tl-none"
               }`}
             >
               {/* Header Info for Assistant */}
               {!isUser && (
-                <div className="flex items-center justify-between gap-2 pb-2 mb-2 border-b border-slate-700/60 text-[11px]">
-                  <div className="flex items-center gap-1.5 font-bold text-emerald-400">
+                <div className="flex items-center justify-between gap-2 pb-2 mb-2 border-b border-slate-100 text-[11px]">
+                  <div className="flex items-center gap-1.5 font-bold text-teal-800">
                     <span>SwasthyaSathi AI</span>
-                    <span className="px-1.5 py-0.2 rounded bg-emerald-500/10 text-[10px] text-emerald-300 font-semibold border border-emerald-500/20">
+                    <span className="px-1.5 py-0.2 rounded bg-teal-50 text-[10px] text-teal-800 font-semibold border border-teal-200">
                       Murf Falcon Voice
                     </span>
                   </div>
-                  <span className="text-slate-400">{msg.timestamp}</span>
+                  <span className="text-slate-400 font-medium">{msg.timestamp}</span>
+                </div>
+              )}
+
+              {/* Header Info for User */}
+              {isUser && (
+                <div className="flex items-center justify-between gap-2 pb-1 mb-1 text-[11px] text-teal-100">
+                  <span className="font-bold">You (Patient)</span>
+                  <span>{msg.timestamp}</span>
                 </div>
               )}
 
               {/* Message Content */}
-              <p className="whitespace-pre-wrap">{msg.text}</p>
+              <p className="whitespace-pre-wrap font-medium">{msg.text}</p>
 
               {/* Action Buttons for Assistant Message */}
               {!isUser && (
-                <div className="flex items-center justify-between pt-3 mt-2 border-t border-slate-800/80 text-xs">
+                <div className="flex items-center justify-between pt-3 mt-2 border-t border-slate-100 text-xs">
                   
                   {/* Replay Murf Speech Button */}
                   <button
                     onClick={() => onPlayAudio && onPlayAudio(msg.text, msg.audioUrl)}
-                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-teal-500/10 hover:bg-teal-500/20 text-teal-300 border border-teal-500/30 transition text-[11px] font-medium"
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200 transition text-[11px] font-bold"
                     title="Play Murf Falcon voice"
                   >
-                    <Volume2 className="w-3.5 h-3.5 text-teal-400" />
-                    <span>Replay Voice</span>
+                    <Volume2 className="w-3.5 h-3.5 text-teal-700" />
+                    <span>Replay Audio</span>
                   </button>
 
                   {/* Copy Button */}
                   <button
                     onClick={() => handleCopy(msg.id, msg.text)}
-                    className="flex items-center gap-1 text-slate-400 hover:text-slate-200 transition text-[11px]"
-                    title="Copy text"
+                    className="flex items-center gap-1 text-slate-400 hover:text-slate-700 transition text-[11px] font-medium"
+                    title="Copy advice"
                   >
                     {copiedId === msg.id ? (
                       <>
-                        <Check className="w-3.5 h-3.5 text-emerald-400" />
-                        <span className="text-emerald-400">Copied</span>
+                        <Check className="w-3.5 h-3.5 text-emerald-600" />
+                        <span className="text-emerald-700">Copied</span>
                       </>
                     ) : (
                       <>
@@ -117,13 +125,6 @@ export default function ChatBubbles({ messages, onPlayAudio }: ChatBubblesProps)
                       </>
                     )}
                   </button>
-                </div>
-              )}
-
-              {/* Timestamp for User */}
-              {isUser && (
-                <div className="text-[10px] text-teal-300/60 text-right mt-1 font-medium">
-                  {msg.timestamp}
                 </div>
               )}
             </div>

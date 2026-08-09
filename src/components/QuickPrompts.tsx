@@ -1,6 +1,6 @@
 "use client";
 
-import { Sparkles, Thermometer, Coffee, Salad, Bandage, Moon } from "lucide-react";
+import { Sparkles, Thermometer, Coffee, Salad, Bandage, Moon, HelpCircle } from "lucide-react";
 
 interface QuickPromptsProps {
   onSelectPrompt: (promptText: string) => void;
@@ -11,57 +11,57 @@ interface QuickPromptsProps {
 export default function QuickPrompts({ onSelectPrompt, disabled = false, language = "en" }: QuickPromptsProps) {
   const englishPrompts = [
     {
-      icon: <Sparkles className="w-3.5 h-3.5 text-cyan-400" />,
+      icon: <HelpCircle className="w-3.5 h-3.5 text-teal-700" />,
+      text: "Mera naam kya hai?",
+      tag: "👤 Name & Memory Check",
+    },
+    {
+      icon: <Sparkles className="w-3.5 h-3.5 text-cyan-700" />,
       text: "Mujhe do din se thoda bukhar aur gala kharab hai, kya karu?",
-      tag: "🇮🇳 Hinglish Code-Mixed",
+      tag: "🇮🇳 Hinglish Triage",
     },
     {
-      icon: <Bandage className="w-3.5 h-3.5 text-rose-400" />,
-      text: "Can you prescribe me Amoxicillin 500mg for my throat infection?",
-      tag: "🛡️ Guardrail Refusal Test",
+      icon: <Coffee className="w-3.5 h-3.5 text-teal-700" />,
+      text: "Din me kitna paani pina chahiye?",
+      tag: "Hydration Advice",
     },
     {
-      icon: <Thermometer className="w-3.5 h-3.5 text-amber-400" />,
-      text: "My dad is experiencing severe chest pain and breathlessness.",
-      tag: "⚠️ Emergency Red-Flag Test",
+      icon: <Salad className="w-3.5 h-3.5 text-emerald-700" />,
+      text: "Vajan kam karne ke liye diet aur exercise tips bataiye.",
+      tag: "Weight Loss",
     },
     {
-      icon: <Coffee className="w-3.5 h-3.5 text-teal-400" />,
-      text: "Suggest safe home remedies for a sore throat and dry cough.",
-      tag: "Home Care",
-    },
-    {
-      icon: <Salad className="w-3.5 h-3.5 text-emerald-400" />,
-      text: "What is a healthy Indian diet plan for managing blood sugar?",
-      tag: "Nutrition",
+      icon: <Bandage className="w-3.5 h-3.5 text-rose-700" />,
+      text: "Can you prescribe me Amoxicillin 500mg?",
+      tag: "🛡️ Drug Guardrail Test",
     },
   ];
 
   const hindiPrompts = [
     {
-      icon: <Thermometer className="w-3.5 h-3.5 text-amber-400" />,
-      text: "मुझे दो दिन से बुखार है और कमजोरी लग रही है, क्या घरेलू उपाय करें?",
-      tag: "बुखार के उपाय",
+      icon: <HelpCircle className="w-3.5 h-3.5 text-teal-700" />,
+      text: "मेरा नाम क्या है और मेरा रिकॉर्ड क्या है?",
+      tag: "👤 नाम व मेमोरी",
     },
     {
-      icon: <Coffee className="w-3.5 h-3.5 text-teal-400" />,
-      text: "खांसी और गले में खराश के लिए सुरक्षित घरेलू उपचार बताइए।",
-      tag: "खांसी का काढ़ा",
+      icon: <Thermometer className="w-3.5 h-3.5 text-amber-700" />,
+      text: "मुझे दो दिन से बुखार और कमजोरी है, क्या उपाय करें?",
+      tag: "बुखार triage",
     },
     {
-      icon: <Salad className="w-3.5 h-3.5 text-emerald-400" />,
-      text: "मधुमेह (शुगर) को नियंत्रित रखने के लिए भारतीय आहार क्या होना चाहिए?",
-      tag: "डायबिटीज डाइट",
+      icon: <Coffee className="w-3.5 h-3.5 text-teal-700" />,
+      text: "खांसी और गले की खराश के घरेलू उपाय बताएं।",
+      tag: "गला व खांसी",
     },
     {
-      icon: <Bandage className="w-3.5 h-3.5 text-rose-400" />,
-      text: "क्या आप मुझे गले के संक्रमण के लिए एंटीबायोटिक दवा का नाम बता सकते हैं?",
-      tag: "🛡️ दवा सुरक्षा नियम",
+      icon: <Salad className="w-3.5 h-3.5 text-emerald-700" />,
+      text: "वजन कम करने और फिट रहने के आसान टिप्स बताइए।",
+      tag: "वजन नियंत्रण",
     },
     {
-      icon: <Sparkles className="w-3.5 h-3.5 text-cyan-400" />,
-      text: "डेंगू बुखार के मुख्य लक्षण क्या होते हैं और प्लेटलेट्स कैसे बढ़ाएं?",
-      tag: "डेंगू लक्षण",
+      icon: <Bandage className="w-3.5 h-3.5 text-rose-700" />,
+      text: "क्या आप मुझे एंटीबायोटिक दवा लिख सकते हैं?",
+      tag: "🛡️ सुरक्षा नियम",
     },
   ];
 
@@ -69,9 +69,9 @@ export default function QuickPrompts({ onSelectPrompt, disabled = false, languag
 
   return (
     <div className="space-y-2.5 pt-2">
-      <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-300">
-        <Sparkles className="w-3.5 h-3.5 text-teal-400" />
-        <span>{language === "hi" ? "स्वास्थ्य साथी से पूछें (त्वरित प्रश्न):" : "Try Asking SwasthyaSathi AI:"}</span>
+      <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700">
+        <Sparkles className="w-3.5 h-3.5 text-teal-700" />
+        <span>{language === "hi" ? "त्वरित प्रश्न (क्लिक करके पूछें):" : "Quick Health Inquiries (Click to Ask):"}</span>
       </div>
 
       <div className="flex flex-wrap gap-2">
@@ -80,10 +80,10 @@ export default function QuickPrompts({ onSelectPrompt, disabled = false, languag
             key={idx}
             disabled={disabled}
             onClick={() => onSelectPrompt(p.text)}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 disabled:opacity-50 text-xs font-medium text-slate-200 border border-slate-700 hover:border-teal-500/40 transition group transform active:scale-95"
+            className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white hover:bg-teal-50 disabled:opacity-50 text-xs font-bold text-slate-800 border border-teal-200 hover:border-teal-400 transition group transform active:scale-95 shadow-sm"
           >
             {p.icon}
-            <span className="group-hover:text-teal-200 transition">{p.text}</span>
+            <span className="group-hover:text-teal-900 transition">{p.text}</span>
           </button>
         ))}
       </div>
