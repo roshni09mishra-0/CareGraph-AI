@@ -96,9 +96,8 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
   // Audio HTML element ref for Murf Falcon TTS playback
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // In-flight request lock & audio active flag to prevent duplicate responses / plays
+  // In-flight request lock to prevent duplicate query triggers
   const isProcessingQueryRef = useRef<boolean>(false);
-  const isAudioPlayingRef = useRef<boolean>(false);
 
   // MediaRecorder Ref for Direct Deepgram STT
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -137,8 +136,8 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
     }
   };
 
-  // Unlock audio globally on first user interaction
-  const unlockAudioContext = () => {
+  // Safe AudioContext resume helper (DOES NOT auto-play audio)
+  const resumeAudioContextOnly = () => {
     try {
       if (typeof window !== "undefined") {
         const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
@@ -146,21 +145,15 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
           audioContextRef.current = new AudioCtx();
         }
         if (audioContextRef.current && audioContextRef.current.state === "suspended") {
-          audioContextRef.current.resume();
-        }
-        if (audioRef.current) {
-          audioRef.current.play().catch(() => {});
-        }
-        if ("speechSynthesis" in window) {
-          window.speechSynthesis.resume();
+          audioContextRef.current.resume().catch(() => {});
         }
       }
     } catch (e) {}
   };
 
-  // Attach global unlock listener to window
+  // Attach global unlock listener to window (clean, no auto-play)
   useEffect(() => {
-    const handleGlobalClick = () => unlockAudioContext();
+    const handleGlobalClick = () => resumeAudioContextOnly();
     window.addEventListener("click", handleGlobalClick, { once: true });
     window.addEventListener("touchstart", handleGlobalClick, { once: true });
     return () => {
@@ -221,10 +214,22 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
     return null;
   };
 
-  // Start High-Accuracy Audio Recording
+  // Audio Playback & Barge-in Interruption Helper: Completely silences all audio
+  const stopAllAssistantAudio = () => {
+    if (audioPlaybackSafetyTimerRef.current) clearTimeout(audioPlaybackSafetyTimerRef.current);
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+    }
+  };
+
+  // Start High-Accuracy Audio Recording (Silences all previous audio completely)
   const startRecordingAudio = async () => {
     stopAllAssistantAudio();
-    unlockAudioContext();
+    resumeAudioContextOnly();
     const stream = await ensureMicrophoneStream();
     if (!stream) return;
 
@@ -253,7 +258,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
         setRecordingSeconds((prev) => prev + 1);
       }, 1000);
 
-      console.log("[Voice] Audio recording started for Deepgram Nova-2 STT...");
+      console.log("[Voice] Audio recording started for Deepgram Nova-2 STT (AI is silent)...");
     } catch (err) {
       console.error("[Voice] MediaRecorder start error:", err);
     }
@@ -328,66 +333,8 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
     }
   };
 
-  // Start Consultation Call (Directly enters Listening Mode & Greets)
-  const handleStartCall = async () => {
-    console.log("[Voice] Initializing consultation call with Deepgram & Day 5 Tools...");
-    unlockAudioContext();
-    setErrorMessage("");
-    setShowPermissionHelp(false);
-    setAssistantState("connecting");
-    shouldListenRef.current = true;
-
-    await ensureMicrophoneStream();
-
-    // Greet user on first call start
-    setTimeout(() => {
-      handleSendUserMessage("Namaste", true);
-    }, 200);
-  };
-
-  // End Consultation Call (Transition to Call Ended)
-  const handleEndCall = () => {
-    console.log("[Voice] Ending consultation session");
-    shouldListenRef.current = false;
-    isProcessingQueryRef.current = false;
-    isAudioPlayingRef.current = false;
-    if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
-    if (audioPlaybackSafetyTimerRef.current) clearTimeout(audioPlaybackSafetyTimerRef.current);
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
-      try { mediaRecorderRef.current.stop(); } catch (e) {}
-    }
-    if (micStreamRef.current) {
-      micStreamRef.current.getTracks().forEach(t => t.stop());
-      micStreamRef.current = null;
-    }
-    if (audioRef.current) {
-      audioRef.current.pause();
-    }
-    if (typeof window !== "undefined" && "speechSynthesis" in window) {
-      window.speechSynthesis.cancel();
-    }
-    setIsMicActive(false);
-    setIsRecording(false);
-    setMicVolumeLevel(0);
-    setAssistantState("call_ended");
-  };
-
-  // Audio Playback & Barge-in Interruption Helper
-  const stopAllAssistantAudio = () => {
-    isAudioPlayingRef.current = false;
-    if (audioPlaybackSafetyTimerRef.current) clearTimeout(audioPlaybackSafetyTimerRef.current);
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.currentTime = 0;
-    }
-    if (typeof window !== "undefined" && "speechSynthesis" in window) {
-      window.speechSynthesis.cancel();
-    }
-  };
-
-  // Process User Query with OpenAI Brain + Day 5 Tools + Murf Falcon TTS (With Deduplication Lock)
+  // Process User Query with OpenAI Brain + Day 5 Tools + Murf Falcon TTS (Strict Single Execution)
   const handleSendUserMessage = async (queryText: string, isCallStart: boolean = false) => {
-    unlockAudioContext();
     const cleanText = queryText.trim();
     if (!isCallStart && (!cleanText || cleanText.length < 2)) {
       console.warn("[Voice] Empty query ignored.");
@@ -525,10 +472,10 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
       // Release query lock now that response is stored
       isProcessingQueryRef.current = false;
 
-      // 4. Play Audio with SINGLE engine guaranteed (Never duplicate)
+      // 4. Play Audio ONLY ONCE using Murf Falcon Audio
       if (!audioMuted) {
         if (ttsData.audioUrl) {
-          playAudioUrl(ttsData.audioUrl, aiResponseText, isAiHindiResponse);
+          playAudioUrl(ttsData.audioUrl);
         } else {
           speakBrowserTTS(aiResponseText, isAiHindiResponse);
         }
@@ -550,20 +497,16 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
     handleSendUserMessageRef.current = handleSendUserMessage;
   });
 
-  // Seamless Return to Continuous Listening Mode
+  // Seamless Return to Continuous Ready Mode
   const returnToListeningMode = () => {
-    isAudioPlayingRef.current = false;
     if (audioPlaybackSafetyTimerRef.current) clearTimeout(audioPlaybackSafetyTimerRef.current);
     setAssistantState("ready");
     setIsMicActive(false);
   };
 
-  // Play Murf Audio MP3 via HTML5 Audio with SINGLE-ENGINE guarantee
-  const playAudioUrl = (url: string, fallbackText?: string, isHindi?: boolean) => {
-    // Ensure WebSpeech is fully cancelled so it never speaks simultaneously
-    if (typeof window !== "undefined" && "speechSynthesis" in window) {
-      window.speechSynthesis.cancel();
-    }
+  // Play Murf Audio MP3 via HTML5 Audio (Single play instance)
+  const playAudioUrl = (url: string) => {
+    stopAllAssistantAudio();
 
     if (audioPlaybackSafetyTimerRef.current) clearTimeout(audioPlaybackSafetyTimerRef.current);
     audioPlaybackSafetyTimerRef.current = setTimeout(() => {
@@ -572,37 +515,26 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
     }, 15000);
 
     if (audioRef.current) {
-      audioRef.current.pause();
       audioRef.current.src = url;
-      audioRef.current.load();
-      isAudioPlayingRef.current = true;
-
       audioRef.current.play().then(() => {
         const playbackLatency = Date.now() - speechEndTimeRef.current;
         setLatencyMs(playbackLatency);
         console.log(`[Voice] Murf Audio playback started in ${playbackLatency}ms`);
       }).catch(e => {
-        // Only fallback if not an AbortError (interrupted by new action)
         if (e.name !== "AbortError") {
           console.warn("[TTS Warning] Murf HTML5 Audio failed to play:", e);
-          if (fallbackText && !isAudioPlayingRef.current) {
-            speakBrowserTTS(fallbackText, isHindi);
-          } else {
-            returnToListeningMode();
-          }
         }
+        returnToListeningMode();
       });
     } else {
-      if (fallbackText) speakBrowserTTS(fallbackText, isHindi);
-      else returnToListeningMode();
+      returnToListeningMode();
     }
   };
 
-  // Fallback browser synthesis with authentic Hindi / Indian English voice matching
+  // Browser synthesis fallback
   const speakBrowserTTS = (text: string, isHindi?: boolean) => {
     if (typeof window !== "undefined" && "speechSynthesis" in window) {
       window.speechSynthesis.cancel();
-      window.speechSynthesis.resume();
       const isHindiText = isHindi !== undefined ? isHindi : /[\u0900-\u097F]/.test(text);
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.rate = 0.95;
@@ -625,15 +557,12 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
       }
 
       utterance.onstart = () => {
-        console.log(`[TTS] WebSpeech started in ${utterance.lang} (Voice: ${utterance.voice?.name || "default"})`);
         setAssistantState("speaking");
       };
       utterance.onend = () => {
-        console.log("[Voice] TTS FINISHED");
         returnToListeningMode();
       };
       utterance.onerror = () => {
-        console.error("[TTS Error] WebSpeech failed");
         returnToListeningMode();
       };
 
@@ -707,7 +636,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
             {/* Direct Sound Test Button */}
             <button
               onClick={() => {
-                unlockAudioContext();
+                resumeAudioContextOnly();
                 speakBrowserTTS("नमस्ते! आपकी आवाज़ और साउंड बिल्कुल सही काम कर रहे हैं।", true);
               }}
               className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-teal-50 hover:bg-teal-100 border border-teal-300 text-[11px] font-bold text-teal-800 shadow-sm transition"
@@ -721,7 +650,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
             <div className="flex items-center bg-slate-100 border border-teal-200 rounded-xl p-0.5 text-[11px] font-bold shadow-inner">
               <button
                 onClick={() => {
-                  unlockAudioContext();
+                  resumeAudioContextOnly();
                   setUiLanguage("hi");
                   setSelectedVoice("hi-IN-shweta");
                 }}
@@ -732,7 +661,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
               </button>
               <button
                 onClick={() => {
-                  unlockAudioContext();
+                  resumeAudioContextOnly();
                   setUiLanguage("en");
                   setSelectedVoice("en-IN-priya");
                 }}
@@ -743,7 +672,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
               </button>
               <button
                 onClick={() => {
-                  unlockAudioContext();
+                  resumeAudioContextOnly();
                   setUiLanguage("hinglish");
                   setSelectedVoice("hi-IN-kabir");
                 }}
@@ -767,7 +696,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
             </button>
 
             <button
-              onClick={() => { setMessages([]); setAssistantState("ready"); setLatencyMs(null); setActiveFacility(null); setActiveTriage(null); }}
+              onClick={() => { stopAllAssistantAudio(); setMessages([]); setAssistantState("ready"); setLatencyMs(null); setActiveFacility(null); setActiveTriage(null); }}
               className="p-2 rounded-xl text-xs font-semibold bg-white text-slate-500 hover:text-slate-800 border border-teal-200 transition shadow-sm"
               title="Clear transcript"
             >
@@ -961,8 +890,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
           <ChatBubbles
             messages={messages}
             onPlayAudio={(text, url) => {
-              unlockAudioContext();
-              if (url) playAudioUrl(url, text);
+              if (url) playAudioUrl(url);
               else speakBrowserTTS(text);
             }}
           />
