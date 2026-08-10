@@ -96,6 +96,10 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
   // Audio HTML element ref for Murf Falcon TTS playback
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
+  // In-flight request lock & audio active flag to prevent duplicate responses / plays
+  const isProcessingQueryRef = useRef<boolean>(false);
+  const isAudioPlayingRef = useRef<boolean>(false);
+
   // MediaRecorder Ref for Direct Deepgram STT
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -219,6 +223,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
 
   // Start High-Accuracy Audio Recording
   const startRecordingAudio = async () => {
+    stopAllAssistantAudio();
     unlockAudioContext();
     const stream = await ensureMicrophoneStream();
     if (!stream) return;
@@ -297,7 +302,6 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
 
         if (data.text && data.text.trim().length > 1) {
           console.log(`[Deepgram STT Success]: "${data.text}"`);
-          setInputText(data.text);
           if (handleSendUserMessageRef.current) {
             handleSendUserMessageRef.current(data.text);
           }
@@ -345,6 +349,8 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
   const handleEndCall = () => {
     console.log("[Voice] Ending consultation session");
     shouldListenRef.current = false;
+    isProcessingQueryRef.current = false;
+    isAudioPlayingRef.current = false;
     if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
     if (audioPlaybackSafetyTimerRef.current) clearTimeout(audioPlaybackSafetyTimerRef.current);
     if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
@@ -368,6 +374,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
 
   // Audio Playback & Barge-in Interruption Helper
   const stopAllAssistantAudio = () => {
+    isAudioPlayingRef.current = false;
     if (audioPlaybackSafetyTimerRef.current) clearTimeout(audioPlaybackSafetyTimerRef.current);
     if (audioRef.current) {
       audioRef.current.pause();
@@ -378,7 +385,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
     }
   };
 
-  // Process User Query with OpenAI Brain + Day 5 Tools + Murf Falcon TTS
+  // Process User Query with OpenAI Brain + Day 5 Tools + Murf Falcon TTS (With Deduplication Lock)
   const handleSendUserMessage = async (queryText: string, isCallStart: boolean = false) => {
     unlockAudioContext();
     const cleanText = queryText.trim();
@@ -386,6 +393,13 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
       console.warn("[Voice] Empty query ignored.");
       return;
     }
+
+    // Deduplication Lock: If already processing a request, prevent double invocation
+    if (isProcessingQueryRef.current) {
+      console.warn("[Voice] Request already in progress, dropping duplicate trigger.");
+      return;
+    }
+    isProcessingQueryRef.current = true;
 
     // Barge-in: Stop any currently playing assistant audio immediately
     stopAllAssistantAudio();
@@ -508,7 +522,10 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
 
       setMessages((prev) => [...prev, aiMsg]);
 
-      // 4. Play Audio with proper language voice and safety watchdog
+      // Release query lock now that response is stored
+      isProcessingQueryRef.current = false;
+
+      // 4. Play Audio with SINGLE engine guaranteed (Never duplicate)
       if (!audioMuted) {
         if (ttsData.audioUrl) {
           playAudioUrl(ttsData.audioUrl, aiResponseText, isAiHindiResponse);
@@ -521,6 +538,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
 
     } catch (err: any) {
       console.error("[Voice Error] AI chat/TTS failed:", err);
+      isProcessingQueryRef.current = false;
       setAssistantState("error");
       setErrorMessage("Service temporarily unavailable. Retrying...");
       setTimeout(() => returnToListeningMode(), 1500);
@@ -534,33 +552,44 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
 
   // Seamless Return to Continuous Listening Mode
   const returnToListeningMode = () => {
+    isAudioPlayingRef.current = false;
     if (audioPlaybackSafetyTimerRef.current) clearTimeout(audioPlaybackSafetyTimerRef.current);
     setAssistantState("ready");
     setIsMicActive(false);
   };
 
-  // Play Murf Audio MP3 via HTML5 Audio with instant fallback & safety watchdog
+  // Play Murf Audio MP3 via HTML5 Audio with SINGLE-ENGINE guarantee
   const playAudioUrl = (url: string, fallbackText?: string, isHindi?: boolean) => {
+    // Ensure WebSpeech is fully cancelled so it never speaks simultaneously
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+    }
+
     if (audioPlaybackSafetyTimerRef.current) clearTimeout(audioPlaybackSafetyTimerRef.current);
     audioPlaybackSafetyTimerRef.current = setTimeout(() => {
       console.warn("[Voice Safety Watchdog] Audio playback timeout reached. Returning to ready.");
       returnToListeningMode();
-    }, 12000);
+    }, 15000);
 
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current.src = url;
       audioRef.current.load();
+      isAudioPlayingRef.current = true;
+
       audioRef.current.play().then(() => {
         const playbackLatency = Date.now() - speechEndTimeRef.current;
         setLatencyMs(playbackLatency);
         console.log(`[Voice] Murf Audio playback started in ${playbackLatency}ms`);
       }).catch(e => {
-        console.warn("[TTS Warning] Murf HTML5 Audio Playback Error (instant WebSpeech fallback):", e);
-        if (fallbackText) {
-          speakBrowserTTS(fallbackText, isHindi);
-        } else {
-          returnToListeningMode();
+        // Only fallback if not an AbortError (interrupted by new action)
+        if (e.name !== "AbortError") {
+          console.warn("[TTS Warning] Murf HTML5 Audio failed to play:", e);
+          if (fallbackText && !isAudioPlayingRef.current) {
+            speakBrowserTTS(fallbackText, isHindi);
+          } else {
+            returnToListeningMode();
+          }
         }
       });
     } else {
