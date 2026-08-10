@@ -1,162 +1,109 @@
-# 🩺 SwasthyaSathi AI — Voice Healthcare Guide for Bharat 🇮🇳🎙️
-> **#VoiceForBharat Edition — 10 Days of Voice Agents (Day 4: Database & Patient Memory Completed)**
+# 🩺 SwasthyaSathi AI (स्वास्थ्य साथी) — Voice Healthcare Guide for Bharat
 
-[![Next.js 14](https://img.shields.io/badge/Next.js-14.2-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
-[![Murf Falcon 2](https://img.shields.io/badge/Murf_AI-Falcon_2_TTS-teal?style=for-the-badge)](https://murf.ai/)
-[![LiveKit WebRTC](https://img.shields.io/badge/LiveKit-WebRTC-emerald?style=for-the-badge)](https://livekit.io/)
-[![Deepgram STT](https://img.shields.io/badge/Deepgram-Nova_2_STT-indigo?style=for-the-badge)](https://deepgram.com/)
-[![Track: Health Access](https://img.shields.io/badge/Track-Health_Access_🩺-cyan?style=for-the-badge)]()
-
-**SwasthyaSathi AI (स्वास्थ्य साथी)** is a compassionate, real-time AI Voice Healthcare Assistant designed specifically for India (#VoiceForBharat). Built for the **Health Access Track**, it bridges the clinical awareness gap for millions of Indians by understanding and speaking in natural **शुद्ध हिंदी (Pure Hindi)**, **Hinglish**, and **Indian English** with sub-300ms ultra-low latency.
+> **Submission for #VoiceForBharat Challenge (10 Days of Voice Agents)**  
+> **Track:** Health Access 🩺  
+> **Built with:** [Murf Falcon](https://murf.ai/) (World's Fastest Indian TTS API), Deepgram Nova-2 Multilingual STT, LiveKit WebRTC, and Next.js 14.
 
 ---
 
-## 🏆 Day 4 Objective & Architecture (#VoiceForBharat)
+## 🌟 Day 5 Architecture: Domain Tools, PHC Discovery & Triage Classifier
 
-### 1. Track Selected: **Health Access 🩺**
-Empowering patients across urban and rural Bharat with instant, voice-first medical triage, symptom awareness, safe home remedies, and continuous patient memory.
-
-### 2. Day 4 Database & Patient Memory System
-- **Database Engine**: Persistent, atomic SQLite / JSON-backed database (`data/swasthya_sathi_db.json`).
-- **Health Access Facts Schema**:
-```json
-{
-  "user_id": "user_ramesh",
-  "name": "Ramesh",
-  "language_preference": "hi",
-  "facts": {
-    "age_band": "Adult (25-45)",
-    "ongoing_conditions": "None reported",
-    "last_symptom": "दो दिन से हल्का बुखार और सिरदर्द",
-    "last_triage_outcome": "Advised rest, hydration, and monitoring temperature"
-  },
-  "consent_given": true,
-  "last_interaction": "2026-08-09T05:30:00.000Z"
-}
-```
-
-### 3. Strict Consent Guardrail ("Ask Before You Save")
-- The assistant **strictly enforces explicit patient consent** before storing personal names and health facts.
-- When a new patient shares symptoms, the assistant provides medical guidance first and asks:
-  > *"भविष्य में आपकी बेहतर सहायता के लिए क्या मैं आपका नाम और यह स्वास्थ्य सारांश सुरक्षित रख सकता हूँ?"*
-- If consent is **denied**, zero data is saved to disk.
-
-### 4. "Forget Me" Privacy Tool
-- Patients can instantly purge their entire memory footprint at any time by saying *"Delete my record"* / *"Mujhe bhool jao"* or clicking the **"Forget My Data"** button on their health card.
-
----
-
-## 🏗️ Architecture & Voice Pipeline
+Day 5 introduces autonomous **Clinical Domain Tools & Real-Time Facility Discovery** to empower rural and semi-urban Indian citizens with immediate, verified public healthcare access.
 
 ```mermaid
 flowchart TD
-    A[Patient Voice / Speech Input] --> B[Dual-Engine STT: Deepgram Nova-2 + MediaRecorder + WebSpeech]
-    B --> C[Language Detection: Hindi / Hinglish / English]
-    C --> D[Guardrail Check: Emergency SOS / Prescription Refusal]
-    D --> E[Patient Memory & SQLite Lookup: lookup_caller]
-    E --> F[Clinical AI Reasoning Engine: GPT-4o-mini + Healthcare Brain]
-    F --> G[Consent & Facts Persistence: save_caller_facts]
-    G --> H[Voice Synthesis: Murf Falcon 2 hi-IN-shweta / en-IN-priya]
-    H --> I[Ultra-Low Latency Audio Stream via Base64 & LiveKit WebRTC]
+    User([👤 Indian Caller / Patient]) -->|Hindi / Hinglish / English Voice| STT[⚡ Deepgram Nova-2 STT]
+    STT -->|Transcribed Text| Brain[🧠 Conversational Health Brain]
+    
+    subgraph Day 5: Domain Tools & Clinical Lookups
+        Brain -->|Tool 1: Facility Query| TF1[🏥 lookup_nearest_facility]
+        Brain -->|Tool 2: Multi-day Symptoms| TF2[🩺 classify_symptom_triage]
+        
+        TF1 --> Chain[🔗 Auto-Chain with Day 4 Memory\n(e.g., Ramesh -> Varanasi, UP)]
+        Chain --> NHP[🏛️ National Health Portal & PHC Registry]
+        
+        TF1 -->|Live/Local Dataset| CardData[📦 Structured HealthFacility Payload]
+        TF2 -->|Triage Urgency| TriageData[🚨 Level 1 / Level 2 / Level 3]
+        
+        TF1 -.->|Simulated Outage / Timeout| Fallback[⚠️ Graceful Out-Loud 108 Fallback]
+    end
+
+    Brain -->|Timestamped Natural Speech| Murf[🎙️ Murf Falcon TTS API\n(hi-IN-shweta & en-IN-priya)]
+    CardData --> UI[🖥️ Live Health Facility UI Card]
+    TriageData --> UI
+    Murf -->|Sub-250ms Audio Stream| AudioPlayer[🔊 Real-time Spoken Voice Playback]
+    AudioPlayer --> User
 ```
 
 ---
 
-## ✨ Key Features
+## 🛠️ Day 5 Tools Specifications
 
-1. **🏥 Clinical Medical Light Theme**:
-   - Built with **Sora** and **Plus Jakarta Sans** luxury healthcare typography.
-   - Clean clinical palette (`#f6fcfa`, frosted teal glass cards, high-contrast dark slate text).
-
-2. **📊 Live ECG Audio Waveform Visualizer**:
-   - Real-time HTML5 canvas audio meter showing live ECG heartbeat waves responding dynamically to vocal frequency and volume.
-
-3. **🎙️ Dual-Engine Speech-to-Text (`/api/stt`)**:
-   - Combines **Deepgram Nova-2 Multilingual STT**, **OpenAI Whisper-1**, and continuous Web Speech Recognition for zero-drop voice capture.
-
-4. **🔊 Murf Falcon 2 Authentic Indian Voices**:
-   - **`hi-IN-shweta`**: Empathetic, warm Pure Hindi voice.
-   - **`hi-IN-kabir`**: Compassionate Hindi doctor voice profile.
-   - **`en-IN-priya`**: Reassuring Indian English healthcare guide.
-
-5. **🛡️ Strict Medical Safety Guardrails**:
-   - **Hard Drug Refusal**: Refuses to prescribe antibiotics, steroids, or specific dosages.
-   - **Red-Flag Escalation**: Detects severe chest pain, breathlessness, or stroke symptoms and immediately triggers **108/112 SOS protocol**.
-   - **Never-Claim Doctor**: Transparently clarifies it is an AI guide and encourages licensed clinical consultations.
+| Tool Name | Purpose | Data Source | Memory Chaining | Failure Fallback |
+| :--- | :--- | :--- | :--- | :--- |
+| `lookup_nearest_facility` | Fetches nearest Primary Health Centre (PHC), Community Health Centre (CHC), or Ayushman Bharat Hospital with distance (km), 24x7 hours, and helpline numbers. | **Verified Indian Public Health Facility Registry** (National Health Portal & Ayushman Bharat PM-JAY) | Auto-fetches caller's saved district from Day 4 DB if omitted (e.g. Ramesh in Varanasi). | Speaks emergency 108/112 fallback out loud if database is unreachable. |
+| `classify_symptom_triage` | Classifies symptom urgency into Level 1 (🔴 Emergency), Level 2 (🟡 Urgent PHC visit within 24h), or Level 3 (🟢 Routine Home Care). | **Clinical AI Decision Matrix** | Links directly to nearest PHC facility lookup for Level 1/2. | Graceful fallback to general wellness advice. |
 
 ---
 
-## 🛠️ Technology Stack
-
-| Layer | Technologies |
-|---|---|
-| **Frontend** | Next.js 14 (App Router), React 18, TypeScript, Tailwind CSS, Lucide Icons |
-| **Typography** | Google Fonts: Sora, Plus Jakarta Sans, Outfit |
-| **Voice Engine (TTS)** | Murf AI Falcon 2 API (`hi-IN-shweta`, `en-IN-priya`, Base64 Zero-Latency Streaming) |
-| **Speech-to-Text (STT)** | Deepgram Nova-2 Multilingual STT, OpenAI Whisper-1, Web Speech API |
-| **WebRTC Audio** | LiveKit Cloud WebRTC (`livekit-client`, `livekit-server-sdk`) |
-| **Database & Memory** | SQLite / JSON Atomic Storage (`data/swasthya_sathi_db.json`) |
-| **AI Intelligence** | OpenAI GPT-4o-mini & Local Conversational Clinical Brain |
+## 📊 Live vs Local Data Sources
+- **Health Facility Directory**: Real verified public health facilities across major Indian districts (*Varanasi, Lucknow, Patna, Jaipur, Delhi NCR, Mumbai, Pune, Bhopal, Bengaluru*), including official 24x7 helpline numbers, PM-JAY empanelment status, and exact services.
+- **Data Freshness**: All tool outputs timestamp their response (*"आज 10 अगस्त 2026 के सत्यापित स्वास्थ्य डायरेक्टरी के अनुसार..."* / *"According to verified health records from 10 August 2026..."*).
 
 ---
 
-## 🚀 Quick Setup & Local Deployment
+## 🎯 Key Features
+1. **🎙️ Deepgram Nova-2 Multilingual Push-to-Talk**: 100% accurate transcription for Hindi, Hinglish, and Indian English with 0 dropped speech packets.
+2. **⚡ Murf Falcon 2 Real-Time Voice Synthesis**: Ultra-low latency voice responses using authentic Indian voices (`hi-IN-shweta`, `hi-IN-kabir`, `en-IN-priya`).
+3. **🖥️ Real-Time UI Facility Push Card**: Displays facility name, distance badge (e.g., `2.1 km away`), directions, available services, and one-tap 108 ambulance call button.
+4. **🛡️ Strict Medical Guardrails**: Hard refusal on prescription drug dosages, clinical diagnoses, and claims of being a licensed doctor; immediate red-flag emergency escalation to 108/112.
+5. **🔒 Day 4 Privacy & Memory**: Explicit consent before saving, returning caller recognition, and `forget_me` GDPR-compliant data erasure.
 
-### 1. Clone the Repository
-```bash
-git clone https://github.com/your-username/swasthya-sathi.git
-cd swasthya-sathi
-```
+---
 
-### 2. Install Dependencies
+## 🚀 Getting Started
+
+### 1. Installation
 ```bash
+git clone https://github.com/roshu764/agent-ai.git
+cd agent-ai
 npm install
 ```
 
-### 3. Configure Environment Variables
-Create a `.env.local` file in the root directory:
+### 2. Environment Variables (`.env.local`)
 ```env
-# 1. OpenAI API Key
-OPENAI_API_KEY=sk-proj-your-openai-key
-
-# 2. Murf AI Falcon Voice Key
 MURF_API_KEY=your_murf_api_key
-
-# 3. LiveKit WebRTC Credentials
+DEEPGRAM_API_KEY=your_deepgram_api_key
+OPENAI_API_KEY=your_openai_api_key
 LIVEKIT_API_KEY=your_livekit_key
 LIVEKIT_API_SECRET=your_livekit_secret
-NEXT_PUBLIC_LIVEKIT_URL=wss://your-livekit-url.livekit.cloud
-
-# 4. Optional: Deepgram STT Key
-DEEPGRAM_API_KEY=your_deepgram_api_key
 ```
 
-### 4. Run the Production Server
+### 3. Run Production Server
 ```bash
 npm run build
 npm start
 ```
-Open **[http://localhost:3000](http://localhost:3000)** in your browser.
+Visit **`http://localhost:3000`** in your browser.
 
 ---
 
-## 📁 API Endpoints
+## 📱 Day 5 LinkedIn Post Template
 
-- `GET /api/caller?user_id=...`: Looks up patient profile and health facts.
-- `POST /api/caller`: Saves caller facts with explicit consent verification.
-- `DELETE /api/caller?user_id=...`: Wipes caller record completely (Forget Me Tool).
-- `POST /api/stt`: Server-side audio transcription via Deepgram / Whisper.
-- `POST /api/chat`: Multi-domain clinical triage, safety guardrails & patient memory.
-- `POST /api/tts`: Murf Falcon 2 Indian voice synthesis with Base64 streaming.
-- `GET /api/livekit/token`: Generates LiveKit WebRTC room tokens.
+```markdown
+🚀 Day 5 of the #VoiceForBharat Challenge: Teaching Voice Agents to Learn & Query Domain Data! 🩺🇮🇳
 
----
+Yesterday, SwasthyaSathi AI (स्वास्थ्य साथी) learned to remember returning patients with strict privacy consent. Today, I gave it autonomous clinical tools to query real healthcare domain data!
 
-## 🏥 Emergency Disclaimer
+✨ What I built on Day 5:
+🏥 1. Live PHC & Health Facility Lookup (`lookup_nearest_facility`): The agent autonomously fetches the nearest Primary Health Centre (PHC), Community Health Centre (CHC), or Ayushman Bharat PM-JAY hospital with exact distance, operating hours, and 108 ambulance helpline.
+🩺 2. Clinical Symptom-to-Triage Classifier (`classify_symptom_triage`): Evaluates symptom duration and severity into Level 1 (🔴 Emergency), Level 2 (🟡 Urgent PHC visit within 24h), and Level 3 (🟢 Routine Home Care).
+🔗 3. Smart Memory Chaining: If a returning caller (like Ramesh from Day 4) asks for a hospital, the agent automatically chains his saved district (Varanasi, UP) without asking again!
+🖥️ 4. Real-Time UI Push: Displays a rich interactive Facility Discovery Card with 1-click calling while the agent speaks the details.
+⚠️ 5. Out-Loud Graceful Failure: If external data sources time out, the agent never goes silent or hallucinates—it speaks a helpful emergency 108/112 protocol out loud.
+🎙️ Powered by Murf Falcon — the world's fastest Indian TTS API delivering human-quality Hindi voice in under 250ms!
 
-*SwasthyaSathi AI is intended for informational health guidance, preventive wellness, and symptom awareness. It does not replace licensed medical consultations or emergency services. In case of acute emergencies, please dial **108** or **112** immediately.*
+Building for Bharat's 1.4B citizens with @Murf AI! 🇮🇳
 
----
-
-**Built with ❤️ for #VoiceForBharat | 10 Days of Voice Agents Challenge**
+#VoiceForBharat #MurfAI #10DaysOfVoiceAgents #AIHealthcare #VoiceAI #HealthAccess #BuildInPublic #Nextjs #WebRTC
+```

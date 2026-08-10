@@ -26,6 +26,8 @@ export async function POST(req: NextRequest) {
       response: typeof aiResult === "string" ? aiResult : aiResult.response,
       caller: typeof aiResult === "object" ? aiResult.caller : null,
       functionCalled: typeof aiResult === "object" ? aiResult.functionCalled : null,
+      facilityData: typeof aiResult === "object" ? aiResult.facilityData : null,
+      triageData: typeof aiResult === "object" ? aiResult.triageData : null,
       timestamp: new Date().toISOString(),
       agent: "SwasthyaSathi AI",
     });

@@ -5,9 +5,12 @@ import StatusOrb, { AssistantState } from "./StatusOrb";
 import ChatBubbles, { Message } from "./ChatBubbles";
 import QuickPrompts from "./QuickPrompts";
 import PatientCard from "./PatientCard";
+import FacilityCard from "./FacilityCard";
 import AudioWaveformCanvas from "./AudioWaveformCanvas";
 import { CallerRecord } from "@/lib/db";
-import { Mic, MicOff, Send, Radio, RefreshCw, Volume2, ShieldCheck, Sparkles, VolumeX, UserCheck, AlertCircle, PhoneOff, Stethoscope, HelpCircle, Activity, Play, Volume1, CheckCircle2, Cpu, Square, KeyRound, Loader2 } from "lucide-react";
+import { HealthFacility } from "@/lib/facilityData";
+import { TriageClassificationResult } from "@/lib/tools";
+import { Mic, MicOff, Send, Radio, RefreshCw, Volume2, ShieldCheck, Sparkles, VolumeX, UserCheck, AlertCircle, PhoneOff, Stethoscope, HelpCircle, Activity, Play, Volume1, CheckCircle2, Cpu, Square, KeyRound, Loader2, Hospital, MapPin } from "lucide-react";
 import { INDIAN_VOICES } from "@/lib/murf";
 
 interface VoiceInterfaceProps {
@@ -32,7 +35,10 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
   const [isRecording, setIsRecording] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
   const [isTranscribing, setIsTranscribing] = useState(false);
-  const [sttEngineStatus, setSttEngineStatus] = useState<string>("Deepgram Nova-2 Active");
+
+  // Day 5: Active Facility & Triage Results
+  const [activeFacility, setActiveFacility] = useState<HealthFacility | null>(null);
+  const [activeTriage, setActiveTriage] = useState<TriageClassificationResult | null>(null);
 
   // Day 4: Caller Memory & Patient State
   const [activeCaller, setActiveCaller] = useState<CallerRecord | null>(null);
@@ -89,9 +95,6 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
 
   // Audio HTML element ref for Murf Falcon TTS playback
   const audioRef = useRef<HTMLAudioElement | null>(null);
-
-  // Web Speech Recognition ref & state tracker
-  const recognitionRef = useRef<any>(null);
 
   // MediaRecorder Ref for Direct Deepgram STT
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -323,7 +326,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
 
   // Start Consultation Call (Directly enters Listening Mode & Greets)
   const handleStartCall = async () => {
-    console.log("[Voice] Initializing consultation call with Deepgram...");
+    console.log("[Voice] Initializing consultation call with Deepgram & Day 5 Tools...");
     unlockAudioContext();
     setErrorMessage("");
     setShowPermissionHelp(false);
@@ -375,7 +378,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
     }
   };
 
-  // Process User Query with OpenAI API + Murf Falcon TTS
+  // Process User Query with OpenAI Brain + Day 5 Tools + Murf Falcon TTS
   const handleSendUserMessage = async (queryText: string, isCallStart: boolean = false) => {
     unlockAudioContext();
     const cleanText = queryText.trim();
@@ -396,7 +399,8 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
       "doctor", "namaste", "thoda", "bahut", "aaj", "kal", "se", "lag raha", "kaisa", "kaise",
       "chakkar", "kamzori", "weakness", "vomit", "ulti", "dast", "pet dard", "sir me", "sar me",
       "feel ho rahi", "neend", "sugar", "acidity", "vajan", "paani", "daant", "aankhon", "kaan", "bache", "naam",
-      "typhoid", "dengue", "malaria", "asthma", "thyroid", "jaundice", "piliya", "pathri", "bawasir"
+      "typhoid", "dengue", "malaria", "asthma", "thyroid", "jaundice", "piliya", "pathri", "bawasir",
+      "hospital", "aspatal", "phc", "chc", "kendra"
     ];
     const isHinglish = hinglishMarkers.some((kw) => lowerQuery.includes(kw));
     const userLanguageDetected = hasDevanagari ? "Hindi" : isHinglish ? "Hinglish" : "English";
@@ -444,6 +448,14 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
       const chatData = await chatRes.json();
       const aiResponseText = chatData.response || "Namaste! I am here to help. Could you please share more about what you are experiencing?";
       console.log("[Voice] AI RESPONSE RECEIVED:", aiResponseText);
+
+      // Day 5: Sync Live Facility & Triage Data to UI
+      if (chatData.facilityData) {
+        setActiveFacility(chatData.facilityData);
+      }
+      if (chatData.triageData) {
+        setActiveTriage(chatData.triageData);
+      }
 
       // Sync active caller profile if updated or looked up
       if (chatData.caller) {
@@ -523,13 +535,8 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
   // Seamless Return to Continuous Listening Mode
   const returnToListeningMode = () => {
     if (audioPlaybackSafetyTimerRef.current) clearTimeout(audioPlaybackSafetyTimerRef.current);
-    if (shouldListenRef.current) {
-      setAssistantState("ready");
-      setIsMicActive(false);
-    } else {
-      setAssistantState("ready");
-      setIsMicActive(false);
-    }
+    setAssistantState("ready");
+    setIsMicActive(false);
   };
 
   // Play Murf Audio MP3 via HTML5 Audio with instant fallback & safety watchdog
@@ -627,6 +634,19 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
         isNewPatient={isNewPatient}
       />
 
+      {/* Day 5: Live Health Facility & Triage Card */}
+      {(activeFacility || activeTriage) && (
+        <FacilityCard
+          facility={activeFacility}
+          triage={activeTriage}
+          onClose={() => {
+            setActiveFacility(null);
+            setActiveTriage(null);
+          }}
+          language={uiLanguage}
+        />
+      )}
+
       {/* Main Voice Assistant Card */}
       <div className="glass-panel rounded-3xl border border-teal-200/90 p-5 sm:p-8 shadow-xl space-y-6 relative overflow-hidden bg-white/95 backdrop-blur-md">
         
@@ -641,8 +661,8 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
             </div>
 
             <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-teal-50 text-teal-800 border border-teal-300 shadow-sm">
-              <Cpu className="w-3.5 h-3.5 text-teal-700" />
-              <span>STT: Deepgram Nova-2 Active</span>
+              <Hospital className="w-3.5 h-3.5 text-teal-700" />
+              <span>Day 5 Tools: PHC Lookup & Triage</span>
             </div>
 
             <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-cyan-50 text-cyan-800 border border-cyan-300 shadow-sm">
@@ -718,7 +738,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
             </button>
 
             <button
-              onClick={() => { setMessages([]); setAssistantState("ready"); setLatencyMs(null); }}
+              onClick={() => { setMessages([]); setAssistantState("ready"); setLatencyMs(null); setActiveFacility(null); setActiveTriage(null); }}
               className="p-2 rounded-xl text-xs font-semibold bg-white text-slate-500 hover:text-slate-800 border border-teal-200 transition shadow-sm"
               title="Clear transcript"
             >
@@ -728,77 +748,50 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
 
         </div>
 
-        {/* Multi-Disease Quick Voice Consultation Triggers */}
+        {/* Day 5 Domain Tools & Multi-Disease Quick Triggers */}
         <div className="space-y-2 pt-1">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-extrabold text-slate-700 uppercase tracking-wider flex items-center gap-1">
-              <Sparkles className="w-3.5 h-3.5 text-teal-700" /> 100+ बीमारियों और लक्षणों का त्वरित परामर्श:
+              <Sparkles className="w-3.5 h-3.5 text-teal-700" /> Day 5 Tools & Clinical Lookups:
             </span>
           </div>
 
           <div className="flex flex-wrap items-center justify-center gap-1.5">
+            {/* Tool 1 Trigger: Nearest Facility Lookup */}
             <button
-              onClick={() => handleSendUserMessage("Mera naam kya hai?")}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-teal-50 hover:bg-teal-100 border border-teal-300 text-xs font-bold text-teal-900 shadow-sm transition active:scale-95"
+              onClick={() => handleSendUserMessage("Mere pas ka sarkari hospital ya PHC batao")}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-teal-100 hover:bg-teal-200 border-2 border-teal-400 text-xs font-extrabold text-teal-950 shadow-sm transition active:scale-95"
             >
-              <Play className="w-2.5 h-2.5 fill-teal-700 text-teal-700" />
-              <span>👤 मेरा नाम क्या है?</span>
+              <Hospital className="w-3 h-3 text-teal-800" />
+              <span>🏥 नजदीकी अस्पताल / PHC केंद्र</span>
             </button>
 
+            {/* Tool 2 Trigger: Symptom Triage Classifier */}
             <button
-              onClick={() => handleSendUserMessage("Dengue ke lakshan aur ilaj batao")}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-teal-50 hover:bg-teal-100 border border-teal-300 text-xs font-bold text-teal-900 shadow-sm transition active:scale-95"
+              onClick={() => handleSendUserMessage("Mujhe 3 din se tez bukhar hai, kya mujhe hospital jana chahiye?")}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-amber-100 hover:bg-amber-200 border-2 border-amber-400 text-xs font-extrabold text-amber-950 shadow-sm transition active:scale-95"
             >
-              <Play className="w-2.5 h-2.5 fill-teal-700 text-teal-700" />
-              <span>🦟 डेंगू व प्लेटलेट्स</span>
+              <Activity className="w-3 h-3 text-amber-800" />
+              <span>🚨 3 दिन से बुखार (ट्राइएज जांच)</span>
             </button>
 
+            {/* Chained District Tool Trigger */}
             <button
-              onClick={() => handleSendUserMessage("Typhoid bukhar me kya khayein?")}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-teal-50 hover:bg-teal-100 border border-teal-300 text-xs font-bold text-teal-900 shadow-sm transition active:scale-95"
+              onClick={() => handleSendUserMessage("Varanasi me Shivpur PHC ke bare me batao")}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-cyan-100 hover:bg-cyan-200 border border-cyan-400 text-xs font-extrabold text-cyan-950 shadow-sm transition active:scale-95"
             >
-              <Play className="w-2.5 h-2.5 fill-teal-700 text-teal-700" />
-              <span>🌡️ टाइफाइड बुखार</span>
+              <MapPin className="w-3 h-3 text-cyan-800" />
+              <span>📍 वाराणसी PHC (शिवपुर)</span>
             </button>
 
+            {/* Graceful Failure Out-Loud Test */}
             <button
-              onClick={() => handleSendUserMessage("Piliya jaundice me kya parhez karein?")}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-teal-50 hover:bg-teal-100 border border-teal-300 text-xs font-bold text-teal-900 shadow-sm transition active:scale-95"
+              onClick={() => handleSendUserMessage("Hospital lookup simulate_error test")}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-rose-50 hover:bg-rose-100 border border-rose-300 text-xs font-bold text-rose-800 shadow-sm transition active:scale-95"
+              title="Test out-loud graceful failure handling when data source is down"
             >
-              <Play className="w-2.5 h-2.5 fill-teal-700 text-teal-700" />
-              <span>🟡 पीलिया (Jaundice)</span>
-            </button>
-
-            <button
-              onClick={() => handleSendUserMessage("Asthma me saans phoolne par kya karein?")}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-teal-50 hover:bg-teal-100 border border-teal-300 text-xs font-bold text-teal-900 shadow-sm transition active:scale-95"
-            >
-              <Play className="w-2.5 h-2.5 fill-teal-700 text-teal-700" />
-              <span>🫁 अस्थमा व सांस फूलना</span>
-            </button>
-
-            <button
-              onClick={() => handleSendUserMessage("Fatty liver kaise theek karein?")}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-teal-50 hover:bg-teal-100 border border-teal-300 text-xs font-bold text-teal-900 shadow-sm transition active:scale-95"
-            >
-              <Play className="w-2.5 h-2.5 fill-teal-700 text-teal-700" />
-              <span>🥗 फैटी लिवर डाइट</span>
-            </button>
-
-            <button
-              onClick={() => handleSendUserMessage("Kidney stone pathri me kitna paani piyein?")}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-teal-50 hover:bg-teal-100 border border-teal-300 text-xs font-bold text-teal-900 shadow-sm transition active:scale-95"
-            >
-              <Play className="w-2.5 h-2.5 fill-teal-700 text-teal-700" />
-              <span>💧 पथरी व यूरिक एसिड</span>
-            </button>
-
-            <button
-              onClick={() => handleSendUserMessage("Sugar diabetes control karne ke upay")}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-teal-50 hover:bg-teal-100 border border-teal-300 text-xs font-bold text-teal-900 shadow-sm transition active:scale-95"
-            >
-              <Play className="w-2.5 h-2.5 fill-teal-700 text-teal-700" />
-              <span>🩸 शुगर व बीपी</span>
+              <AlertCircle className="w-3 h-3 text-rose-600" />
+              <span>⚠️ API Failure Fallback Test</span>
             </button>
           </div>
         </div>
@@ -949,7 +942,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
         {/* Footer Medical Disclaimer Banner */}
         <div className="p-3 rounded-xl bg-teal-50/80 border border-teal-200 flex items-center gap-2 text-[11px] text-slate-600 font-medium">
           <ShieldCheck className="w-4 h-4 text-teal-700 shrink-0" />
-          <span>SwasthyaSathi AI provides health guidance and symptom awareness. For clinical emergencies, call emergency services 108 or 112 in India.</span>
+          <span>SwasthyaSathi AI provides health guidance, PHC facility lookups, and symptom awareness. For emergencies, call 108 or 112 in India.</span>
         </div>
 
       </div>

@@ -1,5 +1,7 @@
 import OpenAI from "openai";
 import { getCaller, getCallerByName, saveCaller, deleteCaller, CallerRecord, HealthFacts } from "./db";
+import { HealthFacility } from "./facilityData";
+import { lookupNearestFacilityTool, classifySymptomTriageTool, TriageClassificationResult } from "./tools";
 
 if (process.env.NODE_ENV === "development") {
   process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
@@ -13,13 +15,19 @@ export const openai = openaiApiKey
   : null;
 
 /**
- * Day 2 & Day 4 Persona, Objectives, Caller Memory & Guardrails System Prompt
+ * Day 2, Day 4 & Day 5 Persona, Objectives, Tools, Caller Memory & Guardrails System Prompt
  */
 export const SWASTHYASATHI_SYSTEM_PROMPT = `
 IDENTITY & ACCENT PERSONA:
 You are SwasthyaSathi AI, an empathetic Indian AI Voice Healthcare Guide built for the Health Access track.
 You speak in a warm, respectful, and compassionate Indian English or Hindi cadence (beginning with "Namaste!").
 You use polite, culturally comforting phrasing common in Indian medical family practices (e.g. encouraging warm water, proper hydration, light home food, and timely doctor visits).
+
+DAY 5 DOMAIN TOOLS & HEALTH ACCESS LOOKUPS:
+1. NEAREST FACILITY LOOKUP (lookup_nearest_facility): Fetches nearest Primary Health Centre (PHC), Community Health Centre (CHC), or Government Hospital by district, including 108 helpline and operating hours. Always state the data freshness date ("आज 10 अगस्त के अनुसार...").
+2. SYMPTOM-TO-TRIAGE CLASSIFIER (classify_symptom_triage): Computes triage level (Level 1 Red Emergency, Level 2 Yellow Urgent PHC Visit within 24h, Level 3 Green Home Care).
+3. OUT-LOUD GRACEFUL FAILURE: If an external database lookup fails, speak a helpful 108/112 emergency fallback out loud.
+4. CHAINING WITH DAY 4 MEMORY: Use the caller's saved district (e.g. Ramesh in Varanasi) automatically if district is omitted.
 
 DAY 4 CALLER MEMORY & RETURNING CALLER RULES:
 1. Greet returning callers by name and reference their previous symptom/triage continuity (e.g. "Namaste Ramesh, last time we spoke about your fever. How are you feeling today?").
@@ -58,6 +66,8 @@ export interface HealthcareResponseResult {
   response: string;
   caller: CallerRecord | null;
   functionCalled: string | null;
+  facilityData?: HealthFacility | null;
+  triageData?: TriageClassificationResult | null;
 }
 
 export async function generateHealthcareResponse(
@@ -77,8 +87,8 @@ export async function generateHealthcareResponse(
     };
   }
 
-  // Fast-path clinical intelligence & caller memory
-  return getSimulatedHealthcareResponse(userPrompt, conversationHistory, userId, callerName, isCallStart);
+  // Fast-path clinical intelligence, Day 5 Tools & caller memory
+  return await getSimulatedHealthcareResponse(userPrompt, conversationHistory, userId, callerName, isCallStart);
 }
 
 /**
@@ -94,9 +104,9 @@ function checkGuardrailsLocally(prompt: string): string | null {
   ];
   if (emergencyKeywords.some(kw => p.includes(kw))) {
     if (/[\u0900-\u097F]/.test(prompt)) {
-      return "⚠️ आपातकालीन चेतावनी! यह एक गंभीर चिकित्सीय आपातकाल हो सकता है। कृपया तुरंत 108 या 112 पर कॉल करें या नजदीकी अस्पताल जाएं। मैं एक एआई सहायक हूं और आपातकालीन उपचार नहीं कर सकता।";
+      return "आपातकालीन चेतावनी! यह एक गंभीर चिकित्सीय आपातकाल हो सकता है। कृपया तुरंत 108 या 112 पर कॉल करें या नजदीकी अस्पताल जाएं। मैं एक एआई सहायक हूं और आपातकालीन उपचार नहीं कर सकता।";
     }
-    return "⚠️ Emergency Alert! This sounds like a potential medical emergency. Please call emergency services 108 or 112 immediately in India, or visit the nearest hospital emergency room. I am an AI assistant and cannot provide emergency treatment.";
+    return "Emergency Alert! This sounds like a potential medical emergency. Please call emergency services 108 or 112 immediately in India, or visit the nearest hospital emergency room. I am an AI assistant and cannot provide emergency treatment.";
   }
 
   // 2. Prescription Drug Refusal (English & Hindi)
@@ -148,7 +158,8 @@ export function detectUserLanguage(text: string): "hi" | "hinglish" | "en" {
     "pani", "pina", "peena", "chahiye", "kare", "karein", "vajan", "wajan", "ghataye", "badhaye",
     "bache", "bacha", "mahawari", "periods", "garbh", "motapa", "kamzor", "kabz", "chhale", "daant",
     "aankh", "kaan", "skin", "khujli", "dengue", "malaria", "typhoid", "bp", "gathiya", "ghutne",
-    "naam", "mera", "meri", "mere", "yaad", "kaun", "khud", "apne", "patient", "baat", "bata"
+    "naam", "mera", "meri", "mere", "yaad", "kaun", "khud", "apne", "patient", "baat", "bata",
+    "hospital", "aspatal", "phc", "chc", "kendra", "doctor"
   ];
 
   if (hinglishMarkers.some(m => lower.includes(m))) return "hinglish";
@@ -156,15 +167,15 @@ export function detectUserLanguage(text: string): "hi" | "hinglish" | "en" {
 }
 
 /**
- * Master Clinical Intelligence, Multi-Disease Knowledge Base & Patient Memory Engine
+ * Master Clinical Intelligence, Day 5 Tools Execution, Multi-Disease Knowledge Base & Patient Memory Engine
  */
-export function getSimulatedHealthcareResponse(
+export async function getSimulatedHealthcareResponse(
   query: string,
   history: { role: "user" | "assistant"; content: string }[] = [],
   userId?: string,
   callerName?: string,
   isCallStart?: boolean
-): HealthcareResponseResult {
+): Promise<HealthcareResponseResult> {
   const q = query.toLowerCase().trim();
   const userLang = detectUserLanguage(query);
   
@@ -175,7 +186,6 @@ export function getSimulatedHealthcareResponse(
   } else if (callerName) {
     currentCaller = getCallerByName(callerName);
   } else {
-    // Default to Ramesh if user asks about Ramesh or patient record
     currentCaller = getCaller("user_ramesh");
   }
 
@@ -183,6 +193,62 @@ export function getSimulatedHealthcareResponse(
   const lastUserTurn = history.length > 0 ? history[history.length - 1].content.toLowerCase() : "";
   const lastAssistantTurn = history.length > 1 ? history[history.length - 2].content.toLowerCase() : "";
   const knownNameInConvo = currentCaller?.name || callerName || "रमेश";
+
+  // =========================================================================
+  // DAY 5 TOOL 1: NEAREST HEALTH FACILITY & PHC LOOKUP
+  // =========================================================================
+  const isFacilityQuery = /\b(hospital|aspatal|phc|chc|swasthya kendra|kendra|clinic|nearest hospital|pass ka hospital|doctor kahan|facility|varanasi hospital|lucknow hospital|delhi hospital|patna hospital|jaipur hospital)\b/i.test(q) ||
+                          (q.includes("hospital") || q.includes("अस्पताल") || q.includes("phc") || q.includes("स्वास्थ्य केंद्र") || q.includes("कहाँ जाऊं") || q.includes("kahan jau"));
+
+  if (isFacilityQuery) {
+    // Extract district if explicitly stated, else chain with Day 4 caller location
+    let detectedDistrict: string | undefined = undefined;
+    if (q.includes("varanasi") || q.includes("वाराणसी") || q.includes("kashi")) detectedDistrict = "Varanasi";
+    else if (q.includes("lucknow") || q.includes("लखनऊ")) detectedDistrict = "Lucknow";
+    else if (q.includes("delhi") || q.includes("दिल्ली")) detectedDistrict = "Delhi";
+    else if (q.includes("patna") || q.includes("पटना")) detectedDistrict = "Patna";
+    else if (q.includes("jaipur") || q.includes("जयपुर")) detectedDistrict = "Jaipur";
+    else if (q.includes("mumbai") || q.includes("मुंबई")) detectedDistrict = "Mumbai";
+    else if (q.includes("pune") || q.includes("पुणे")) detectedDistrict = "Pune";
+    else if (q.includes("bhopal") || q.includes("भोपाल")) detectedDistrict = "Bhopal";
+    else if (q.includes("bengaluru") || q.includes("bangalore")) detectedDistrict = "Bengaluru";
+
+    const facilityType = q.includes("phc") ? "PHC" : q.includes("chc") ? "CHC" : undefined;
+    const isSimulateError = q.includes("simulate_error") || q.includes("error test");
+
+    const lookupRes = await lookupNearestFacilityTool(detectedDistrict, facilityType, userId, userLang, isSimulateError);
+
+    return {
+      response: lookupRes.spokenText,
+      caller: currentCaller,
+      functionCalled: "lookup_nearest_facility",
+      facilityData: lookupRes.facilities[0] || null,
+    };
+  }
+
+  // =========================================================================
+  // DAY 5 TOOL 2: CLINICAL SYMPTOM TRIAGE CLASSIFIER
+  // =========================================================================
+  const isTriageQuery = (/\b(triage|urgent|emergency|doctor ke paas kab jau|kya mujhe hospital jana chahiye|3 din se|do din se|fever duration|kab jau)\b/i.test(q) ||
+                         (q.includes("बुखार") && (q.includes("दिन") || q.includes("अस्पताल") || q.includes("जाना"))) ||
+                         (q.includes("fever") && (q.includes("day") || q.includes("hospital") || q.includes("doctor"))));
+
+  if (isTriageQuery) {
+    let days = 1;
+    if (q.includes("3 din") || q.includes("तीन दिन") || q.includes("3 days") || q.includes("three days")) days = 3;
+    else if (q.includes("2 din") || q.includes("दो दिन") || q.includes("2 days") || q.includes("two days")) days = 2;
+    else if (q.includes("4 din") || q.includes("चार दिन") || q.includes("4 days")) days = 4;
+
+    const triageRes = await classifySymptomTriageTool(query, days, userId, userLang);
+
+    return {
+      response: triageRes.spokenText,
+      caller: currentCaller,
+      functionCalled: "classify_symptom_triage",
+      facilityData: triageRes.linkedFacility || null,
+      triageData: triageRes,
+    };
+  }
 
   // =========================================================================
   // A. FORGET ME PRIVACY TOOL (Day 4 Step 6)
@@ -245,7 +311,7 @@ export function getSimulatedHealthcareResponse(
       };
     }
     return {
-      response: `Namaste ${pName}! Last time we discussed your ${symptom}, where you were advised: ${advice}. How are you feeling today?`,
+      response: `Namaste ${pName}! Last time we discussed your ${symptom}, where you were advised: ${advice}. How are feeling today?`,
       caller: currentCaller,
       functionCalled: "lookup_caller",
     };
@@ -258,13 +324,13 @@ export function getSimulatedHealthcareResponse(
       (q.includes("khud ke bare") || q.includes("apne bare") || q.includes("apna parichay") || q.includes("who are you") || q.includes("about yourself") || q.includes("aap kaun"))) {
     if (userLang === "hi" || userLang === "hinglish") {
       return {
-        response: "नमस्ते! मैं स्वास्थ्य साथी एआई हूँ, भारत का समर्पित वॉइस हेल्थकेयर गाइड। मैं आपको 100 से अधिक बीमारियों के लक्षण, रोकथाम, प्राथमिक देखभाल, और सुरक्षित घरेलू उपचार की जानकारी शुद्ध हिंदी में बोलकर देता हूँ।",
+        response: "नमस्ते! मैं स्वास्थ्य साथी एआई हूँ, भारत का समर्पित वॉइस हेल्थकेयर गाइड। मैं आपको 100 से अधिक बीमारियों के लक्षण, रोकथाम, नजदीकी अस्पताल व पीएचसी केंद्र की जानकारी, और सुरक्षित प्राथमिक उपचार शुद्ध हिंदी में बोलकर देता हूँ।",
         caller: currentCaller,
         functionCalled: null,
       };
     }
     return {
-      response: "Namaste! I am Swasthya Sathi AI, an empathetic Indian AI Voice Healthcare Guide. I assist you with symptom triage, preventive health tips, and verified home wellness guidance.",
+      response: "Namaste! I am Swasthya Sathi AI, an empathetic Indian AI Voice Healthcare Guide. I assist you with symptom triage, nearest PHC lookups, and verified home wellness guidance.",
       caller: currentCaller,
       functionCalled: null,
     };
