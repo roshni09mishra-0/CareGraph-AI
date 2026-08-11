@@ -20,7 +20,8 @@ import {
   Send, 
   VolumeX, 
   Radio, 
-  Activity 
+  Activity, 
+  Zap 
 } from "lucide-react";
 import { OutboundCallRecord } from "@/lib/telephony";
 import { Message } from "./ChatBubbles";
@@ -34,6 +35,9 @@ interface IncomingPhoneCallOverlayProps {
   isRecording: boolean;
   recordingSeconds: number;
   isTranscribing: boolean;
+  interimText?: string;
+  isHandsFreeLive?: boolean;
+  onToggleHandsFree?: () => void;
   onToggleRecord: () => void;
   onSendMessage: (text: string) => void;
   onAnswer: (call: OutboundCallRecord) => void;
@@ -51,6 +55,9 @@ export default function IncomingPhoneCallOverlay({
   isRecording,
   recordingSeconds,
   isTranscribing,
+  interimText = "",
+  isHandsFreeLive = true,
+  onToggleHandsFree,
   onToggleRecord,
   onSendMessage,
   onAnswer,
@@ -130,7 +137,7 @@ export default function IncomingPhoneCallOverlay({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/85 backdrop-blur-md animate-fadeIn">
       
       {/* Mobile Smartphone Frame Simulation */}
-      <div className="w-full max-w-md rounded-[2.5rem] bg-gradient-to-b from-slate-900 via-slate-900 to-teal-950 border-4 border-slate-700 shadow-2xl p-5 sm:p-6 text-white flex flex-col justify-between h-[640px] max-h-[92vh] relative overflow-hidden">
+      <div className="w-full max-w-md rounded-[2.5rem] bg-gradient-to-b from-slate-900 via-slate-900 to-teal-950 border-4 border-slate-700 shadow-2xl p-5 sm:p-6 text-white flex flex-col justify-between h-[650px] max-h-[94vh] relative overflow-hidden">
         
         {/* Top Speaker Grill & Camera Punch-hole */}
         <div className="flex items-center justify-center gap-2 mb-2 shrink-0">
@@ -165,8 +172,8 @@ export default function IncomingPhoneCallOverlay({
                 <h2 className="text-base sm:text-lg font-extrabold text-white leading-tight">
                   SwasthyaSathi AI
                 </h2>
-                <span className="text-[9px] font-extrabold px-2 py-0.5 rounded-full bg-teal-500/30 text-teal-300 border border-teal-500/40">
-                  {isCallActive ? "Live Call" : "Incoming"}
+                <span className="text-[9px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-500/30 text-emerald-300 border border-emerald-500/40">
+                  {isCallActive ? "Live Voice Stream" : "Incoming Call"}
                 </span>
               </div>
               <p className="text-[11px] font-semibold text-slate-400">
@@ -209,7 +216,7 @@ export default function IncomingPhoneCallOverlay({
               </p>
             </div>
 
-            {/* 3-Part Opening Protocol Preview Card (Day 6 Requirement) */}
+            {/* 3-Part Opening Protocol Preview Card */}
             <div className="w-full p-3.5 rounded-2xl bg-slate-800/80 border border-teal-500/30 text-left text-xs space-y-1.5 shadow-inner">
               <div className="flex items-center gap-1 text-[10px] font-extrabold text-teal-400 uppercase tracking-wider">
                 <Sparkles className="w-3 h-3" />
@@ -225,26 +232,26 @@ export default function IncomingPhoneCallOverlay({
           /* Live In-Call Conversation Screen (Talk to Agent) */
           <div className="flex-1 flex flex-col justify-between my-2 overflow-hidden space-y-2">
             
-            {/* Real-time Assistant State Indicator */}
+            {/* Real-time Assistant State Indicator & Hands-Free Status */}
             <div className="p-2 rounded-xl bg-slate-800/90 border border-teal-500/30 flex items-center justify-between text-xs shrink-0">
               <div className="flex items-center gap-2">
                 <span className={`w-2.5 h-2.5 rounded-full ${
                   assistantState === "speaking" ? "bg-emerald-400 animate-ping" :
                   assistantState === "listening" || isRecording ? "bg-rose-500 animate-pulse" :
                   assistantState === "processing" || isTranscribing ? "bg-amber-400 animate-spin" :
-                  "bg-teal-400"
+                  "bg-emerald-400"
                 }`} />
                 <span className="font-bold text-slate-200 text-[11px]">
                   {assistantState === "speaking" ? "🔊 AI बोल रहा है (Murf Voice)..." :
-                   isRecording ? `🔴 आपकी आवाज़ रिकॉर्ड हो रही है (${recordingSeconds}s)...` :
-                   isTranscribing ? "⚡ ट्रांसक्राइब हो रहा है..." :
-                   "🟢 कॉल चालू है (बोलिए या बटन दबाएं)"}
+                   interimText ? `⚡ आप बोल रहे हैं: "${interimText}"` :
+                   isRecording ? `🔴 रिकॉर्डिंग चालू है (${recordingSeconds}s)...` :
+                   "🟢 लाइव बातचीत चालू (आप बस बोलिए, AI सुन रहा है)"}
                 </span>
               </div>
 
-              <div className="flex items-center gap-1 text-[10.5px] text-teal-400 font-bold">
-                <Radio className="w-3 h-3 text-emerald-400 animate-pulse" />
-                <span>HD Audio</span>
+              <div className="flex items-center gap-1 text-[10.5px] text-emerald-400 font-bold">
+                <Zap className="w-3 h-3 text-amber-300 animate-pulse" />
+                <span>Auto-VAD</span>
               </div>
             </div>
 
@@ -305,7 +312,7 @@ export default function IncomingPhoneCallOverlay({
                 type="text"
                 value={inCallInput}
                 onChange={(e) => setInCallInput(e.target.value)}
-                placeholder={isRecording ? "बोलिए... रिकॉर्डिंग चल रही है..." : (isHindi ? "कॉल पर बोलें या टाइप करें..." : "Speak or type response on call...")}
+                placeholder={interimText ? `सुन रहा है: "${interimText}"` : (isHindi ? "सीधे बोलें या टाइप करें..." : "Speak or type response on call...")}
                 className="flex-1 bg-slate-800/90 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-teal-400"
               />
               <button
@@ -338,28 +345,29 @@ export default function IncomingPhoneCallOverlay({
               className="flex flex-col items-center justify-center gap-1 p-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-extrabold text-xs shadow-lg shadow-emerald-600/30 transition animate-bounce"
             >
               <PhoneCall className="w-5 h-5" />
-              <span>{isHindi ? "उठाएं (Answer & Speak)" : "Answer"}</span>
+              <span>{isHindi ? "उठाएं (Answer & Live Talk)" : "Answer"}</span>
             </button>
           </div>
         ) : (
           <div className="space-y-2 pt-1 shrink-0">
             
-            {/* Big In-Call Microphone Talk Button */}
-            <button
-              onClick={onToggleRecord}
-              className={`w-full flex items-center justify-center gap-2 py-3 px-4 rounded-2xl font-extrabold text-xs transition transform active:scale-95 shadow-lg ${
-                isRecording
-                  ? "bg-rose-600 hover:bg-rose-700 text-white animate-pulse ring-4 ring-rose-500/40"
-                  : "bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white shadow-teal-700/30"
-              }`}
-            >
-              {isRecording ? <Square className="w-4 h-4 fill-white stroke-none" /> : <Mic className="w-4 h-4 stroke-[2.5]" />}
-              <span>
-                {isRecording 
-                  ? `⏹️ बोलना समाप्त करें (${recordingSeconds}s)` 
-                  : (isHindi ? "🎙️ कॉल पर बोलने के लिए दबाएं (Tap to Speak)" : "🎙️ Tap to Speak on Call")}
-              </span>
-            </button>
+            {/* Live Continuous Voice Indicator & Manual Push-to-Talk alternative */}
+            <div className="p-2.5 rounded-2xl bg-gradient-to-r from-teal-900/80 to-emerald-900/80 border border-teal-500/40 flex items-center justify-between text-xs">
+              <div className="flex items-center gap-2">
+                <Radio className="w-4 h-4 text-emerald-400 animate-pulse" />
+                <span className="font-extrabold text-emerald-300 text-[11.5px]">
+                  {isHindi ? "🟢 लाइव हैंड्स-फ्री: आप बस बोलिए..." : "🟢 Live Hands-Free: Just speak naturally..."}
+                </span>
+              </div>
+
+              {/* Push-to-Talk Toggle Alternative */}
+              <button
+                onClick={onToggleRecord}
+                className="px-2.5 py-1 rounded-lg bg-teal-800 hover:bg-teal-700 text-teal-100 font-bold text-[10.5px] border border-teal-600 transition"
+              >
+                {isRecording ? "⏹️ भेजें" : "🎙️ Mic"}
+              </button>
+            </div>
 
             {/* Secondary Controls: Hangup & Opt-out */}
             <div className="grid grid-cols-2 gap-2">
