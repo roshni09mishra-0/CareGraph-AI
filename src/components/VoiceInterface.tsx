@@ -205,7 +205,6 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const micStreamRef = useRef<MediaStream | null>(null);
-  const [micVolumeLevel, setMicVolumeLevel] = useState<number>(0);
 
   useEffect(() => {
     assistantStateRef.current = assistantState;
@@ -255,26 +254,6 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
 
           const source = audioCtx.createMediaStreamSource(stream);
           source.connect(analyser);
-
-          const bufferLength = analyser.frequencyBinCount;
-          const dataArray = new Uint8Array(bufferLength);
-
-          const checkVolume = () => {
-            if (!micStreamRef.current) {
-              setMicVolumeLevel(0);
-              return;
-            }
-            analyser.getByteFrequencyData(dataArray);
-            let sum = 0;
-            for (let i = 0; i < bufferLength; i++) {
-              sum += dataArray[i];
-            }
-            const avg = sum / bufferLength;
-            const normalized = Math.min(100, Math.round((avg / 128) * 100));
-            setMicVolumeLevel(normalized);
-            requestAnimationFrame(checkVolume);
-          };
-          checkVolume();
         }
         return stream;
       }

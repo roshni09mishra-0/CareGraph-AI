@@ -20,12 +20,48 @@ export default function AudioWaveformCanvas({ analyser, isActive, state }: Audio
 
     let phase = 0;
 
-    const draw = () => {
+    const drawStatic = () => {
       const width = canvas.width;
       const height = canvas.height;
       ctx.clearRect(0, 0, width, height);
 
       // Background subtle medical grid lines
+      ctx.strokeStyle = "rgba(13, 148, 136, 0.1)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(0, height / 2);
+      ctx.lineTo(width, height / 2);
+      ctx.stroke();
+
+      // Subtle heartbeat pulse line
+      ctx.strokeStyle = "rgba(13, 148, 136, 0.35)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(0, height / 2);
+      ctx.lineTo(width * 0.35, height / 2);
+      ctx.lineTo(width * 0.4, height / 2 - 12);
+      ctx.lineTo(width * 0.45, height / 2 + 14);
+      ctx.lineTo(width * 0.5, height / 2 - 6);
+      ctx.lineTo(width * 0.55, height / 2);
+      ctx.lineTo(width, height / 2);
+      ctx.stroke();
+    };
+
+    // If idle, just draw static once and do NOT loop requestAnimationFrame
+    if (state !== "listening" && state !== "speaking") {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
+      }
+      drawStatic();
+      return;
+    }
+
+    const draw = () => {
+      const width = canvas.width;
+      const height = canvas.height;
+      ctx.clearRect(0, 0, width, height);
+
       ctx.strokeStyle = "rgba(13, 148, 136, 0.08)";
       ctx.lineWidth = 1;
       ctx.beginPath();
@@ -33,16 +69,13 @@ export default function AudioWaveformCanvas({ analyser, isActive, state }: Audio
       ctx.lineTo(width, height / 2);
       ctx.stroke();
 
-      if (isActive && analyser && state === "listening") {
-        // Live microphone frequency data
+      if (analyser && state === "listening") {
         const bufferLength = analyser.frequencyBinCount;
         const dataArray = new Uint8Array(bufferLength);
         analyser.getByteTimeDomainData(dataArray);
 
         ctx.lineWidth = 2.5;
         ctx.strokeStyle = "#0d9488";
-        ctx.shadowBlur = 8;
-        ctx.shadowColor = "rgba(13, 148, 136, 0.4)";
         ctx.beginPath();
 
         const sliceWidth = (width * 1.0) / bufferLength;
@@ -57,45 +90,27 @@ export default function AudioWaveformCanvas({ analyser, isActive, state }: Audio
           } else {
             ctx.lineTo(x, y);
           }
-
           x += sliceWidth;
         }
 
         ctx.lineTo(width, height / 2);
         ctx.stroke();
+        animationFrameRef.current = requestAnimationFrame(draw);
       } else if (state === "speaking") {
-        // Assistant speaking: Dynamic medical pulse wave
-        phase += 0.08;
+        phase += 0.12;
         ctx.lineWidth = 2.5;
         ctx.strokeStyle = "#059669";
-        ctx.shadowBlur = 10;
-        ctx.shadowColor = "rgba(5, 150, 105, 0.4)";
         ctx.beginPath();
 
-        for (let x = 0; x < width; x++) {
+        for (let x = 0; x < width; x += 4) {
           const envelope = Math.sin((x / width) * Math.PI);
-          const y = height / 2 + Math.sin(x * 0.05 + phase) * 14 * envelope + Math.sin(x * 0.1 - phase) * 6 * envelope;
+          const y = height / 2 + Math.sin(x * 0.05 + phase) * 8 * envelope;
           if (x === 0) ctx.moveTo(x, y);
           else ctx.lineTo(x, y);
         }
         ctx.stroke();
-      } else {
-        // Idle / Gentle baseline heartbeat wave
-        phase += 0.03;
-        ctx.lineWidth = 1.5;
-        ctx.strokeStyle = "rgba(13, 148, 136, 0.35)";
-        ctx.beginPath();
-
-        for (let x = 0; x < width; x++) {
-          const envelope = Math.sin((x / width) * Math.PI);
-          const y = height / 2 + Math.sin(x * 0.03 + phase) * 4 * envelope;
-          if (x === 0) ctx.moveTo(x, y);
-          else ctx.lineTo(x, y);
-        }
-        ctx.stroke();
+        animationFrameRef.current = requestAnimationFrame(draw);
       }
-
-      animationFrameRef.current = requestAnimationFrame(draw);
     };
 
     draw();
@@ -103,6 +118,7 @@ export default function AudioWaveformCanvas({ analyser, isActive, state }: Audio
     return () => {
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
       }
     };
   }, [analyser, isActive, state]);
@@ -116,8 +132,8 @@ export default function AudioWaveformCanvas({ analyser, isActive, state }: Audio
         className="w-full h-full block"
       />
       <div className="absolute top-2 right-3 flex items-center gap-1.5 text-[10.5px] font-bold text-teal-800 uppercase tracking-wider bg-white/90 px-2 py-0.5 rounded-full border border-teal-200 shadow-sm">
-        <span className={`w-2 h-2 rounded-full ${isActive ? "bg-emerald-500 animate-pulse" : "bg-teal-400"}`} />
-        <span>{state === "speaking" ? "AI Voice Output" : isActive ? "Live Mic Wave" : "Audio Ready"}</span>
+        <span className={`w-2 h-2 rounded-full ${state === "speaking" ? "bg-emerald-500 animate-pulse" : state === "listening" ? "bg-rose-500 animate-pulse" : "bg-teal-400"}`} />
+        <span>{state === "speaking" ? "AI Voice Output" : state === "listening" ? "Live Mic Wave" : "Audio Ready"}</span>
       </div>
     </div>
   );
