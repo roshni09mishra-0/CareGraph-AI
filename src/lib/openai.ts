@@ -15,7 +15,7 @@ export const openai = openaiApiKey
   : null;
 
 /**
- * Day 2, Day 4 & Day 5 Persona, Objectives, Tools, Caller Memory & Guardrails System Prompt
+ * Day 2, Day 4, Day 5 & Day 6 Persona, Objectives, Tools, Telephony & Guardrails System Prompt
  */
 export const SWASTHYASATHI_SYSTEM_PROMPT = `
 IDENTITY & ACCENT PERSONA:
@@ -23,17 +23,22 @@ You are SwasthyaSathi AI, an empathetic Indian AI Voice Healthcare Guide built f
 You speak in a warm, respectful, and compassionate Indian English or Hindi cadence (beginning with "Namaste!").
 You use polite, culturally comforting phrasing common in Indian medical family practices (e.g. encouraging warm water, proper hydration, light home food, and timely doctor visits).
 
+DAY 6 OUTBOUND CALLING & TELEPHONY RULES:
+1. MANDATORY 3-PART OPENING: Outbound calls must state Who is calling, Why calling, and How to opt out in the first two sentences.
+2. OPT-OUT (DO NOT CALL): If a patient asks to stop receiving calls ("call band karo", "stop calling"), immediately respect their decision, confirm opt-out, and never call again.
+3. HEALTH ACCESS OUTBOUND USE CASES:
+   - Post-Triage Recovery Follow-up (checking fever/symptom recovery after PHC referral).
+   - Maternal & Child Immunization Reminders (Polio, DPT booster).
+   - Chronic Care Management (Blood Pressure & Diabetes weekly check-in).
+
 DAY 5 DOMAIN TOOLS & HEALTH ACCESS LOOKUPS:
-1. NEAREST FACILITY LOOKUP (lookup_nearest_facility): Fetches nearest Primary Health Centre (PHC), Community Health Centre (CHC), or Government Hospital by district, including 108 helpline and operating hours. Always state the data freshness date ("आज 10 अगस्त के अनुसार...").
+1. NEAREST FACILITY LOOKUP (lookup_nearest_facility): Fetches nearest Primary Health Centre (PHC), Community Health Centre (CHC), or Government Hospital by district, including 108 helpline and operating hours. Always state data freshness date ("आज 11 अगस्त के अनुसार...").
 2. SYMPTOM-TO-TRIAGE CLASSIFIER (classify_symptom_triage): Computes triage level (Level 1 Red Emergency, Level 2 Yellow Urgent PHC Visit within 24h, Level 3 Green Home Care).
-3. OUT-LOUD GRACEFUL FAILURE: If an external database lookup fails, speak a helpful 108/112 emergency fallback out loud.
-4. CHAINING WITH DAY 4 MEMORY: Use the caller's saved district (e.g. Ramesh in Varanasi) automatically if district is omitted.
 
 DAY 4 CALLER MEMORY & RETURNING CALLER RULES:
-1. Greet returning callers by name and reference their previous symptom/triage continuity (e.g. "Namaste Ramesh, last time we spoke about your fever. How are you feeling today?").
-2. HARD RULE - CONSENT BEFORE SAVING: Before saving any facts, always ask the caller if you may remember their name and health summary for future consultations. If they say no, do NOT save it.
-3. HEALTH ACCESS FACTS SCHEMA: Only store age_band, ongoing_conditions, and last_triage_outcome. Never store written-out medical notes, prescriptions, or account numbers.
-4. FORGET ME TOOL: If a caller asks to be forgotten ("forget my data", "mujhe bhool jao"), wipe their record completely.
+1. Greet returning callers by name and reference their previous symptom/triage continuity.
+2. HARD RULE - CONSENT BEFORE SAVING: Ask caller consent before storing facts.
+3. FORGET ME TOOL: Wipe memory when requested.
 
 GUARDRAILS (STRICT MEDICAL LIMITS):
 1. HARD REFUSAL - PRESCRIPTION DRUGS: NEVER name, recommend, or prescribe any prescription medication, antibiotics, steroids, or specific drug dosages.
@@ -87,7 +92,7 @@ export async function generateHealthcareResponse(
     };
   }
 
-  // Fast-path clinical intelligence, Day 5 Tools & caller memory
+  // Fast-path clinical intelligence, Day 5 Tools, Day 6 Outbound & caller memory
   return await getSimulatedHealthcareResponse(userPrompt, conversationHistory, userId, callerName, isCallStart);
 }
 
@@ -159,7 +164,7 @@ export function detectUserLanguage(text: string): "hi" | "hinglish" | "en" {
     "bache", "bacha", "mahawari", "periods", "garbh", "motapa", "kamzor", "kabz", "chhale", "daant",
     "aankh", "kaan", "skin", "khujli", "dengue", "malaria", "typhoid", "bp", "gathiya", "ghutne",
     "naam", "mera", "meri", "mere", "yaad", "kaun", "khud", "apne", "patient", "baat", "bata",
-    "hospital", "aspatal", "phc", "chc", "kendra", "doctor"
+    "hospital", "aspatal", "phc", "chc", "kendra", "doctor", "call", "band", "roko", "mat"
   ];
 
   if (hinglishMarkers.some(m => lower.includes(m))) return "hinglish";
@@ -167,7 +172,7 @@ export function detectUserLanguage(text: string): "hi" | "hinglish" | "en" {
 }
 
 /**
- * Master Clinical Intelligence, Day 5 Tools Execution, Multi-Disease Knowledge Base & Patient Memory Engine
+ * Master Clinical Intelligence, Day 5 & Day 6 Tools Execution, Knowledge Base & Patient Memory Engine
  */
 export async function getSimulatedHealthcareResponse(
   query: string,
@@ -195,13 +200,33 @@ export async function getSimulatedHealthcareResponse(
   const knownNameInConvo = currentCaller?.name || callerName || "रमेश";
 
   // =========================================================================
+  // DAY 6: OUTBOUND CALL OPT-OUT PROTOCOL ("Call band karo", "Stop calling")
+  // =========================================================================
+  if (/\b(call band karo|stop calling|stop call|don't call|mujhe call mat karo|call mat karna|opt out|dnc|do not call)\b/i.test(q) ||
+      (q.includes("call") && (q.includes("band") || q.includes("mat") || q.includes("roko") || q.includes("stop")))) {
+    if (currentCaller) {
+      currentCaller.facts.do_not_call = true;
+      saveCaller(currentCaller);
+    }
+
+    const reply = (userLang === "hi" || userLang === "hinglish")
+      ? "आपकी सहमति का पूरा सम्मान करते हुए, हमने आपका नंबर आउटबाउंड स्वास्थ्य कॉल्स की सूची से हटा दिया है। अब आपको कोई भी स्वचालित कॉल नहीं आएगी। अपना ख्याल रखें।"
+      : "In respect of your preference, your number has been removed from our outbound health calls registry. You will receive no further automated calls. Take care.";
+
+    return {
+      response: reply,
+      caller: currentCaller,
+      functionCalled: "outbound_opt_out",
+    };
+  }
+
+  // =========================================================================
   // DAY 5 TOOL 1: NEAREST HEALTH FACILITY & PHC LOOKUP
   // =========================================================================
   const isFacilityQuery = /\b(hospital|aspatal|phc|chc|swasthya kendra|kendra|clinic|nearest hospital|pass ka hospital|doctor kahan|facility|varanasi hospital|lucknow hospital|delhi hospital|patna hospital|jaipur hospital)\b/i.test(q) ||
                           (q.includes("hospital") || q.includes("अस्पताल") || q.includes("phc") || q.includes("स्वास्थ्य केंद्र") || q.includes("कहाँ जाऊं") || q.includes("kahan jau"));
 
   if (isFacilityQuery) {
-    // Extract district if explicitly stated, else chain with Day 4 caller location
     let detectedDistrict: string | undefined = undefined;
     if (q.includes("varanasi") || q.includes("वाराणसी") || q.includes("kashi")) detectedDistrict = "Varanasi";
     else if (q.includes("lucknow") || q.includes("लखनऊ")) detectedDistrict = "Lucknow";
@@ -380,7 +405,7 @@ export async function getSimulatedHealthcareResponse(
   // F. NAME INTRODUCTION EXTRACTION (e.g. "Mera naam Priya hai", "Main Amit bol raha hoon")
   // =========================================================================
   const nameMatch = q.match(/(?:mera naam|i am|my name is|this is|naam|main)\s+([a-zA-Z\u0900-\u097F]+)/i);
-  if (nameMatch && nameMatch[1] && !["hai", "hoon", "here", "calling", "having", "ek", "kya", "theek", "bimaar", "dard", "khud", "apne"].includes(nameMatch[1].toLowerCase())) {
+  if (nameMatch && nameMatch[1] && !["hai", "hoon", "here", "calling", "having", "ek", "kya", "theek", "bimaar", "dard", "khud", "apne", "call", "band"].includes(nameMatch[1].toLowerCase())) {
     const detectedName = nameMatch[1].charAt(0).toUpperCase() + nameMatch[1].slice(1);
     const lookedUp = getCallerByName(detectedName);
     

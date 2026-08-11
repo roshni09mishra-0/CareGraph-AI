@@ -4,68 +4,65 @@
 > **Track:** Health Access 🩺  
 > **Voice Engine:** [Murf Falcon](https://murf.ai/) — World's Fastest Indian TTS API (Sub-250ms latency)  
 > **STT Engine:** Deepgram Nova-2 Multilingual Speech-to-Text  
-> **Transport:** LiveKit WebRTC + Next.js 14 Production Server  
+> **Telephony Engine:** Twilio REST PSTN Integration + In-Browser LiveKit WebRTC Softphone  
+> **Transport:** Next.js 14 Production Server + WebSockets  
 
 ---
 
 ## 🚀 Overview
 
-**SwasthyaSathi AI (स्वास्थ्य साथी)** is an empathetic, multilingual Indian Voice Healthcare Assistant built to bridge the healthcare accessibility divide for 1.4 billion citizens across Bharat. It provides real-time voice triage, home wellness guidance in pure Hindi, Hinglish, and Indian English, and autonomous lookup of verified public healthcare facilities (PHCs, CHCs, and Ayushman Bharat PM-JAY hospitals).
+**SwasthyaSathi AI (स्वास्थ्य साथी)** is an empathetic, multilingual Indian Voice Healthcare Assistant built to bridge the healthcare accessibility divide for 1.4 billion citizens across Bharat. It handles both inbound emergency consultations and autonomous **Day 6 Outbound Healthcare Telephony** (Post-Triage Follow-ups, Immunization Nudges, and Chronic Care Management).
 
 ---
 
-## 🌟 Day 5 Architecture: Autonomous Domain Tools & Clinical Triage
+## 🌟 Day 6 Architecture: Outbound Telephony & Strict 3-Part Opening Protocol
 
-Day 5 empowers SwasthyaSathi AI with **Real-Time Clinical Domain Tools** to query verified Indian public health registries and classify symptom urgency into actionable triage levels.
+Day 6 equips SwasthyaSathi AI with an autonomous **Outbound Telephony Engine** capable of dialing patients, executing a compliant 3-part opening, handling live edge-case outcomes (`Busy`, `No Answer`, `Opt-Out`), and carrying out recovery conversations over Murf Falcon 2.
 
 ```mermaid
 flowchart TD
-    User([👤 Indian Caller / Patient]) -->|🎙️ Hindi / Hinglish / English Voice| STT[⚡ Deepgram Nova-2 Multilingual STT]
-    STT -->|Transcribed Query| Brain[🧠 Conversational Health Brain]
-    
-    subgraph Day 5: Autonomous Domain Tools & Clinical Lookups
-        Brain -->|Tool 1: Facility Query| TF1[🏥 lookup_nearest_facility]
-        Brain -->|Tool 2: Multi-Day Symptoms| TF2[🩺 classify_symptom_triage]
-        
-        TF1 --> Chain[🔗 Smart Day 4 Memory Chaining\n(e.g., Ramesh -> Varanasi, UP)]
-        Chain --> NHP[🏛️ Verified Public Health Facility Registry\n(PHCs, CHCs & Ayushman PM-JAY)]
-        
-        TF1 -->|Live/Local Dataset| CardData[📦 Structured HealthFacility Payload]
-        TF2 -->|Triage Urgency| TriageData[🚨 Level 1 / Level 2 / Level 3]
-        
-        TF1 -.->|Simulated Outage / Timeout| Fallback[⚠️ Graceful Out-Loud 108/112 Fallback]
+    subgraph Day 6 Outbound Telephony Center
+        Trigger([🏥 Clinical Trigger / Automated Schedule]) --> Dispatch[⚡ Outbound Call Dispatcher]
+        Dispatch --> Scenarios{Select Scenario}
+        Scenarios -->|1. Fever Follow-up| S1[Post-Triage Recovery Check]
+        Scenarios -->|2. Immunization| S2[Child Vaccination Reminder]
+        Scenarios -->|3. Chronic Care| S3[BP & Diabetes Weekly Check]
     end
 
-    Brain -->|Timestamped Natural Spoken Hindi/English| Murf[🎙️ Murf Falcon TTS API\n(hi-IN-shweta & en-IN-priya)]
-    CardData --> UI[🖥️ Live Interactive Health Facility Card]
-    TriageData --> UI
-    Murf -->|⚡ Sub-250ms Audio Stream| AudioPlayer[🔊 Real-time Spoken Voice Playback]
-    AudioPlayer --> User
+    Dispatch --> Opening[🗣️ Mandatory 3-Part Opening Engine\n1. Who is calling\n2. Why calling\n3. How to Opt-out]
+    Opening --> Gate[📡 Twilio Gateway / LiveKit WebRTC Softphone]
+    Gate --> Patient([📱 Patient Smartphone])
+
+    subgraph Outcome State Machine
+        Patient -->|Answered| MurfSpeech[🎙️ Murf Falcon TTS (Sub-250ms)]
+        Patient -->|Busy| Retry15[⏳ 15-Min Scheduled Retry]
+        Patient -->|No Answer| Retry30[📴 30-Min Retry + SMS Alert]
+        Patient -->|Opt-Out / Stop| DNC[🚫 National Do-Not-Call Registry]
+    end
 ```
 
 ---
 
-## 🛠️ Day 5 Domain Tools Specifications
+## 🗣️ Mandatory 3-Part Outbound Opening Protocol
 
-| Tool Name | Purpose | Data Source | Memory Chaining | Graceful Out-Loud Fallback |
-| :--- | :--- | :--- | :--- | :--- |
-| **`lookup_nearest_facility`** | Fetches the nearest Primary Health Centre (PHC), Community Health Centre (CHC), or Ayushman Bharat PM-JAY hospital with exact distance (km), 24x7 operating status, and 108 ambulance contact. | **Verified Indian Public Health Facility Registry** (National Health Portal & Ayushman Bharat PM-JAY) | Auto-chains with caller's saved district from Day 4 memory (e.g., Ramesh in Varanasi) if omitted. | Speaks emergency 108/112 guidance out loud if the database is unreachable. |
-| **`classify_symptom_triage`** | Classifies symptom duration and severity into Level 1 (🔴 Emergency), Level 2 (🟡 Urgent PHC visit within 24h), or Level 3 (🟢 Routine Home Care). | **Clinical AI Decision Matrix** | Automatically links and chains with `lookup_nearest_facility` for Level 1 & 2. | Gracefully advises rest and hydration. |
+Every outbound call placed by SwasthyaSathi AI strictly follows the 3-part compliance opening in the first two sentences:
 
----
-
-## 📊 Live vs Local Data Sources
-- **Health Facility Directory**: Real verified public health facilities across major Indian districts (*Varanasi, Lucknow, Patna, Jaipur, Delhi NCR, Mumbai, Pune, Bhopal, Bengaluru*), including official 24x7 helpline numbers, PM-JAY empanelment status, and exact services.
-- **Data Freshness Timestamping**: Every tool execution states its date freshness (*"आज 10 अगस्त 2026 के सत्यापित स्वास्थ्य डायरेक्टरी के अनुसार..."* / *"According to verified health records from 10 August 2026..."*).
+| Part | Purpose | Example Opening (Hindi) | Example Opening (English) |
+| :--- | :--- | :--- | :--- |
+| **1. Who** | Identifies the assistant | *"नमस्ते रमेश जी! मैं स्वास्थ्य साथी एआई से बोल रहा हूँ..."* | *"Namaste Ramesh! This is SwasthyaSathi AI calling..."* |
+| **2. Why** | Explains the clinical purpose | *"...यह आपके कल के तेज बुखार और शिवपुर PHC परामर्श के बाद आपकी तबियत जानने के लिए फॉलो-अप कॉल है।"* | *"...This is a follow-up healthcare call regarding your recent fever and PHC recommendation."* |
+| **3. Opt-Out** | Provides immediate opt-out instructions | *"...यदि आप अभी बात नहीं करना चाहते या भविष्य में ये कॉल्स बंद करना चाहते हैं, तो कृपया 'कॉल बंद करो' कहें।"* | *"...If you wish to stop receiving these calls, please say 'stop calling'."* |
 
 ---
 
-## 🛡️ Medical Safety Guardrails (Zero Tolerance Limits)
-1. **🚫 Hard Refusal on Prescription Drugs**: Never prescribes specific medications, antibiotics, or drug dosages.
-2. **🚫 Hard Refusal on Clinical Diagnoses**: Never provides definitive clinical diagnoses; guides toward laboratory tests and certified physicians.
-3. **🚫 Never-Claim Doctor Identity**: Clearly identifies itself as an AI Health Guide, never impersonating a licensed human doctor.
-4. **🚨 Red-Flag Emergency Escalation**: Automatically detects emergency red-flags (chest pain, breathlessness, stroke, heavy bleeding) and immediately directs callers to 108/112.
-5. **🔒 Explicit Privacy Consent**: Always asks permission before storing any health facts; provides a complete `forget_me` privacy wipe tool.
+## 📊 Day 6 Outbound Use Cases & Outcome Handling
+
+| Scenario | Target Patient | Trigger Condition | Edge Case / Retry Behavior |
+| :--- | :--- | :--- | :--- |
+| **Post-Triage Recovery Follow-up** | Ramesh Kumar (`user_ramesh`) | 24 hours after Level 2 Triage referral to Shivpur PHC (Varanasi). | If `Busy` ➡️ Auto-retries in 15 mins. If `No Answer` ➡️ Retries in 30 mins and logs SMS fallback. |
+| **Child Vaccination Reminder** | Baby Aarav (`user_aarav`) | 1 day before scheduled Polio & DPT booster immunization. | Guides parents to the nearest PHC vaccination booth. |
+| **Chronic Care Monitoring** | Priya Devi (`user_priya`) | Weekly blood pressure and glucose tracking check-in. | Updates patient facts registry. |
+| **In-Call Opt-Out (Do-Not-Call)** | Any patient saying *"Call band karo"* / *"Stop calling"* | Real-time speech command during active call. | Immediately marks `do_not_call: true` and confirms removal from outbound dialer list. |
 
 ---
 
@@ -73,67 +70,66 @@ flowchart TD
 
 | Layer | Technology | Purpose |
 | :--- | :--- | :--- |
-| **TTS Engine** | **Murf Falcon API** | Fastest Indian Text-to-Speech (`hi-IN-shweta`, `hi-IN-kabir`, `en-IN-priya`) |
-| **STT Engine** | **Deepgram Nova-2** | Multilingual Push-to-Talk Speech Recognition for Hindi & Indian English |
-| **WebRTC Audio** | **LiveKit WebRTC** | Ultra-low latency voice room & audio streaming |
-| **Frontend UI** | **Next.js 14 + TailwindCSS** | Real-time Status Orb, Live ECG Waveform Canvas & Facility Card |
-| **Persistence** | **Local Persistent Storage** | Caller Memory & Health Facts Registry with Consent Protection |
+| **Voice TTS** | **Murf Falcon API** | Ultra-fast natural Indian voice synthesis (`hi-IN-shweta`, `en-IN-priya`) |
+| **Speech Recognition** | **Deepgram Nova-2** | Real-time multilingual STT with push-to-talk |
+| **Telephony Gateway** | **Twilio REST API + LiveKit WebRTC** | Real PSTN phone dialing & in-browser softphone simulation |
+| **Frontend UI** | **Next.js 14 + TailwindCSS** | Interactive mobile phone incoming call screen & outbound dialer modal |
+| **Database** | **JSON Storage** | Patient Health Facts & Do-Not-Call (DNC) Registry |
 
 ---
 
 ## 🚀 Quick Start Guide
 
-### 1. Clone the Repository
+### 1. Clone & Install
 ```bash
 git clone https://github.com/roshu764/agent-ai.git
 cd agent-ai
-```
-
-### 2. Install Dependencies
-```bash
 npm install
 ```
 
-### 3. Configure Environment Variables (`.env.local`)
-Create a `.env.local` file in the root directory:
+### 2. Configure Environment (`.env.local`)
 ```env
 MURF_API_KEY=your_murf_api_key
 DEEPGRAM_API_KEY=your_deepgram_api_key
 OPENAI_API_KEY=your_openai_api_key
-LIVEKIT_API_KEY=your_livekit_key
-LIVEKIT_API_SECRET=your_livekit_secret
+TWILIO_ACCOUNT_SID=your_twilio_sid (optional)
+TWILIO_AUTH_TOKEN=your_twilio_token (optional)
+TWILIO_PHONE_NUMBER=your_twilio_number (optional)
 ```
 
-### 4. Build and Run Production Server
+### 3. Build & Start
 ```bash
 npm run build
 npm start
 ```
-Open **`http://localhost:3000`** in your browser.
+Visit **`http://localhost:3000`** in your browser.
 
 ---
 
-## 📱 Day 5 LinkedIn Submission Post
+## 📱 Day 6 LinkedIn Submission Post
 
 ```markdown
-🚀 Day 5 of the #VoiceForBharat Challenge: Teaching Voice Agents to Query Real Domain Data! 🩺🇮🇳
+🚀 Day 6 of the #VoiceForBharat Challenge: Making Outbound Voice Calls! 📞🩺🇮🇳
 
-Yesterday, SwasthyaSathi AI (स्वास्थ्य साथी) learned to remember returning patients with strict privacy consent. Today, I gave it autonomous clinical tools to query real healthcare domain data!
+Yesterday, SwasthyaSathi AI (स्वास्थ्य साथी) learned to look up live PHCs and clinical triage data. Today, it went on the offense with proactive Outbound Telephony for Bharat's rural healthcare!
 
-✨ What I built on Day 5 (Health Access Track):
-🏥 1. Live PHC & Facility Discovery Tool (`lookup_nearest_facility`): Autonomously fetches the nearest Primary Health Centre (PHC), Community Health Centre (CHC), or Ayushman Bharat PM-JAY hospital with live distance (km), 24x7 hours, and 108 ambulance helpline.
-🩺 2. Clinical Symptom-to-Triage Classifier (`classify_symptom_triage`): Categorizes symptoms into Level 1 (🔴 Emergency), Level 2 (🟡 Urgent PHC visit within 24h), and Level 3 (🟢 Routine Home Care).
-🔗 3. Smart Memory Chaining: If a returning caller (like Ramesh from Day 4) asks for a hospital, the agent automatically chains his saved district (Varanasi, UP) without asking again!
-🖥️ 4. Real-Time UI Push: Displays a rich interactive Facility Discovery Card on screen while the agent speaks the details.
-⚠️ 5. Out-Loud Graceful Failure: If external data sources time out, the agent never goes silent or hallucinates—it speaks a helpful emergency 108/112 protocol out loud.
-🎙️ Powered by Murf Falcon — the world's fastest Indian TTS API delivering human-quality Hindi voice in under 250ms!
+✨ What I built on Day 6 (Health Access Track):
+📞 1. Outbound Clinical Scenarios:
+   - Post-Triage Recovery Follow-up: Automated check-in for patients (like Ramesh) after 3-day fever escalation & PHC visit.
+   - Maternal & Child Immunization Reminders: Timely nudges for scheduled Polio & DPT booster doses.
+   - Chronic Care Check-ins: Weekly vitals tracking for Hypertension & Diabetes.
+🗣️ 2. Strict 3-Part Opening Protocol:
+   In the first two sentences, the agent states:
+   - WHO: "नमस्ते रमेश जी! मैं स्वास्थ्य साथी एआई से बोल रहा हूँ..."
+   - WHY: "...यह आपके कल के बुखार और PHC परामर्श के बाद आपकी तबियत जानने के लिए फॉलो-अप कॉल है।"
+   - OPT-OUT: "...यदि आप ये कॉल्स बंद करना चाहते हैं, तो कृपया 'कॉल बंद करो' कहें।"
+📱 3. Telephony Integration & Interactive Softphone:
+   Integrated Twilio PSTN gateway + an interactive in-browser mobile phone overlay with realistic ringing and live Murf Falcon voice playback!
+⚡ 4. Advanced Outcome Handling:
+   Configured automated state machine handling for Answered, Busy (15m retry), No Answer (30m retry + SMS), and instant In-Call Opt-Out (Do-Not-Call Registry).
+🎙️ Powered by Murf Falcon — delivering authentic, compassionate Indian Hindi voice in under 250ms!
 
-Building for Bharat's 1.4B citizens with @Murf AI! 🇮🇳
+Building for Bharat with @Murf AI! 🇮🇳
 
-#VoiceForBharat #MurfAI #10DaysOfVoiceAgents #AIHealthcare #VoiceAI #HealthAccess #BuildInPublic #Nextjs #WebRTC
+#VoiceForBharat #MurfAI #10DaysOfVoiceAgents #VoiceAI #HealthAccess #Telephony #Twilio #AIHealthcare #BuildInPublic #Nextjs
 ```
-
----
-
-## 📄 License
-MIT License. Built with ❤️ for the #VoiceForBharat Hackathon.

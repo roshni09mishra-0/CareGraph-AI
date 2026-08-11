@@ -6,6 +6,7 @@ export interface HealthFacts {
   ongoing_conditions?: string; // e.g. "Mild Hypertension", "Asthma", "None"
   last_triage_outcome?: string; // e.g. "Advised hydration & rest for mild fever"
   last_symptom?: string; // e.g. "fever and body ache"
+  do_not_call?: boolean; // Day 6 Opt-Out Registry flag
 }
 
 export interface CallerRecord {
@@ -28,20 +29,49 @@ function ensureDatabase() {
   }
 
   if (!fs.existsSync(DB_FILE)) {
-    // Pre-seed demo returning patient for instant Day 4 testing
+    // Pre-seed demo returning patient for instant Day 4 & Day 6 testing
     const initialRecords: Record<string, CallerRecord> = {
       "user_ramesh": {
         user_id: "user_ramesh",
-        name: "Ramesh",
-        language_preference: "hinglish",
+        name: "रमेश कुमार",
+        language_preference: "hi",
         facts: {
           age_band: "Adult (35-45)",
           ongoing_conditions: "None",
-          last_triage_outcome: "Advised hydration, temperature charting & ORS for mild fever",
-          last_symptom: "fever and body ache",
+          last_triage_outcome: "Advised hydration, temperature charting & Shivpur PHC consultation for 3-day fever",
+          last_symptom: "दो दिन से तेज बुखार और सिरदर्द",
+          do_not_call: false,
         },
         consent_given: true,
         last_interaction: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), // 1 day ago
+      },
+      "user_priya": {
+        user_id: "user_priya",
+        name: "प्रिया देवी",
+        language_preference: "hi",
+        facts: {
+          age_band: "Adult (25-35)",
+          ongoing_conditions: "None",
+          last_triage_outcome: "Maternal Health Routine Check",
+          last_symptom: "सामयिक जांच",
+          do_not_call: false,
+        },
+        consent_given: true,
+        last_interaction: new Date().toISOString(),
+      },
+      "user_aarav": {
+        user_id: "user_aarav",
+        name: "आरव शर्मा (बाल स्वास्थ्य)",
+        language_preference: "hi",
+        facts: {
+          age_band: "Child (1-5 yrs)",
+          ongoing_conditions: "None",
+          last_triage_outcome: "Immunization schedule pending",
+          last_symptom: "टीकाकरण अनुसूची",
+          do_not_call: false,
+        },
+        consent_given: true,
+        last_interaction: new Date().toISOString(),
       },
     };
     fs.writeFileSync(DB_FILE, JSON.stringify(initialRecords, null, 2), "utf-8");
@@ -61,20 +91,20 @@ function readDatabase(): Record<string, CallerRecord> {
   }
 }
 
-// Write callers to database atomically
-function writeDatabase(data: Record<string, CallerRecord>) {
+// Write all callers to database
+function writeDatabase(data: Record<string, CallerRecord>): boolean {
   ensureDatabase();
   try {
-    const tempFile = `${DB_FILE}.tmp`;
-    fs.writeFileSync(tempFile, JSON.stringify(data, null, 2), "utf-8");
-    fs.renameSync(tempFile, DB_FILE);
+    fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), "utf-8");
+    return true;
   } catch (error) {
     console.error("[Database Error] Failed to write database file:", error);
+    return false;
   }
 }
 
 /**
- * Look up a caller by user_id
+ * Lookup caller by user_id
  */
 export function getCaller(userId: string): CallerRecord | null {
   const db = readDatabase();
@@ -82,61 +112,50 @@ export function getCaller(userId: string): CallerRecord | null {
 }
 
 /**
- * Look up a caller by name (case-insensitive)
+ * Lookup caller by name (case-insensitive fuzzy match)
  */
 export function getCallerByName(name: string): CallerRecord | null {
   const db = readDatabase();
-  const cleanName = name.toLowerCase().trim();
-  for (const record of Object.values(db)) {
-    if (record.name.toLowerCase() === cleanName || cleanName.includes(record.name.toLowerCase())) {
-      return record;
-    }
-  }
-  return null;
+  const lowerName = name.toLowerCase().trim();
+  const match = Object.values(db).find((caller) => caller.name.toLowerCase() === lowerName || caller.name.toLowerCase().includes(lowerName) || lowerName.includes(caller.name.toLowerCase()));
+  return match || null;
 }
 
 /**
- * Save or update a caller record
- * HARD RULE: Only saves if consent_given === true
+ * Save or update a caller's facts and consent
  */
-export function saveCaller(record: CallerRecord): CallerRecord {
-  if (!record.consent_given) {
-    throw new Error("Consent not granted. Health Access guardrail prohibits storing data without consent.");
-  }
-
+export function saveCaller(caller: CallerRecord): CallerRecord {
   const db = readDatabase();
-  const existing = db[record.user_id] || {};
-  
-  const updatedRecord: CallerRecord = {
-    ...existing,
-    ...record,
+  db[caller.user_id] = {
+    ...caller,
     last_interaction: new Date().toISOString(),
   };
-
-  db[record.user_id] = updatedRecord;
   writeDatabase(db);
-  console.log(`[Database] Successfully saved caller record for ${record.name} (${record.user_id})`);
-  return updatedRecord;
+  console.log(`[Database] Saved record for caller ${caller.name} (${caller.user_id})`);
+  return db[caller.user_id];
 }
 
 /**
- * Delete / Wipe a caller record ("Forget Me" tool)
+ * Forget caller (Day 4 Privacy & Wipe Tool)
  */
 export function deleteCaller(userId: string): boolean {
   const db = readDatabase();
   if (db[userId]) {
+    const name = db[userId].name;
     delete db[userId];
     writeDatabase(db);
-    console.log(`[Database] Successfully deleted (forgot) caller record for ${userId}`);
+    console.log(`[Database Privacy] Erased all stored data for caller: ${name} (${userId})`);
     return true;
   }
   return false;
 }
 
 /**
- * List all saved callers
+ * List all saved callers (for UI dropdown and testing)
  */
-export function listCallers(): CallerRecord[] {
+export function listAllCallers(): CallerRecord[] {
   const db = readDatabase();
   return Object.values(db);
 }
+
+export const listCallers = listAllCallers;

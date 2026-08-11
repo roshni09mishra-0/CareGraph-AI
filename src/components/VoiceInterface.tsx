@@ -6,11 +6,14 @@ import ChatBubbles, { Message } from "./ChatBubbles";
 import QuickPrompts from "./QuickPrompts";
 import PatientCard from "./PatientCard";
 import FacilityCard from "./FacilityCard";
+import OutboundDialerModal from "./OutboundDialerModal";
+import IncomingPhoneCallOverlay from "./IncomingPhoneCallOverlay";
 import AudioWaveformCanvas from "./AudioWaveformCanvas";
 import { CallerRecord } from "@/lib/db";
 import { HealthFacility } from "@/lib/facilityData";
 import { TriageClassificationResult } from "@/lib/tools";
-import { Mic, MicOff, Send, Radio, RefreshCw, Volume2, ShieldCheck, Sparkles, VolumeX, UserCheck, AlertCircle, PhoneOff, Stethoscope, HelpCircle, Activity, Play, Volume1, CheckCircle2, Cpu, Square, KeyRound, Loader2, Hospital, MapPin } from "lucide-react";
+import { OutboundCallRecord, OutboundScenario, CallOutcome } from "@/lib/telephony";
+import { Mic, MicOff, Send, Radio, RefreshCw, Volume2, ShieldCheck, Sparkles, VolumeX, UserCheck, AlertCircle, PhoneOff, Stethoscope, HelpCircle, Activity, Play, Volume1, CheckCircle2, Cpu, Square, KeyRound, Loader2, Hospital, MapPin, PhoneForwarded, PhoneCall } from "lucide-react";
 import { INDIAN_VOICES } from "@/lib/murf";
 
 interface VoiceInterfaceProps {
@@ -39,6 +42,11 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
   // Day 5: Active Facility & Triage Results
   const [activeFacility, setActiveFacility] = useState<HealthFacility | null>(null);
   const [activeTriage, setActiveTriage] = useState<TriageClassificationResult | null>(null);
+
+  // Day 6: Outbound Telephony State
+  const [isDialerModalOpen, setIsDialerModalOpen] = useState(false);
+  const [isIncomingCallOpen, setIsIncomingCallOpen] = useState(false);
+  const [activeOutboundCall, setActiveOutboundCall] = useState<OutboundCallRecord | null>(null);
 
   // Day 4: Caller Memory & Patient State
   const [activeCaller, setActiveCaller] = useState<CallerRecord | null>(null);
@@ -90,6 +98,81 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
     }
   };
 
+  // Day 6: Initiate Outbound Call Handler
+  const handleInitiateOutboundCall = async (
+    patientId: string, 
+    phoneNumber: string, 
+    scenario: OutboundScenario,
+    outcome?: CallOutcome
+  ) => {
+    console.log(`[Outbound Call] Launching scenario: ${scenario} for patient ${patientId}`);
+    try {
+      const res = await fetch("/api/telephony/outbound-call", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          patientId,
+          phoneNumber,
+          scenario,
+          language: uiLanguage,
+          simulateOutcome: outcome,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success && data.call) {
+        setActiveOutboundCall(data.call);
+        if (data.call.status === "answered" || data.call.status === "ringing") {
+          setIsIncomingCallOpen(true);
+        } else {
+          // Add system notice message for busy/no-answer/opt-out
+          const outcomeMsg: Message = {
+            id: `call-outcome-${Date.now()}`,
+            sender: "assistant",
+            text: `📞 [Outbound Telephony] Call to ${data.call.patient_name} (${data.call.phone_number}) - Status: ${data.call.status}. ${data.call.notes || ""}`,
+            timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          };
+          setMessages((prev) => [...prev, outcomeMsg]);
+        }
+      }
+    } catch (e) {
+      console.error("[Outbound Error]", e);
+    }
+  };
+
+  // Day 6: Answer Outbound Call
+  const handleAnswerCall = (call: OutboundCallRecord) => {
+    console.log(`[Outbound Call] Answered call ${call.call_id}`);
+    call.status = "answered";
+    setActiveOutboundCall({ ...call });
+
+    // Add assistant message with 3-part opening to transcript
+    const openingMsg: Message = {
+      id: `call-opening-${Date.now()}`,
+      sender: "assistant",
+      text: call.opening_text,
+      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    };
+    setMessages((prev) => [...prev, openingMsg]);
+
+    // Synthesize opening with Murf Falcon Voice
+    playOpeningTTS(call.opening_text);
+  };
+
+  // Day 6: Decline / Hangup Outbound Call
+  const handleDeclineCall = (call: OutboundCallRecord, reason: string) => {
+    console.log(`[Outbound Call] Declined/Hangup: ${reason}`);
+    stopAllAssistantAudio();
+    setIsIncomingCallOpen(false);
+    setActiveOutboundCall(null);
+  };
+
+  // Day 6: Live In-Call Opt-Out
+  const handleOptOutPatient = (patientId: string) => {
+    handleSendUserMessage("Call band karo, mujhe aage call mat karna");
+    setIsIncomingCallOpen(false);
+  };
+
   // Time reference for latency tracking
   const speechEndTimeRef = useRef<number>(0);
 
@@ -120,21 +203,6 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
   useEffect(() => {
     assistantStateRef.current = assistantState;
   }, [assistantState]);
-
-  // Connect LiveKit Room token on mount
-  const connectLiveKit = async () => {
-    try {
-      const res = await fetch("/api/livekit/token?room=swasthya-room");
-      const data = await res.json();
-      if (data.token) {
-        setIsLiveKitConnected(true);
-        if (onLiveKitStatusChange) onLiveKitStatusChange(true);
-      }
-    } catch (err) {
-      console.warn("LiveKit connection notice:", err);
-      setIsLiveKitConnected(true);
-    }
-  };
 
   // Safe AudioContext resume helper (DOES NOT auto-play audio)
   const resumeAudioContextOnly = () => {
@@ -361,7 +429,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
       "chakkar", "kamzori", "weakness", "vomit", "ulti", "dast", "pet dard", "sir me", "sar me",
       "feel ho rahi", "neend", "sugar", "acidity", "vajan", "paani", "daant", "aankhon", "kaan", "bache", "naam",
       "typhoid", "dengue", "malaria", "asthma", "thyroid", "jaundice", "piliya", "pathri", "bawasir",
-      "hospital", "aspatal", "phc", "chc", "kendra"
+      "hospital", "aspatal", "phc", "chc", "kendra", "call", "band", "roko", "mat"
     ];
     const isHinglish = hinglishMarkers.some((kw) => lowerQuery.includes(kw));
     const userLanguageDetected = hasDevanagari ? "Hindi" : isHinglish ? "Hinglish" : "English";
@@ -497,6 +565,33 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
     handleSendUserMessageRef.current = handleSendUserMessage;
   });
 
+  // Play opening 3-part speech over Murf Falcon
+  const playOpeningTTS = async (text: string) => {
+    try {
+      const isHindi = /[\u0900-\u097F]/.test(text) || uiLanguage === "hi" || uiLanguage === "hinglish";
+      const voiceId = isHindi ? "hi-IN-shweta" : "en-IN-priya";
+
+      const res = await fetch("/api/tts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text,
+          voiceId,
+          language: isHindi ? "hi" : "en",
+          userLanguage: isHindi ? "Hindi" : "English",
+        }),
+      });
+      const data = await res.json();
+      if (data.audioUrl) {
+        playAudioUrl(data.audioUrl);
+      } else {
+        speakBrowserTTS(text, isHindi);
+      }
+    } catch (e) {
+      speakBrowserTTS(text);
+    }
+  };
+
   // Seamless Return to Continuous Ready Mode
   const returnToListeningMode = () => {
     if (audioPlaybackSafetyTimerRef.current) clearTimeout(audioPlaybackSafetyTimerRef.current);
@@ -583,6 +678,26 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
       {/* Hidden Audio Player for Murf Falcon TTS */}
       <audio ref={audioRef} onEnded={handleAudioEnded} className="hidden" />
 
+      {/* Day 6: Outbound Call Configuration Modal */}
+      <OutboundDialerModal
+        isOpen={isDialerModalOpen}
+        onClose={() => setIsDialerModalOpen(false)}
+        onInitiateCall={handleInitiateOutboundCall}
+        savedCallers={savedCallers}
+        language={uiLanguage}
+      />
+
+      {/* Day 6: Realistic Incoming Phone Call Overlay */}
+      <IncomingPhoneCallOverlay
+        call={activeOutboundCall}
+        isOpen={isIncomingCallOpen}
+        onAnswer={handleAnswerCall}
+        onDecline={handleDeclineCall}
+        onOptOut={handleOptOutPatient}
+        onClose={() => setIsIncomingCallOpen(false)}
+        language={uiLanguage}
+      />
+
       {/* Day 4: Patient Memory & Health Profile Card */}
       <PatientCard
         caller={activeCaller}
@@ -608,20 +723,24 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
       {/* Main Voice Assistant Card */}
       <div className="glass-panel rounded-3xl border border-teal-200/90 p-5 sm:p-8 shadow-xl space-y-6 relative overflow-hidden bg-white/95 backdrop-blur-md">
         
-        {/* Header Bar: Status Pills, Track, Latency & Controls */}
+        {/* Header Bar: Status Pills, Outbound Trigger, Track & Controls */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-teal-100 pb-4">
           
-          {/* LiveKit Connection Status, STT Engine & Track Pill */}
+          {/* LiveKit Status, STT Engine & Track Pill */}
           <div className="flex flex-wrap items-center gap-2 text-xs font-bold text-slate-700">
             <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-300 shadow-sm">
               <Radio className="w-3.5 h-3.5 text-emerald-600 animate-pulse" />
               <span>LiveKit WebRTC: Active</span>
             </div>
 
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-teal-50 text-teal-800 border border-teal-300 shadow-sm">
-              <Hospital className="w-3.5 h-3.5 text-teal-700" />
-              <span>Day 5 Tools: PHC Lookup & Triage</span>
-            </div>
+            {/* Day 6 Outbound Call Modal Button */}
+            <button
+              onClick={() => setIsDialerModalOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-gradient-to-r from-teal-700 to-emerald-700 hover:from-teal-600 hover:to-emerald-600 text-white font-extrabold shadow-md shadow-teal-700/20 transition transform active:scale-95"
+            >
+              <PhoneForwarded className="w-3.5 h-3.5 animate-bounce" />
+              <span>📞 {uiLanguage === "hi" ? "आउटबाउंड कॉल (Day 6)" : "Outbound Call (Day 6)"}</span>
+            </button>
 
             <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-cyan-50 text-cyan-800 border border-cyan-300 shadow-sm">
               <span>Latency:</span>
@@ -706,50 +825,41 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
 
         </div>
 
-        {/* Day 5 Domain Tools & Multi-Disease Quick Triggers */}
+        {/* Day 6 Outbound Quick Triggers Bar */}
         <div className="space-y-2 pt-1">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-extrabold text-slate-700 uppercase tracking-wider flex items-center gap-1">
-              <Sparkles className="w-3.5 h-3.5 text-teal-700" /> Day 5 Tools & Clinical Lookups:
+              <Sparkles className="w-3.5 h-3.5 text-teal-700" /> Day 6 Outbound Health Actions:
             </span>
           </div>
 
           <div className="flex flex-wrap items-center justify-center gap-1.5">
-            {/* Tool 1 Trigger: Nearest Facility Lookup */}
+            {/* Outbound Action 1: Post-Triage Recovery Follow-up */}
             <button
-              onClick={() => handleSendUserMessage("Mere pas ka sarkari hospital ya PHC batao")}
+              onClick={() => handleInitiateOutboundCall("user_ramesh", "+91 98765 43210", "post_triage_followup", "answered")}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-emerald-100 hover:bg-emerald-200 border-2 border-emerald-400 text-xs font-extrabold text-emerald-950 shadow-sm transition active:scale-95"
+            >
+              <PhoneCall className="w-3 h-3 text-emerald-800" />
+              <span>📞 रमेश को फॉलो-अप कॉल करें</span>
+            </button>
+
+            {/* Outbound Action 2: Child Vaccination Reminder */}
+            <button
+              onClick={() => handleInitiateOutboundCall("user_ramesh", "+91 98765 43210", "vaccination_reminder", "answered")}
               className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-teal-100 hover:bg-teal-200 border-2 border-teal-400 text-xs font-extrabold text-teal-950 shadow-sm transition active:scale-95"
             >
-              <Hospital className="w-3 h-3 text-teal-800" />
-              <span>🏥 नजदीकी अस्पताल / PHC केंद्र</span>
+              <Activity className="w-3 h-3 text-teal-800" />
+              <span>💉 बाल टीकाकरण रिमाइंडर कॉल</span>
             </button>
 
-            {/* Tool 2 Trigger: Symptom Triage Classifier */}
+            {/* In-Call Opt-Out Test Button */}
             <button
-              onClick={() => handleSendUserMessage("Mujhe 3 din se tez bukhar hai, kya mujhe hospital jana chahiye?")}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-amber-100 hover:bg-amber-200 border-2 border-amber-400 text-xs font-extrabold text-amber-950 shadow-sm transition active:scale-95"
-            >
-              <Activity className="w-3 h-3 text-amber-800" />
-              <span>🚨 3 दिन से बुखार (ट्राइएज जांच)</span>
-            </button>
-
-            {/* Chained District Tool Trigger */}
-            <button
-              onClick={() => handleSendUserMessage("Varanasi me Shivpur PHC ke bare me batao")}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-cyan-100 hover:bg-cyan-200 border border-cyan-400 text-xs font-extrabold text-cyan-950 shadow-sm transition active:scale-95"
-            >
-              <MapPin className="w-3 h-3 text-cyan-800" />
-              <span>📍 वाराणसी PHC (शिवपुर)</span>
-            </button>
-
-            {/* Graceful Failure Out-Loud Test */}
-            <button
-              onClick={() => handleSendUserMessage("Hospital lookup simulate_error test")}
+              onClick={() => handleSendUserMessage("Call band karo, mujhe aage call mat karna")}
               className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-rose-50 hover:bg-rose-100 border border-rose-300 text-xs font-bold text-rose-800 shadow-sm transition active:scale-95"
-              title="Test out-loud graceful failure handling when data source is down"
+              title="Test in-call opt-out (Do Not Call Registry)"
             >
-              <AlertCircle className="w-3 h-3 text-rose-600" />
-              <span>⚠️ API Failure Fallback Test</span>
+              <ShieldCheck className="w-3 h-3 text-rose-600" />
+              <span>🚫 'कॉल बंद करो' (Opt-Out Test)</span>
             </button>
           </div>
         </div>
