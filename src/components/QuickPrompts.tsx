@@ -1,6 +1,6 @@
 "use client";
 
-import { Sparkles, Thermometer, Coffee, Salad, Bandage, Moon, HelpCircle } from "lucide-react";
+import { Sparkles, Thermometer, Coffee, Salad, Bandage, Moon, HelpCircle, PhoneCall, Activity, Hospital } from "lucide-react";
 
 interface QuickPromptsProps {
   onSelectPrompt: (promptText: string) => void;
@@ -11,24 +11,24 @@ interface QuickPromptsProps {
 export default function QuickPrompts({ onSelectPrompt, disabled = false, language = "en" }: QuickPromptsProps) {
   const englishPrompts = [
     {
+      icon: <PhoneCall className="w-3.5 h-3.5 text-emerald-700" />,
+      text: "Call me for a health follow-up check",
+      tag: "📞 Outbound Voice Trigger",
+    },
+    {
       icon: <HelpCircle className="w-3.5 h-3.5 text-teal-700" />,
-      text: "Mera naam kya hai?",
-      tag: "👤 Name & Memory Check",
+      text: "What is my patient name and previous record?",
+      tag: "👤 Memory Check",
+    },
+    {
+      icon: <Hospital className="w-3.5 h-3.5 text-cyan-700" />,
+      text: "Where is the nearest Primary Health Centre PHC?",
+      tag: "🏥 PHC Lookup",
     },
     {
       icon: <Sparkles className="w-3.5 h-3.5 text-cyan-700" />,
       text: "Mujhe do din se thoda bukhar aur gala kharab hai, kya karu?",
       tag: "🇮🇳 Hinglish Triage",
-    },
-    {
-      icon: <Coffee className="w-3.5 h-3.5 text-teal-700" />,
-      text: "Din me kitna paani pina chahiye?",
-      tag: "Hydration Advice",
-    },
-    {
-      icon: <Salad className="w-3.5 h-3.5 text-emerald-700" />,
-      text: "Vajan kam karne ke liye diet aur exercise tips bataiye.",
-      tag: "Weight Loss",
     },
     {
       icon: <Bandage className="w-3.5 h-3.5 text-rose-700" />,
@@ -39,51 +39,57 @@ export default function QuickPrompts({ onSelectPrompt, disabled = false, languag
 
   const hindiPrompts = [
     {
+      icon: <PhoneCall className="w-3.5 h-3.5 text-emerald-700" />,
+      text: "मुझे फॉलो-अप स्वास्थ्य कॉल लगाओ",
+      tag: "📞 आउटबाउंड कॉल",
+    },
+    {
+      icon: <Activity className="w-3.5 h-3.5 text-teal-700" />,
+      text: "मुझे बच्चे के टीकाकरण का रिमाइंडर कॉल करो",
+      tag: "💉 टीकाकरण कॉल",
+    },
+    {
+      icon: <Hospital className="w-3.5 h-3.5 text-cyan-700" />,
+      text: "वाराणसी में नजदीकी प्राथमिक स्वास्थ्य केंद्र PHC बताओ",
+      tag: "🏥 PHC खोज",
+    },
+    {
       icon: <HelpCircle className="w-3.5 h-3.5 text-teal-700" />,
-      text: "मेरा नाम क्या है और मेरा रिकॉर्ड क्या है?",
+      text: "मेरा नाम क्या है और मेरी पिछली बीमारी का रिकॉर्ड क्या है?",
       tag: "👤 नाम व मेमोरी",
     },
     {
       icon: <Thermometer className="w-3.5 h-3.5 text-amber-700" />,
-      text: "मुझे दो दिन से बुखार और कमजोरी है, क्या उपाय करें?",
-      tag: "बुखार triage",
-    },
-    {
-      icon: <Coffee className="w-3.5 h-3.5 text-teal-700" />,
-      text: "खांसी और गले की खराश के घरेलू उपाय बताएं।",
-      tag: "गला व खांसी",
-    },
-    {
-      icon: <Salad className="w-3.5 h-3.5 text-emerald-700" />,
-      text: "वजन कम करने और फिट रहने के आसान टिप्स बताइए।",
-      tag: "वजन नियंत्रण",
-    },
-    {
-      icon: <Bandage className="w-3.5 h-3.5 text-rose-700" />,
-      text: "क्या आप मुझे एंटीबायोटिक दवा लिख सकते हैं?",
-      tag: "🛡️ सुरक्षा नियम",
+      text: "मुझे 3 दिन से तेज बुखार है, क्या मुझे अस्पताल जाना चाहिए?",
+      tag: "🚨 ट्राइएज वर्गीकरण",
     },
   ];
 
   const prompts = language === "hi" ? hindiPrompts : englishPrompts;
 
   return (
-    <div className="space-y-2.5 pt-2">
-      <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700">
-        <Sparkles className="w-3.5 h-3.5 text-teal-700" />
-        <span>{language === "hi" ? "त्वरित प्रश्न (क्लिक करके पूछें):" : "Quick Health Inquiries (Click to Ask):"}</span>
+    <div className="space-y-2">
+      <div className="flex items-center justify-between text-xs font-semibold text-slate-500">
+        <span>Suggested Queries:</span>
+        <span className="text-[10px] text-teal-700 font-bold bg-teal-50 px-2 py-0.5 rounded-full border border-teal-100">
+          Click any prompt to speak
+        </span>
       </div>
 
       <div className="flex flex-wrap gap-2">
         {prompts.map((p, idx) => (
           <button
             key={idx}
+            type="button"
             disabled={disabled}
             onClick={() => onSelectPrompt(p.text)}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white hover:bg-teal-50 disabled:opacity-50 text-xs font-bold text-slate-800 border border-teal-200 hover:border-teal-400 transition group transform active:scale-95 shadow-sm"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs bg-teal-50/70 hover:bg-teal-100/90 active:scale-95 border border-teal-200/80 text-teal-950 transition font-medium text-left shadow-sm disabled:opacity-50 disabled:cursor-not-allowed group"
           >
-            {p.icon}
-            <span className="group-hover:text-teal-900 transition">{p.text}</span>
+            <span className="group-hover:scale-110 transition">{p.icon}</span>
+            <span className="truncate max-w-[240px] sm:max-w-xs">{p.text}</span>
+            <span className="text-[10px] bg-white px-1.5 py-0.5 rounded-md border border-teal-200 text-teal-800 font-bold ml-1 shrink-0">
+              {p.tag}
+            </span>
           </button>
         ))}
       </div>

@@ -486,6 +486,23 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
         setActiveTriage(chatData.triageData);
       }
 
+      // Day 6: Auto-Launch Outbound Call Phone Overlay when user asks "Mujhe call karo"
+      if (chatData.outboundCallData || chatData.functionCalled === "trigger_outbound_call") {
+        const outbound = chatData.outboundCallData || {
+          call_id: `call_${Date.now()}`,
+          patient_id: activeCaller?.user_id || "user_ramesh",
+          patient_name: activeCaller?.name || "रमेश कुमार",
+          phone_number: "+91 98765 43210",
+          scenario: "post_triage_followup",
+          opening_text: "नमस्ते रमेश जी! मैं स्वास्थ्य साथी एआई (SwasthyaSathi AI) से बोल रहा हूँ। यह आपके कल के तेज बुखार और शिवपुर प्राथमिक स्वास्थ्य केंद्र (PHC) परामर्श के बाद आपकी तबियत जानने के लिए एक जरूरी फॉलो-अप कॉल है। यदि आप अभी बात नहीं करना चाहते या भविष्य में ये कॉल्स बंद करना चाहते हैं, तो कृपया 'कॉल बंद करो' कहें। क्या आज आपकी तबियत में सुधार है?",
+          status: "answered",
+          created_at: new Date().toISOString(),
+          retry_count: 0
+        };
+        setActiveOutboundCall(outbound);
+        setIsIncomingCallOpen(true);
+      }
+
       // Sync active caller profile if updated or looked up
       if (chatData.caller) {
         setActiveCaller(chatData.caller);

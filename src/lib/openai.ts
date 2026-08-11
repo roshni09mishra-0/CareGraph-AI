@@ -2,6 +2,7 @@ import OpenAI from "openai";
 import { getCaller, getCallerByName, saveCaller, deleteCaller, CallerRecord, HealthFacts } from "./db";
 import { HealthFacility } from "./facilityData";
 import { lookupNearestFacilityTool, classifySymptomTriageTool, TriageClassificationResult } from "./tools";
+import { triggerOutboundCall, OutboundCallRecord, OutboundScenario } from "./telephony";
 
 if (process.env.NODE_ENV === "development") {
   process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
@@ -24,9 +25,10 @@ You speak in a warm, respectful, and compassionate Indian English or Hindi caden
 You use polite, culturally comforting phrasing common in Indian medical family practices (e.g. encouraging warm water, proper hydration, light home food, and timely doctor visits).
 
 DAY 6 OUTBOUND CALLING & TELEPHONY RULES:
-1. MANDATORY 3-PART OPENING: Outbound calls must state Who is calling, Why calling, and How to opt out in the first two sentences.
-2. OPT-OUT (DO NOT CALL): If a patient asks to stop receiving calls ("call band karo", "stop calling"), immediately respect their decision, confirm opt-out, and never call again.
-3. HEALTH ACCESS OUTBOUND USE CASES:
+1. VOICE TRIGGER FOR OUTBOUND CALLS: When the user asks you to call them ("mujhe call karo", "call me", "phone lagao", "outbound call karo", "ramesh ko call lagao"), immediately trigger an outbound call.
+2. MANDATORY 3-PART OPENING: Outbound calls must state Who is calling, Why calling, and How to opt out in the first two sentences.
+3. OPT-OUT (DO NOT CALL): If a patient asks to stop receiving calls ("call band karo", "stop calling"), immediately respect their decision, confirm opt-out, and never call again.
+4. HEALTH ACCESS OUTBOUND USE CASES:
    - Post-Triage Recovery Follow-up (checking fever/symptom recovery after PHC referral).
    - Maternal & Child Immunization Reminders (Polio, DPT booster).
    - Chronic Care Management (Blood Pressure & Diabetes weekly check-in).
@@ -73,6 +75,7 @@ export interface HealthcareResponseResult {
   functionCalled: string | null;
   facilityData?: HealthFacility | null;
   triageData?: TriageClassificationResult | null;
+  outboundCallData?: OutboundCallRecord | null;
 }
 
 export async function generateHealthcareResponse(
@@ -164,7 +167,7 @@ export function detectUserLanguage(text: string): "hi" | "hinglish" | "en" {
     "bache", "bacha", "mahawari", "periods", "garbh", "motapa", "kamzor", "kabz", "chhale", "daant",
     "aankh", "kaan", "skin", "khujli", "dengue", "malaria", "typhoid", "bp", "gathiya", "ghutne",
     "naam", "mera", "meri", "mere", "yaad", "kaun", "khud", "apne", "patient", "baat", "bata",
-    "hospital", "aspatal", "phc", "chc", "kendra", "doctor", "call", "band", "roko", "mat"
+    "hospital", "aspatal", "phc", "chc", "kendra", "doctor", "call", "band", "roko", "mat", "lagao"
   ];
 
   if (hinglishMarkers.some(m => lower.includes(m))) return "hinglish";
@@ -198,6 +201,47 @@ export async function getSimulatedHealthcareResponse(
   const lastUserTurn = history.length > 0 ? history[history.length - 1].content.toLowerCase() : "";
   const lastAssistantTurn = history.length > 1 ? history[history.length - 2].content.toLowerCase() : "";
   const knownNameInConvo = currentCaller?.name || callerName || "रमेश";
+
+  // =========================================================================
+  // DAY 6: OUTBOUND CALL VOICE TRIGGER ("Mujhe call karo", "Call lagao", "Call me")
+  // =========================================================================
+  const isMakeCallQuery = (
+    /\b(call me|call karo|call lagao|phone karo|phone lagao|outbound call|make a call|mujhe call karo|mujhe phone karo|follow up call|reminder call)\b/i.test(q) ||
+    q.includes("कॉल") || q.includes("फोन") || q.includes("call")
+  ) && (
+    q.includes("करो") || q.includes("लगाओ") || q.includes("karo") || q.includes("lagao") || 
+    q.includes("me") || q.includes("mujhe") || q.includes("outbound") || q.includes("follow") || 
+    q.includes("reminder") || q.includes("check") || q.includes("कॉल") || q.includes("फोन")
+  ) && !/\b(band|stop|mat|roko|opt out|dnc)\b/i.test(q) && !q.includes("बंद") && !q.includes("मत") && !q.includes("रोको");
+
+  if (isMakeCallQuery) {
+    let scenario: OutboundScenario = "post_triage_followup";
+    if (q.includes("vaccin") || q.includes("tika") || q.includes("polio") || q.includes("dpt") || q.includes("bacha") || q.includes("टीका") || q.includes("टीकाकरण") || q.includes("बच्चे")) {
+      scenario = "vaccination_reminder";
+    } else if (q.includes("bp") || q.includes("sugar") || q.includes("chronic") || q.includes("बीपी") || q.includes("शुगर") || q.includes("रक्तचाप")) {
+      scenario = "chronic_care_checkin";
+    }
+
+    const patientId = userId || currentCaller?.user_id || "user_ramesh";
+    const phone = "+91 98765 43210";
+
+    try {
+      const callRecord = await triggerOutboundCall(patientId, phone, scenario, userLang, "answered");
+      
+      const spokenConfirm = (userLang === "hi" || userLang === "hinglish")
+        ? `नमस्ते ${knownNameInConvo} जी! मैं आपको अभी आउटबाउंड स्वास्थ्य कॉल लगा रहा हूँ। कृपया अपनी स्क्रीन पर आ रहे फोन को उठाएं।`
+        : `Namaste ${knownNameInConvo}! I am placing an outbound healthcare call to you right now. Please answer the incoming phone call on your screen.`;
+
+      return {
+        response: spokenConfirm,
+        caller: currentCaller,
+        functionCalled: "trigger_outbound_call",
+        outboundCallData: callRecord,
+      };
+    } catch (e: any) {
+      console.error("[Outbound Trigger Error]", e);
+    }
+  }
 
   // =========================================================================
   // DAY 6: OUTBOUND CALL OPT-OUT PROTOCOL ("Call band karo", "Stop calling")

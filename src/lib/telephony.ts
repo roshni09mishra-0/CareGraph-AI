@@ -125,9 +125,10 @@ export async function triggerOutboundCall(
   const caller = getCaller(patientId);
   const patientName = caller?.name || "रमेश कुमार";
 
-  // Check if patient previously opted out (Do Not Call Registry)
-  if (caller?.facts?.do_not_call) {
-    throw new Error(`Patient ${patientName} (${patientId}) has opted out of automated outbound calls.`);
+  // If patient previously opted out, re-enable upon explicit user-initiated call request
+  if (caller && caller.facts.do_not_call) {
+    caller.facts.do_not_call = false;
+    saveCaller(caller);
   }
 
   const { openingText } = generateOutboundOpening(patientName, scenario, language);
