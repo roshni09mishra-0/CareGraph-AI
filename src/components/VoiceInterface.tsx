@@ -54,6 +54,9 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
   const [savedCallers, setSavedCallers] = useState<CallerRecord[]>([]);
   const [isNewPatient, setIsNewPatient] = useState<boolean>(false);
 
+  // Store last AI spoken response text for fallback TTS
+  const lastAiResponseTextRef = useRef<string>("");
+
   // Continuous Hands-Free Speech Recognition Reference
   const recognitionRef = useRef<any>(null);
   const isHandsFreeActiveRef = useRef<boolean>(false);
@@ -119,7 +122,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           patientId,
-          phoneNumber,
+          phoneNumber: phoneNumber || activeCaller?.phone_number || "+91 7991912530",
           scenario,
           language: uiLanguage,
           simulateOutcome: outcome,
@@ -132,7 +135,6 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
         if (data.call.status === "answered" || data.call.status === "ringing") {
           setIsIncomingCallOpen(true);
         } else {
-          // Add system notice message for busy/no-answer/opt-out
           const outcomeMsg: Message = {
             id: `call-outcome-${Date.now()}`,
             sender: "assistant",
@@ -147,14 +149,13 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
     }
   };
 
-  // Day 6: Answer Outbound Call (Starts Live Continuous Voice Conversation)
+  // Day 6: Answer Outbound Call
   const handleAnswerCall = (call: OutboundCallRecord) => {
     console.log(`[Outbound Call] Answered call ${call.call_id} - Enabling Continuous Live Speech`);
     call.status = "answered";
     setActiveOutboundCall({ ...call });
     setIsHandsFreeLive(true);
 
-    // Add assistant message with 3-part opening to transcript
     const openingMsg: Message = {
       id: `call-opening-${Date.now()}`,
       sender: "assistant",
@@ -163,7 +164,6 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
     };
     setMessages((prev) => [...prev, openingMsg]);
 
-    // Synthesize opening with Murf Falcon Voice
     playOpeningTTS(call.opening_text);
   };
 
@@ -182,25 +182,17 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
     setIsIncomingCallOpen(false);
   };
 
-  // Time reference for latency tracking
   const speechEndTimeRef = useRef<number>(0);
-
-  // Audio HTML element ref for Murf Falcon TTS playback
   const audioRef = useRef<HTMLAudioElement | null>(null);
-
-  // In-flight request lock to prevent duplicate query triggers
   const isProcessingQueryRef = useRef<boolean>(false);
 
-  // MediaRecorder Ref for Direct Deepgram STT fallback
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const recordingTimerRef = useRef<any>(null);
+  const vadSilenceCheckRef = useRef<any>(null);
 
-  // Ref to hold current handleSendUserMessage function avoiding stale closures
   const handleSendUserMessageRef = useRef<(text: string, isCallStart?: boolean) => void>();
 
-  // Reference states
-  const shouldListenRef = useRef<boolean>(false);
   const assistantStateRef = useRef<AssistantState>("ready");
   const audioPlaybackSafetyTimerRef = useRef<any>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -208,12 +200,11 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
   const micStreamRef = useRef<MediaStream | null>(null);
   const [micVolumeLevel, setMicVolumeLevel] = useState<number>(0);
 
-  // Sync state ref
   useEffect(() => {
     assistantStateRef.current = assistantState;
   }, [assistantState]);
 
-  // Safe AudioContext resume helper (DOES NOT auto-play audio)
+  // Safe AudioContext resume helper
   const resumeAudioContextOnly = () => {
     try {
       if (typeof window !== "undefined") {
@@ -228,7 +219,6 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
     } catch (e) {}
   };
 
-  // Attach global unlock listener to window
   useEffect(() => {
     const handleGlobalClick = () => resumeAudioContextOnly();
     window.addEventListener("click", handleGlobalClick, { once: true });
@@ -239,7 +229,6 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
     };
   }, []);
 
-  // Initialize MediaStream & Analyser
   const ensureMicrophoneStream = async (): Promise<MediaStream | null> => {
     if (micStreamRef.current && micStreamRef.current.active) {
       return micStreamRef.current;
@@ -319,7 +308,6 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
       };
 
       recognition.onresult = (event: any) => {
-        // Ignore speech while assistant is speaking over Murf Falcon
         if (assistantStateRef.current === "speaking" || isProcessingQueryRef.current) {
           return;
         }
@@ -342,7 +330,6 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
           setAssistantState("listening");
           accumulatedSpeechRef.current = activeText;
 
-          // Silence timeout: If user pauses for 800ms, auto-dispatch without pressing any button
           if (speechSilenceTimerRef.current) clearTimeout(speechSilenceTimerRef.current);
           speechSilenceTimerRef.current = setTimeout(() => {
             const textToProcess = accumulatedSpeechRef.current.trim();
@@ -365,7 +352,6 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
       };
 
       recognition.onend = () => {
-        // Auto-restart continuous listening if call or hands-free is active and AI is not speaking
         if (isHandsFreeActiveRef.current && assistantStateRef.current !== "speaking" && !isProcessingQueryRef.current) {
           try {
             recognition.start();
@@ -391,7 +377,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
     setIsMicActive(false);
   };
 
-  // Audio Playback & Barge-in Interruption Helper: Completely silences all audio
+  // Audio Playback & Barge-in Interruption Helper
   const stopAllAssistantAudio = () => {
     if (audioPlaybackSafetyTimerRef.current) clearTimeout(audioPlaybackSafetyTimerRef.current);
     if (audioRef.current) {
@@ -403,7 +389,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
     }
   };
 
-  // Start Manual Push-to-Talk Recording (Deepgram Fallback)
+  // Start Push-to-Talk Recording with Auto-Silence Detection
   const startRecordingAudio = async () => {
     stopAllAssistantAudio();
     resumeAudioContextOnly();
@@ -443,6 +429,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
   // Stop Recording & Send Audio to Deepgram STT
   const stopAndTranscribeAudio = async () => {
     if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+    if (vadSilenceCheckRef.current) clearInterval(vadSilenceCheckRef.current);
     setIsRecording(false);
     setIsMicActive(false);
 
@@ -500,7 +487,6 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
     mediaRecorderRef.current.stop();
   };
 
-  // Toggle Push-to-Talk Record Button
   const toggleRecording = () => {
     if (isRecording) {
       stopAndTranscribeAudio();
@@ -517,17 +503,14 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
       return;
     }
 
-    // Deduplication Lock
     if (isProcessingQueryRef.current) {
       console.warn("[Voice] Request already in progress, dropping duplicate trigger.");
       return;
     }
     isProcessingQueryRef.current = true;
 
-    // Barge-in: Stop assistant audio immediately
     stopAllAssistantAudio();
 
-    // 1. Detect User Input Language
     const hasDevanagari = /[\u0900-\u097F]/.test(cleanText);
     const lowerQuery = cleanText.toLowerCase();
     const hinglishMarkers = [
@@ -581,9 +564,9 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
 
       const chatData = await chatRes.json();
       const aiResponseText = chatData.response || "Namaste! I am here to help. Could you please share more about what you are experiencing?";
+      lastAiResponseTextRef.current = aiResponseText;
       console.log("[Voice] AI RESPONSE RECEIVED:", aiResponseText);
 
-      // Day 5: Sync Live Facility & Triage Data to UI
       if (chatData.facilityData) {
         setActiveFacility(chatData.facilityData);
       }
@@ -591,7 +574,6 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
         setActiveTriage(chatData.triageData);
       }
 
-      // Day 6: Auto-Launch Outbound Call Phone Overlay when user asks "Mujhe call karo"
       if (chatData.outboundCallData || chatData.functionCalled === "trigger_outbound_call") {
         const outbound = chatData.outboundCallData || {
           call_id: `call_${Date.now()}`,
@@ -609,7 +591,6 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
         setIsHandsFreeLive(true);
       }
 
-      // Sync active caller profile if updated or looked up
       if (chatData.caller) {
         setActiveCaller(chatData.caller);
         fetchCallers();
@@ -625,7 +606,6 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
         ? (selectedVoice.startsWith("hi-IN") ? selectedVoice : "hi-IN-shweta")
         : (selectedVoice.startsWith("en-IN") ? selectedVoice : "en-IN-priya");
 
-      // 3. Fetch Murf Falcon TTS
       setAssistantState("speaking");
 
       const ttsRes = await fetch("/api/tts", {
@@ -654,10 +634,10 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
       setMessages((prev) => [...prev, aiMsg]);
       isProcessingQueryRef.current = false;
 
-      // 4. Play Audio with Murf Falcon
+      // Play Audio with Murf Falcon or WebSpeech fallback
       if (!audioMuted) {
         if (ttsData.audioUrl) {
-          playAudioUrl(ttsData.audioUrl);
+          playAudioUrl(ttsData.audioUrl, aiResponseText, isAiHindiResponse);
         } else {
           speakBrowserTTS(aiResponseText, isAiHindiResponse);
         }
@@ -674,12 +654,10 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
     }
   };
 
-  // Keep ref synchronized
   useEffect(() => {
     handleSendUserMessageRef.current = handleSendUserMessage;
   });
 
-  // Play opening 3-part speech over Murf Falcon
   const playOpeningTTS = async (text: string) => {
     try {
       const isHindi = /[\u0900-\u097F]/.test(text) || uiLanguage === "hi" || uiLanguage === "hinglish";
@@ -697,7 +675,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
       });
       const data = await res.json();
       if (data.audioUrl) {
-        playAudioUrl(data.audioUrl);
+        playAudioUrl(data.audioUrl, text, isHindi);
       } else {
         speakBrowserTTS(text, isHindi);
       }
@@ -706,13 +684,11 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
     }
   };
 
-  // Return to Continuous Ready / Listening Mode
   const returnToListeningMode = () => {
     if (audioPlaybackSafetyTimerRef.current) clearTimeout(audioPlaybackSafetyTimerRef.current);
     setAssistantState("ready");
     setIsMicActive(false);
 
-    // Auto-resume continuous listening if in hands-free live call mode
     if (isHandsFreeLive || isIncomingCallOpen) {
       setTimeout(() => {
         startContinuousLiveListening();
@@ -720,8 +696,8 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
     }
   };
 
-  // Play Murf Audio MP3 via HTML5 Audio
-  const playAudioUrl = (url: string) => {
+  // Play Murf Audio MP3 via HTML5 Audio with Automatic WebSpeech Fallback
+  const playAudioUrl = (url: string, fallbackText?: string, isHindiFallback?: boolean) => {
     stopAllAssistantAudio();
 
     if (audioPlaybackSafetyTimerRef.current) clearTimeout(audioPlaybackSafetyTimerRef.current);
@@ -737,17 +713,19 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
         setLatencyMs(playbackLatency);
         console.log(`[Voice] Murf Audio playback started in ${playbackLatency}ms`);
       }).catch(e => {
-        if (e.name !== "AbortError") {
-          console.warn("[TTS Warning] Murf HTML5 Audio failed to play:", e);
+        console.warn("[TTS Fallback Triggered] HTML5 Audio play rejected, speaking via WebSpeech:", e);
+        if (fallbackText || lastAiResponseTextRef.current) {
+          speakBrowserTTS(fallbackText || lastAiResponseTextRef.current, isHindiFallback);
+        } else {
+          returnToListeningMode();
         }
-        returnToListeningMode();
       });
     } else {
-      returnToListeningMode();
+      if (fallbackText) speakBrowserTTS(fallbackText, isHindiFallback);
+      else returnToListeningMode();
     }
   };
 
-  // Browser synthesis fallback
   const speakBrowserTTS = (text: string, isHindi?: boolean) => {
     if (typeof window !== "undefined" && "speechSynthesis" in window) {
       window.speechSynthesis.cancel();
@@ -868,14 +846,12 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
         {/* Header Bar: Status Pills, Outbound Trigger, Track & Controls */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-teal-100 pb-4">
           
-          {/* LiveKit Status, STT Engine & Track Pill */}
           <div className="flex flex-wrap items-center gap-2 text-xs font-bold text-slate-700">
             <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-300 shadow-sm">
               <Radio className="w-3.5 h-3.5 text-emerald-600 animate-pulse" />
               <span>LiveKit WebRTC: Active</span>
             </div>
 
-            {/* Hands-Free Live Voice Toggle Button */}
             <button
               onClick={() => {
                 resumeAudioContextOnly();
@@ -898,7 +874,6 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
               <span>{isHandsFreeLive ? "⚡ Live Hands-Free: ON" : "Hands-Free: OFF"}</span>
             </button>
 
-            {/* Day 6 Outbound Call Modal Button */}
             <button
               onClick={() => setIsDialerModalOpen(true)}
               className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-gradient-to-r from-teal-700 to-emerald-700 hover:from-teal-600 hover:to-emerald-600 text-white font-extrabold shadow-md shadow-teal-700/20 transition transform active:scale-95"
@@ -915,9 +890,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
             </div>
           </div>
 
-          {/* Controls: Sound Test, Language Switcher, Audio Mute & Reset */}
           <div className="flex items-center gap-2 self-end sm:self-auto">
-            {/* Direct Sound Test Button */}
             <button
               onClick={() => {
                 resumeAudioContextOnly();
@@ -930,7 +903,6 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
               <span>🔊 Sound Test</span>
             </button>
 
-            {/* UI Language Switcher */}
             <div className="flex items-center bg-slate-100 border border-teal-200 rounded-xl p-0.5 text-[11px] font-bold shadow-inner">
               <button
                 onClick={() => {
@@ -999,7 +971,6 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
           </div>
 
           <div className="flex flex-wrap items-center justify-center gap-1.5">
-            {/* Outbound Action 1: Post-Triage Recovery Follow-up */}
             <button
               onClick={() => handleInitiateOutboundCall("user_ramesh", "+91 7991912530", "post_triage_followup", "answered")}
               className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-emerald-100 hover:bg-emerald-200 border-2 border-emerald-400 text-xs font-extrabold text-emerald-950 shadow-sm transition active:scale-95"
@@ -1008,7 +979,6 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
               <span>📞 +91 7991912530 पर कॉल करें</span>
             </button>
 
-            {/* Outbound Action 2: Child Vaccination Reminder */}
             <button
               onClick={() => handleInitiateOutboundCall("user_ramesh", "+91 7991912530", "vaccination_reminder", "answered")}
               className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-teal-100 hover:bg-teal-200 border-2 border-teal-400 text-xs font-extrabold text-teal-950 shadow-sm transition active:scale-95"
@@ -1017,7 +987,6 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
               <span>💉 टीकाकरण रिमाइंडर कॉल</span>
             </button>
 
-            {/* In-Call Opt-Out Test Button */}
             <button
               onClick={() => handleSendUserMessage("Call band karo, mujhe aage call mat karna")}
               className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-rose-50 hover:bg-rose-100 border border-rose-300 text-xs font-bold text-rose-800 shadow-sm transition active:scale-95"
@@ -1104,7 +1073,6 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
             }}
             className="flex items-center gap-2 p-2 rounded-2xl bg-white border border-teal-300 focus-within:border-teal-500 focus-within:ring-2 focus-within:ring-teal-100 shadow-sm"
           >
-            {/* Direct Microphone Toggle Button */}
             <button
               type="button"
               onClick={toggleRecording}
@@ -1118,7 +1086,6 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
               {isRecording ? <Square className="w-5 h-5 fill-white stroke-none" /> : <Mic className="w-5 h-5" />}
             </button>
 
-            {/* Text Input Box */}
             <input
               type="text"
               value={inputText}
@@ -1127,7 +1094,6 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
               className="w-full bg-transparent px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:outline-none font-medium"
             />
 
-            {/* Send Button */}
             <button
               type="submit"
               disabled={!inputText.trim() || isTranscribing}
@@ -1148,7 +1114,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
           <ChatBubbles
             messages={messages}
             onPlayAudio={(text, url) => {
-              if (url) playAudioUrl(url);
+              if (url) playAudioUrl(url, text);
               else speakBrowserTTS(text);
             }}
           />
