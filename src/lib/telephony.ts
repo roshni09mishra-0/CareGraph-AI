@@ -45,7 +45,7 @@ export const OUTBOUND_CALL_LOGS: OutboundCallRecord[] = [
     call_id: "call_init_001",
     patient_id: "user_ramesh",
     patient_name: "रमेश कुमार",
-    phone_number: "+91 98765 43210",
+    phone_number: "+91 7991912530",
     scenario: "post_triage_followup",
     opening_text: "नमस्ते रमेश जी! मैं स्वास्थ्य साथी एआई (SwasthyaSathi AI) से बोल रहा हूँ। यह आपके कल के 3 दिन के बुखार और शिवपुर PHC रेफरल के बाद आपकी तबियत जानने के लिए एक फॉलो-अप स्वास्थ्य कॉल है। यदि आप अभी बात नहीं करना चाहते या भविष्य में ये कॉल्स बंद करना चाहते हैं, तो कृपया 'कॉल बंद करो' कहें। क्या अब आपका बुखार कम हुआ है?",
     status: "completed",

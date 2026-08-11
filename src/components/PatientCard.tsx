@@ -86,13 +86,13 @@ export default function PatientCard({
             <span className="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider block">
               Patient Name
             </span>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
               <User className="w-4 h-4 text-teal-700" />
               <span className="font-extrabold text-slate-900 text-sm">{caller.name}</span>
             </div>
-            <span className="text-[10px] font-mono text-slate-500 block">
-              ID: {caller.user_id}
-            </span>
+            <div className="text-[10px] font-mono text-teal-900 font-bold block">
+              📞 {caller.phone_number || "+91 7991912530"}
+            </div>
           </div>
 
           {/* Age Band & Conditions */}

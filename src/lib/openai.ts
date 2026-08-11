@@ -223,14 +223,14 @@ export async function getSimulatedHealthcareResponse(
     }
 
     const patientId = userId || currentCaller?.user_id || "user_ramesh";
-    const phone = "+91 98765 43210";
+    const phone = currentCaller?.phone_number || "+91 7991912530";
 
     try {
       const callRecord = await triggerOutboundCall(patientId, phone, scenario, userLang, "answered");
       
       const spokenConfirm = (userLang === "hi" || userLang === "hinglish")
-        ? `नमस्ते ${knownNameInConvo} जी! मैं आपको अभी आउटबाउंड स्वास्थ्य कॉल लगा रहा हूँ। कृपया अपनी स्क्रीन पर आ रहे फोन को उठाएं।`
-        : `Namaste ${knownNameInConvo}! I am placing an outbound healthcare call to you right now. Please answer the incoming phone call on your screen.`;
+        ? `नमस्ते ${knownNameInConvo} जी! मैं आपके नंबर ${phone} पर अभी स्वास्थ्य फॉलो-अप कॉल लगा रहा हूँ। कृपया अपनी स्क्रीन पर आ रहे फोन को उठाएं।`
+        : `Namaste ${knownNameInConvo}! I am placing an outbound healthcare call to your number ${phone} right now. Please answer the incoming call on your screen.`;
 
       return {
         response: spokenConfirm,

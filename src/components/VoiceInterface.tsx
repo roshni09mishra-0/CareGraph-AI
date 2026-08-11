@@ -597,7 +597,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
           call_id: `call_${Date.now()}`,
           patient_id: activeCaller?.user_id || "user_ramesh",
           patient_name: activeCaller?.name || "रमेश कुमार",
-          phone_number: "+91 98765 43210",
+          phone_number: activeCaller?.phone_number || "+91 7991912530",
           scenario: "post_triage_followup",
           opening_text: "नमस्ते रमेश जी! मैं स्वास्थ्य साथी एआई (SwasthyaSathi AI) से बोल रहा हूँ। यह आपके कल के तेज बुखार और शिवपुर प्राथमिक स्वास्थ्य केंद्र (PHC) परामर्श के बाद आपकी तबियत जानने के लिए एक जरूरी फॉलो-अप कॉल है। यदि आप अभी बात नहीं करना चाहते या भविष्य में ये कॉल्स बंद करना चाहते हैं, तो कृपया 'कॉल बंद करो' कहें। क्या आज आपकी तबियत में सुधार है?",
           status: "answered",
@@ -1001,20 +1001,20 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
           <div className="flex flex-wrap items-center justify-center gap-1.5">
             {/* Outbound Action 1: Post-Triage Recovery Follow-up */}
             <button
-              onClick={() => handleInitiateOutboundCall("user_ramesh", "+91 98765 43210", "post_triage_followup", "answered")}
+              onClick={() => handleInitiateOutboundCall("user_ramesh", "+91 7991912530", "post_triage_followup", "answered")}
               className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-emerald-100 hover:bg-emerald-200 border-2 border-emerald-400 text-xs font-extrabold text-emerald-950 shadow-sm transition active:scale-95"
             >
               <PhoneCall className="w-3 h-3 text-emerald-800" />
-              <span>📞 रमेश को फॉलो-अप कॉल करें</span>
+              <span>📞 +91 7991912530 पर कॉल करें</span>
             </button>
 
             {/* Outbound Action 2: Child Vaccination Reminder */}
             <button
-              onClick={() => handleInitiateOutboundCall("user_ramesh", "+91 98765 43210", "vaccination_reminder", "answered")}
+              onClick={() => handleInitiateOutboundCall("user_ramesh", "+91 7991912530", "vaccination_reminder", "answered")}
               className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-teal-100 hover:bg-teal-200 border-2 border-teal-400 text-xs font-extrabold text-teal-950 shadow-sm transition active:scale-95"
             >
               <Activity className="w-3 h-3 text-teal-800" />
-              <span>💉 बाल टीकाकरण रिमाइंडर कॉल</span>
+              <span>💉 टीकाकरण रिमाइंडर कॉल</span>
             </button>
 
             {/* In-Call Opt-Out Test Button */}

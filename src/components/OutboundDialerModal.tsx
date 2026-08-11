@@ -21,7 +21,7 @@ export default function OutboundDialerModal({
   language = "hi",
 }: OutboundDialerModalProps) {
   const [selectedPatientId, setSelectedPatientId] = useState<string>("user_ramesh");
-  const [phoneNumber, setPhoneNumber] = useState<string>("+91 98765 43210");
+  const [phoneNumber, setPhoneNumber] = useState<string>("+91 7991912530");
   const [selectedScenario, setSelectedScenario] = useState<OutboundScenario>("post_triage_followup");
   const [callLogs, setCallLogs] = useState<OutboundCallRecord[]>([]);
   const [isLoadingLogs, setIsLoadingLogs] = useState(false);
