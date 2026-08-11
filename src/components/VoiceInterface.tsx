@@ -704,10 +704,17 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
         language={uiLanguage}
       />
 
-      {/* Day 6: Realistic Incoming Phone Call Overlay */}
+      {/* Day 6: Realistic Incoming Phone Call Overlay with Interactive Voice Conversation */}
       <IncomingPhoneCallOverlay
         call={activeOutboundCall}
         isOpen={isIncomingCallOpen}
+        messages={messages}
+        assistantState={assistantState}
+        isRecording={isRecording}
+        recordingSeconds={recordingSeconds}
+        isTranscribing={isTranscribing}
+        onToggleRecord={toggleRecording}
+        onSendMessage={(txt) => handleSendUserMessage(txt)}
         onAnswer={handleAnswerCall}
         onDecline={handleDeclineCall}
         onOptOut={handleOptOutPatient}
