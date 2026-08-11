@@ -17,9 +17,7 @@ export default function Home() {
 
   const handleStartTalking = () => {
     setIsSessionStarted(true);
-    setTimeout(() => {
-      voiceInterfaceRef.current?.scrollIntoView({ behavior: "smooth" });
-    }, 100);
+    voiceInterfaceRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
   return (
@@ -32,7 +30,7 @@ export default function Home() {
       />
 
       {/* Main Content */}
-      <main className="flex-1 space-y-10 pb-16">
+      <main className="flex-1 space-y-8 pb-16 max-w-7xl mx-auto w-full px-3 sm:px-6">
         
         {/* Healthcare Hero Section */}
         <HeroSection
@@ -41,7 +39,7 @@ export default function Home() {
         />
 
         {/* Voice Assistant Interactive Interface */}
-        <div ref={voiceInterfaceRef} className="px-4 sm:px-6">
+        <div ref={voiceInterfaceRef} className="w-full">
           <VoiceInterface
             onLiveKitStatusChange={(connected) => setIsLiveKitConnected(connected)}
           />
@@ -68,13 +66,11 @@ export default function Home() {
           </div>
 
           <div className="flex items-center gap-4 text-[11px] text-slate-500 font-medium">
-            <span className="flex items-center gap-1 text-teal-700">
-              <Sparkles className="w-3 h-3 text-teal-500" /> Murf Falcon (Hindi & English)
-            </span>
+            <span>Murf Falcon 2 TTS</span>
+            <span>•</span>
+            <span>Deepgram Nova-2 STT</span>
             <span>•</span>
             <span>LiveKit WebRTC</span>
-            <span>•</span>
-            <span>Local Clinical Intelligence</span>
           </div>
         </div>
       </footer>
