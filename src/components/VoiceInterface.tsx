@@ -14,7 +14,6 @@ import { HealthFacility } from "@/lib/facilityData";
 import { TriageClassificationResult } from "@/lib/tools";
 import { OutboundCallRecord, OutboundScenario, CallOutcome } from "@/lib/telephony";
 import { Mic, MicOff, Send, Radio, RefreshCw, Volume2, ShieldCheck, Sparkles, VolumeX, UserCheck, AlertCircle, PhoneOff, Stethoscope, HelpCircle, Activity, Play, Volume1, CheckCircle2, Cpu, Square, KeyRound, Loader2, Hospital, MapPin, PhoneForwarded, PhoneCall, Zap } from "lucide-react";
-import { INDIAN_VOICES } from "@/lib/murf";
 
 interface VoiceInterfaceProps {
   onLiveKitStatusChange?: (connected: boolean) => void;
@@ -24,11 +23,17 @@ export type UILanguage = "en" | "hi" | "hinglish";
 
 export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterfaceProps) {
   const [assistantState, setAssistantState] = useState<AssistantState>("ready");
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      id: "welcome-1",
+      sender: "assistant",
+      text: "नमस्ते रमेश जी! मैं आपका स्वास्थ्य साथी एआई (SwasthyaSathi AI) हूँ। आप अपनी भाषा (हिंदी, हिंग्लिश या इंग्लिश) में अपनी तबियत के बारे में बताएं या 'मुझे कॉल करो' कहें।",
+      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    }
+  ]);
   const [inputText, setInputText] = useState("");
   const [interimText, setInterimText] = useState("");
   const [isMicActive, setIsMicActive] = useState(false);
-  const [isLiveKitConnected, setIsLiveKitConnected] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [audioMuted, setAudioMuted] = useState(false);
   const [latencyMs, setLatencyMs] = useState<number | null>(null);
@@ -56,6 +61,9 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
 
   // Store last AI spoken response text for fallback TTS
   const lastAiResponseTextRef = useRef<string>("");
+
+  // Processing safety watchdog timer
+  const processingSafetyTimerRef = useRef<any>(null);
 
   // Continuous Hands-Free Speech Recognition Reference
   const recognitionRef = useRef<any>(null);
@@ -189,7 +197,6 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const recordingTimerRef = useRef<any>(null);
-  const vadSilenceCheckRef = useRef<any>(null);
 
   const handleSendUserMessageRef = useRef<(text: string, isCallStart?: boolean) => void>();
 
@@ -333,7 +340,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
           if (speechSilenceTimerRef.current) clearTimeout(speechSilenceTimerRef.current);
           speechSilenceTimerRef.current = setTimeout(() => {
             const textToProcess = accumulatedSpeechRef.current.trim();
-            if (textToProcess.length > 1 && !isProcessingQueryRef.current && assistantStateRef.current !== "speaking") {
+            if (textToProcess.length > 1 && assistantStateRef.current !== "speaking") {
               console.log(`[Continuous VAD Silence Trigger] Auto-sending speech: "${textToProcess}"`);
               accumulatedSpeechRef.current = "";
               setInterimText("");
@@ -352,7 +359,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
       };
 
       recognition.onend = () => {
-        if (isHandsFreeActiveRef.current && assistantStateRef.current !== "speaking" && !isProcessingQueryRef.current) {
+        if (isHandsFreeActiveRef.current && assistantStateRef.current !== "speaking") {
           try {
             recognition.start();
           } catch (e) {}
@@ -429,7 +436,6 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
   // Stop Recording & Send Audio to Deepgram STT
   const stopAndTranscribeAudio = async () => {
     if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
-    if (vadSilenceCheckRef.current) clearInterval(vadSilenceCheckRef.current);
     setIsRecording(false);
     setIsMicActive(false);
 
@@ -488,6 +494,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
   };
 
   const toggleRecording = () => {
+    resumeAudioContextOnly();
     if (isRecording) {
       stopAndTranscribeAudio();
     } else {
@@ -497,17 +504,22 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
 
   // Process User Query with OpenAI Brain + Day 5 Tools + Day 6 Outbound + Murf Falcon TTS
   const handleSendUserMessage = async (queryText: string, isCallStart: boolean = false) => {
+    resumeAudioContextOnly();
     const cleanText = queryText.trim();
     if (!isCallStart && (!cleanText || cleanText.length < 2)) {
       console.warn("[Voice] Empty query ignored.");
       return;
     }
 
-    if (isProcessingQueryRef.current) {
-      console.warn("[Voice] Request already in progress, dropping duplicate trigger.");
-      return;
-    }
+    // Release any previous stuck processing state
     isProcessingQueryRef.current = true;
+    
+    // Safety auto-reset watchdog
+    if (processingSafetyTimerRef.current) clearTimeout(processingSafetyTimerRef.current);
+    processingSafetyTimerRef.current = setTimeout(() => {
+      isProcessingQueryRef.current = false;
+      setAssistantState("ready");
+    }, 12000);
 
     stopAllAssistantAudio();
 
@@ -563,7 +575,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
       });
 
       const chatData = await chatRes.json();
-      const aiResponseText = chatData.response || "Namaste! I am here to help. Could you please share more about what you are experiencing?";
+      const aiResponseText = chatData.response || "नमस्ते! मैं आपकी किस प्रकार सहायता कर सकता हूँ?";
       lastAiResponseTextRef.current = aiResponseText;
       console.log("[Voice] AI RESPONSE RECEIVED:", aiResponseText);
 
@@ -632,7 +644,6 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
       };
 
       setMessages((prev) => [...prev, aiMsg]);
-      isProcessingQueryRef.current = false;
 
       // Play Audio with Murf Falcon or WebSpeech fallback
       if (!audioMuted) {
@@ -647,10 +658,11 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
 
     } catch (err: any) {
       console.error("[Voice Error] AI chat/TTS failed:", err);
-      isProcessingQueryRef.current = false;
       setAssistantState("error");
       setErrorMessage("Service temporarily unavailable. Retrying...");
       setTimeout(() => returnToListeningMode(), 1500);
+    } finally {
+      isProcessingQueryRef.current = false;
     }
   };
 
@@ -659,6 +671,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
   });
 
   const playOpeningTTS = async (text: string) => {
+    resumeAudioContextOnly();
     try {
       const isHindi = /[\u0900-\u097F]/.test(text) || uiLanguage === "hi" || uiLanguage === "hinglish";
       const voiceId = isHindi ? "hi-IN-shweta" : "en-IN-priya";
@@ -686,6 +699,8 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
 
   const returnToListeningMode = () => {
     if (audioPlaybackSafetyTimerRef.current) clearTimeout(audioPlaybackSafetyTimerRef.current);
+    if (processingSafetyTimerRef.current) clearTimeout(processingSafetyTimerRef.current);
+    isProcessingQueryRef.current = false;
     setAssistantState("ready");
     setIsMicActive(false);
 
@@ -1059,7 +1074,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
 
         {/* Quick Health Questions */}
         <QuickPrompts
-          onSelectPrompt={handleSendUserMessage}
+          onSelectPrompt={(text) => handleSendUserMessage(text)}
           disabled={assistantState === "connecting" || isTranscribing}
           language={uiLanguage}
         />
@@ -1090,7 +1105,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
               type="text"
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
-              placeholder={isRecording ? `बोलिए... रिकॉर्डिंग चल रही है (${recordingSeconds}s)...` : "Type or click microphone to speak..."}
+              placeholder={isRecording ? `बोलिए... रिकॉर्डिंग चल रही है (${recordingSeconds}s)...` : "Type health question or click microphone to speak..."}
               className="w-full bg-transparent px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:outline-none font-medium"
             />
 
@@ -1114,6 +1129,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
           <ChatBubbles
             messages={messages}
             onPlayAudio={(text, url) => {
+              resumeAudioContextOnly();
               if (url) playAudioUrl(url, text);
               else speakBrowserTTS(text);
             }}
