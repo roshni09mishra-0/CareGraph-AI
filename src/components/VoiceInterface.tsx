@@ -986,6 +986,18 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
               <span>📞 +91 7991912530 पर कॉल करें</span>
             </button>
 
+            {/* Outbound Action 3: Direct English Call (Murf Priya Voice) */}
+            <button
+              onClick={() => {
+                setUiLanguage("en");
+                handleInitiateOutboundCall("user_ramesh", "+91 7991912530", "post_triage_followup", "answered");
+              }}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-blue-100 hover:bg-blue-200 border-2 border-blue-400 text-xs font-extrabold text-blue-950 shadow-sm transition active:scale-95"
+            >
+              <Sparkles className="w-3 h-3 text-blue-800" />
+              <span>🇬🇧 Direct English Call (Priya Voice)</span>
+            </button>
+
             <button
               onClick={() => handleInitiateOutboundCall("user_ramesh", "+91 7991912530", "vaccination_reminder", "answered")}
               className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-teal-100 hover:bg-teal-200 border-2 border-teal-400 text-xs font-extrabold text-teal-950 shadow-sm transition active:scale-95"
