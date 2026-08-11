@@ -146,21 +146,48 @@ export async function triggerOutboundCall(
     retry_count: 0,
   };
 
-  // Step 2: Twilio Integration (if environment credentials are provided)
+  // Step 2: Twilio Integration (Real Physical Mobile Phone Ringing)
   const twilioSid = process.env.TWILIO_ACCOUNT_SID;
   const twilioAuth = process.env.TWILIO_AUTH_TOKEN;
   const twilioFrom = process.env.TWILIO_PHONE_NUMBER;
 
   if (twilioSid && twilioAuth && twilioFrom && phoneNumber.startsWith("+")) {
     try {
-      console.log(`[Twilio Outbound] Initiating PSTN call to ${phoneNumber} via Twilio (${twilioFrom})...`);
-      // Twilio API POST dispatch can be performed here
-      newCall.notes = `Dispatched via Twilio PSTN Gateway (${twilioFrom})`;
-    } catch (err) {
-      console.warn("[Twilio Outbound Error]", err);
+      console.log(`[Twilio Outbound] Dispatching real PSTN call to ${phoneNumber} from ${twilioFrom}...`);
+      
+      const twiml = `<Response><Say voice="Polly.Aditi" language="hi-IN">${openingText}</Say><Pause length="1"/><Say voice="Polly.Aditi" language="hi-IN">आप अपनी तबियत के बारे में बोल सकते हैं।</Say></Response>`;
+      
+      const params = new URLSearchParams();
+      params.append("To", phoneNumber.replace(/\s+/g, ""));
+      params.append("From", twilioFrom.replace(/\s+/g, ""));
+      params.append("Twiml", twiml);
+
+      const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${twilioSid}/Calls.json`;
+      const basicAuth = Buffer.from(`${twilioSid}:${twilioAuth}`).toString("base64");
+
+      const twilioRes = await fetch(twilioUrl, {
+        method: "POST",
+        headers: {
+          "Authorization": `Basic ${basicAuth}`,
+          "Content-Type": "application/x-www-form-urlencoded"
+        },
+        body: params.toString()
+      });
+
+      const twilioData = await twilioRes.json();
+      if (twilioRes.ok && twilioData.sid) {
+        console.log(`[Twilio Success] Real phone call initiated! Call SID: ${twilioData.sid}`);
+        newCall.notes = `Real phone call ringing on ${phoneNumber} (Twilio Call SID: ${twilioData.sid})`;
+      } else {
+        console.warn(`[Twilio Response] ${twilioData.message || JSON.stringify(twilioData)}`);
+        newCall.notes = `Twilio Gateway: ${twilioData.message || "Dispatched"}`;
+      }
+    } catch (err: any) {
+      console.warn("[Twilio Outbound Error]", err.message);
+      newCall.notes = `Twilio Gateway: ${err.message}`;
     }
   } else {
-    newCall.notes = `Dispatched via In-Browser WebRTC SIP Softphone & Murf Falcon Voice Engine`;
+    newCall.notes = `Dispatched via In-Browser WebRTC Softphone (Add Twilio credentials in .env.local for direct physical mobile ringing)`;
   }
 
   // Advanced: Outcome handling logic
