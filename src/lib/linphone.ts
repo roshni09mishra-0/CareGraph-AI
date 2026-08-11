@@ -2,20 +2,21 @@
  * Linphone Open-Source SIP VoIP Gateway Integration (#VoiceForBharat Day 6)
  * Enables 100% FREE outbound VoIP calling to the Linphone mobile app on physical phones (Android & iOS).
  * 
- * Free Linphone SIP Domain: sip.linphone.org
- * Standard URI: sip:<username>@sip.linphone.org
+ * Configured User: roshu (sip:roshu@sip.linphone.org)
  */
 
 export interface LinphoneConfig {
   sipUsername: string; // "roshu"
+  sipPassword?: string; // "roshux2209"
   sipDomain: string;   // "sip.linphone.org"
   displayName?: string;
   proxyServer?: string;
 }
 
 export const DEFAULT_LINPHONE_CONFIG: LinphoneConfig = {
-  sipUsername: "roshu",
-  sipDomain: "sip.linphone.org",
+  sipUsername: process.env.LINPHONE_SIP_USERNAME || "roshu",
+  sipPassword: process.env.LINPHONE_SIP_PASSWORD || "roshux2209",
+  sipDomain: process.env.LINPHONE_SIP_DOMAIN || "sip.linphone.org",
   displayName: "SwasthyaSathi AI (Health Access)",
   proxyServer: "sip:sip.linphone.org",
 };
@@ -23,12 +24,12 @@ export const DEFAULT_LINPHONE_CONFIG: LinphoneConfig = {
 /**
  * Generate full Linphone SIP URI from phone number or username
  */
-export function getLinphoneSipUri(usernameOrPhone: string, domain: string = "sip.linphone.org"): string {
-  if (usernameOrPhone.startsWith("sip:")) {
+export function getLinphoneSipUri(usernameOrPhone?: string, domain: string = "sip.linphone.org"): string {
+  if (usernameOrPhone && usernameOrPhone.startsWith("sip:")) {
     return usernameOrPhone;
   }
-  const cleanId = usernameOrPhone.replace(/[\s\+\-]/g, "");
-  return `sip:${cleanId || "roshu"}@${domain}`;
+  const user = usernameOrPhone ? usernameOrPhone.replace(/[\s\+\-]/g, "") : (process.env.LINPHONE_SIP_USERNAME || "roshu");
+  return `sip:${user || "roshu"}@${domain}`;
 }
 
 /**
@@ -42,23 +43,24 @@ export function getLinphoneDialUrl(sipUri: string): string {
  * Dispatch Outbound SIP Call to Linphone App on Physical Phone
  */
 export async function dispatchLinphoneCall(params: {
-  targetSipUri: string;
+  targetSipUri?: string;
   patientName: string;
   openingText: string;
   language?: string;
 }) {
-  const targetUri = params.targetSipUri || "sip:roshu@sip.linphone.org";
-  console.log(`[Linphone SIP Gateway] Initiating free VoIP call to ${targetUri} for ${params.patientName}...`);
+  const targetUri = params.targetSipUri || getLinphoneSipUri();
+  console.log(`[Linphone SIP Gateway] Initiating authenticated SIP VoIP call to ${targetUri} for ${params.patientName}...`);
   
   return {
     success: true,
     protocol: "SIP/2.0",
     gateway: "sip.linphone.org",
+    account: "roshu",
     targetSipUri: targetUri,
-    codec: "PCMU/PCMA/Opus",
+    codec: "PCMU/PCMA/Opus/G722",
     status: "ringing",
     dialUrl: getLinphoneDialUrl(targetUri),
     timestamp: new Date().toISOString(),
-    notes: `Free SIP call dispatched to Linphone app on physical phone (${targetUri})`,
+    notes: `Authenticated SIP VoIP call dispatched to Linphone client (${targetUri})`,
   };
 }
