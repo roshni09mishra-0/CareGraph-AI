@@ -203,8 +203,13 @@ export default function DirectMobileCallPage() {
 
         {/* Patient and Caller Information */}
         <div className="space-y-1">
-          <h2 className="text-2xl font-extrabold tracking-tight text-white">
-            {callState === "ended" ? "Call Ended" : "+91 7991912530"}
+          <h2 className="text-2xl font-extrabold tracking-tight text-white flex items-center justify-center gap-2">
+            <span>{callState === "ended" ? "Call Ended" : "+91 79919 •••••"}</span>
+            {callState !== "ended" && (
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-teal-900/80 border border-teal-500/40 text-teal-300 font-sans font-bold">
+                Protected
+              </span>
+            )}
           </h2>
           <p className="text-xs text-teal-300 font-medium">
             {callState === "ringing" ? "Incoming Healthcare Call..." : "Ramesh Kumar • Post-Triage Follow-up"}

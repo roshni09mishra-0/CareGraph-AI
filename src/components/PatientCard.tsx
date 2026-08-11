@@ -90,8 +90,9 @@ export default function PatientCard({
               <User className="w-4 h-4 text-teal-700" />
               <span className="font-extrabold text-slate-900 text-sm">{caller.name}</span>
             </div>
-            <div className="text-[10px] font-mono text-teal-900 font-bold block">
-              📞 {caller.phone_number || "+91 7991912530"}
+            <div className="text-[10px] font-mono text-teal-900 font-bold flex items-center gap-1">
+              <span>📞 +91 79919 •••••</span>
+              <span className="text-[9px] px-1.5 py-0.2 rounded bg-teal-100 text-teal-800 font-sans font-bold">Masked</span>
             </div>
           </div>
 

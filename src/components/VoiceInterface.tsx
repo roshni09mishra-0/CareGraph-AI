@@ -983,7 +983,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
               className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-teal-100 hover:bg-teal-200 border-2 border-teal-400 text-xs font-extrabold text-teal-950 shadow-sm transition active:scale-95"
             >
               <PhoneCall className="w-3 h-3 text-teal-800" />
-              <span>📞 +91 7991912530 पर कॉल करें</span>
+              <span>📞 +91 79919 ••••• पर कॉल करें</span>
             </button>
 
             {/* Outbound Action 3: Direct English Call (Murf Priya Voice) */}

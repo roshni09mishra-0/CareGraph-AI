@@ -16,6 +16,23 @@ export type OutboundScenario =
   | "vaccination_reminder"
   | "chronic_care_checkin";
 
+/**
+ * Mask Phone Number for Patient Privacy & Health Data Protection (DISHA / HIPAA)
+ * Example: "+91 7991912530" -> "+91 79919 •••••"
+ */
+export function maskPhoneNumber(phone?: string): string {
+  if (!phone) return "+91 79919 •••••";
+  if (phone.startsWith("sip:")) {
+    return phone;
+  }
+  const clean = phone.replace(/\s+/g, "");
+  if (clean.length >= 10) {
+    const visiblePrefix = clean.slice(0, clean.length - 5);
+    return `${visiblePrefix} •••••`;
+  }
+  return phone;
+}
+
 export type CallOutcome = 
   | "ringing"
   | "answered"
