@@ -227,6 +227,16 @@ export default function IncomingPhoneCallOverlay({
               </p>
             </div>
 
+            {/* Linphone Direct App Launcher */}
+            <div className="w-full flex items-center justify-center gap-2 pt-1">
+              <a
+                href="linphone-call:sip:roshu@sip.linphone.org"
+                className="px-3 py-1.5 rounded-xl bg-teal-800/90 hover:bg-teal-700 text-teal-100 text-[11px] font-bold border border-teal-500/40 flex items-center gap-1.5 transition shadow-sm"
+              >
+                <span>📱 Linphone App में खोलें (Ring App)</span>
+              </a>
+            </div>
+
           </div>
         ) : (
           /* Live In-Call Conversation Screen (Talk to Agent) */

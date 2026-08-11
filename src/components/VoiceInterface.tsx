@@ -672,10 +672,14 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
 
   const playOpeningTTS = async (text: string) => {
     resumeAudioContextOnly();
-    try {
-      const isHindi = /[\u0900-\u097F]/.test(text) || uiLanguage === "hi" || uiLanguage === "hinglish";
-      const voiceId = isHindi ? "hi-IN-shweta" : "en-IN-priya";
+    setAssistantState("speaking");
+    const isHindi = /[\u0900-\u097F]/.test(text) || uiLanguage === "hi" || uiLanguage === "hinglish";
+    const voiceId = isHindi ? "hi-IN-shweta" : "en-IN-priya";
 
+    // Immediate WebSpeech start to avoid any freeze or silence
+    speakBrowserTTS(text, isHindi);
+
+    try {
       const res = await fetch("/api/tts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -689,11 +693,9 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
       const data = await res.json();
       if (data.audioUrl) {
         playAudioUrl(data.audioUrl, text, isHindi);
-      } else {
-        speakBrowserTTS(text, isHindi);
       }
     } catch (e) {
-      speakBrowserTTS(text);
+      console.warn("[Opening TTS Exception handled]", e);
     }
   };
 
