@@ -155,12 +155,23 @@ export async function triggerOutboundCall(
     try {
       console.log(`[Twilio Outbound] Dispatching real PSTN call to ${phoneNumber} from ${twilioFrom}...`);
       
-      const twiml = `<Response><Say voice="Polly.Aditi" language="hi-IN">${openingText}</Say><Pause length="1"/><Say voice="Polly.Aditi" language="hi-IN">आप अपनी तबियत के बारे में बोल सकते हैं।</Say></Response>`;
-      
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL;
       const params = new URLSearchParams();
       params.append("To", phoneNumber.replace(/\s+/g, ""));
       params.append("From", twilioFrom.replace(/\s+/g, ""));
-      params.append("Twiml", twiml);
+
+      if (appUrl && appUrl.startsWith("http")) {
+        params.append("Url", `${appUrl}/api/telephony/twilio-webhook`);
+      } else {
+        const twiml = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say voice="Polly.Aditi" language="hi-IN">${openingText}</Say>
+  <Gather input="speech" language="hi-IN" speechTimeout="auto">
+    <Pause length="1"/>
+  </Gather>
+</Response>`;
+        params.append("Twiml", twiml);
+      }
 
       const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${twilioSid}/Calls.json`;
       const basicAuth = Buffer.from(`${twilioSid}:${twilioAuth}`).toString("base64");
