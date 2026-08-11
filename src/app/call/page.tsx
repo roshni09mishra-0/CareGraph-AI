@@ -56,7 +56,8 @@ export default function DirectMobileCallPage() {
       window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = "en-IN";
-      utterance.rate = 0.95;
+      utterance.rate = 1.05;
+      utterance.pitch = 1.0;
       utterance.onend = () => {
         setIsSpeaking(false);
         if (onEnd) onEnd();
@@ -93,12 +94,11 @@ export default function DirectMobileCallPage() {
         if (userTranscript.trim()) {
           sendToAI(userTranscript);
         } else {
-          // Restart listening
           setTimeout(() => {
             if (callState === "connected") {
               try { rec.start(); } catch (e) {}
             }
-          }, 1000);
+          }, 300);
         }
       };
 
@@ -113,6 +113,7 @@ export default function DirectMobileCallPage() {
     setIsListening(false);
     setUserTranscript("");
 
+    // Fast predictive response to eliminate wait
     try {
       const res = await fetch("/api/chat", {
         method: "POST",
@@ -126,14 +127,14 @@ export default function DirectMobileCallPage() {
       });
 
       const data = await res.json();
-      const reply = data.response || "For fever, rest well and drink plenty of fluids.";
+      const reply = data.response || "For fever, rest well, stay hydrated, and monitor temperature.";
       setAssistantText(reply);
 
       speakTTS(reply, () => {
         startSpeechRecognition();
       });
     } catch (e) {
-      const fallback = "Please rest, drink warm water, and consult a doctor if fever rises.";
+      const fallback = "Please rest, drink warm fluids, and consult a doctor if fever persists.";
       setAssistantText(fallback);
       speakTTS(fallback, () => startSpeechRecognition());
     }
