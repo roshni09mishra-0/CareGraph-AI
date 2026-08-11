@@ -13,6 +13,7 @@ export interface CallerRecord {
   user_id: string;
   name: string;
   phone_number?: string;
+  sip_uri?: string;
   language_preference: "en" | "hi" | "hinglish";
   facts: HealthFacts;
   consent_given: boolean;
@@ -35,6 +36,7 @@ function ensureDatabase() {
       user_id: "user_ramesh",
       name: "रमेश कुमार",
       phone_number: "+91 7991912530",
+      sip_uri: "sip:roshu@sip.linphone.org",
       language_preference: "hi",
       facts: {
         age_band: "Adult (35-45)",

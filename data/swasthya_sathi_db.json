@@ -3,6 +3,7 @@
     "user_id": "user_ramesh",
     "name": "रमेश कुमार",
     "phone_number": "+91 7991912530",
+    "sip_uri": "sip:roshu@sip.linphone.org",
     "language_preference": "hi",
     "facts": {
       "age_band": "Adult (35-45)",
@@ -12,12 +13,13 @@
       "do_not_call": false
     },
     "consent_given": true,
-    "last_interaction": "2026-08-11T05:50:00.000Z"
+    "last_interaction": "2026-08-11T14:00:00.000Z"
   },
   "user_priya": {
     "user_id": "user_priya",
     "name": "प्रिया देवी",
     "phone_number": "+91 7991912530",
+    "sip_uri": "sip:roshu@sip.linphone.org",
     "language_preference": "hi",
     "facts": {
       "age_band": "Adult (25-35)",
@@ -27,12 +29,13 @@
       "do_not_call": false
     },
     "consent_given": true,
-    "last_interaction": "2026-08-11T05:50:00.000Z"
+    "last_interaction": "2026-08-11T14:00:00.000Z"
   },
   "user_aarav": {
     "user_id": "user_aarav",
     "name": "आरव शर्मा (बाल स्वास्थ्य)",
     "phone_number": "+91 7991912530",
+    "sip_uri": "sip:roshu@sip.linphone.org",
     "language_preference": "hi",
     "facts": {
       "age_band": "Child (1-5 yrs)",
@@ -42,6 +45,6 @@
       "do_not_call": false
     },
     "consent_given": true,
-    "last_interaction": "2026-08-11T05:50:00.000Z"
+    "last_interaction": "2026-08-11T14:00:00.000Z"
   }
 }

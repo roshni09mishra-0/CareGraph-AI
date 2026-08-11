@@ -986,11 +986,22 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
           </div>
 
           <div className="flex flex-wrap items-center justify-center gap-1.5">
+            {/* Outbound Action 1: Linphone Direct SIP VoIP Call */}
+            <button
+              onClick={() => handleInitiateOutboundCall("user_ramesh", "sip:roshu@sip.linphone.org", "post_triage_followup", "answered")}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-emerald-600 hover:bg-emerald-500 border-2 border-emerald-400 text-xs font-extrabold text-white shadow-md transition active:scale-95 animate-pulse"
+              title="Direct Linphone SIP VoIP Call to physical phone"
+            >
+              <PhoneCall className="w-3.5 h-3.5" />
+              <span>📱 Linphone कॉल (sip:roshu@sip.linphone.org)</span>
+            </button>
+
+            {/* Outbound Action 2: Mobile Phone Call */}
             <button
               onClick={() => handleInitiateOutboundCall("user_ramesh", "+91 7991912530", "post_triage_followup", "answered")}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-emerald-100 hover:bg-emerald-200 border-2 border-emerald-400 text-xs font-extrabold text-emerald-950 shadow-sm transition active:scale-95"
+              className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-teal-100 hover:bg-teal-200 border-2 border-teal-400 text-xs font-extrabold text-teal-950 shadow-sm transition active:scale-95"
             >
-              <PhoneCall className="w-3 h-3 text-emerald-800" />
+              <PhoneCall className="w-3 h-3 text-teal-800" />
               <span>📞 +91 7991912530 पर कॉल करें</span>
             </button>
 
