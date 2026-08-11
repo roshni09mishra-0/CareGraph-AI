@@ -13,7 +13,7 @@ export default function QuickPrompts({ onSelectPrompt, disabled = false, languag
     {
       icon: <PhoneCall className="w-3.5 h-3.5 text-emerald-700" />,
       text: "Call me for a health follow-up check",
-      tag: "📞 Outbound Voice Trigger",
+      tag: "📞 Outbound Call",
     },
     {
       icon: <HelpCircle className="w-3.5 h-3.5 text-teal-700" />,
@@ -33,7 +33,7 @@ export default function QuickPrompts({ onSelectPrompt, disabled = false, languag
     {
       icon: <Bandage className="w-3.5 h-3.5 text-rose-700" />,
       text: "Can you prescribe me Amoxicillin 500mg?",
-      tag: "🛡️ Drug Guardrail Test",
+      tag: "🛡️ Safety Guardrail",
     },
   ];
 
@@ -81,9 +81,8 @@ export default function QuickPrompts({ onSelectPrompt, disabled = false, languag
           <button
             key={idx}
             type="button"
-            disabled={disabled}
             onClick={() => onSelectPrompt(p.text)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs bg-teal-50/70 hover:bg-teal-100/90 active:scale-95 border border-teal-200/80 text-teal-950 transition font-medium text-left shadow-sm disabled:opacity-50 disabled:cursor-not-allowed group"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs bg-teal-50 hover:bg-teal-100/90 active:scale-95 border border-teal-300 text-teal-950 transition font-medium text-left shadow-sm cursor-pointer group"
           >
             <span className="group-hover:scale-110 transition">{p.icon}</span>
             <span className="truncate max-w-[240px] sm:max-w-xs">{p.text}</span>
