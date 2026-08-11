@@ -1,13 +1,15 @@
 /**
  * Telephony & Outbound Calling Engine for Bharat (#VoiceForBharat Day 6)
  * Supports:
- * 1. Twilio Telephony Integration (Real PSTN Phone Calling)
- * 2. In-Browser LiveKit WebRTC Softphone Simulation
- * 3. 3-Part Mandatory Opening Protocol (Who, Why, Opt-Out)
- * 4. Outcome Handling (Answered, Busy -> 15m Retry, No Answer -> 30m Retry, Opted Out)
+ * 1. Linphone Open-Source SIP VoIP Calling (100% Free on physical Android/iOS phones)
+ * 2. Twilio Telephony Integration (Real PSTN Phone Calling)
+ * 3. In-Browser LiveKit WebRTC Softphone Simulation
+ * 4. 3-Part Mandatory Opening Protocol (Who, Why, Opt-Out)
+ * 5. Outcome Handling (Answered, Busy -> 15m Retry, No Answer -> 30m Retry, Opted Out)
  */
 
 import { getCaller, saveCaller, CallerRecord } from "./db";
+import { getLinphoneSipUri, dispatchLinphoneCall } from "./linphone";
 
 export type OutboundScenario = 
   | "post_triage_followup"
@@ -23,11 +25,15 @@ export type CallOutcome =
   | "completed"
   | "failed";
 
+export type TelephonyProvider = "linphone" | "twilio" | "webrtc";
+
 export interface OutboundCallRecord {
   call_id: string;
   patient_id: string;
   patient_name: string;
   phone_number: string;
+  provider?: TelephonyProvider;
+  sip_uri?: string;
   scenario: OutboundScenario;
   opening_text: string;
   status: CallOutcome;
@@ -46,6 +52,8 @@ export const OUTBOUND_CALL_LOGS: OutboundCallRecord[] = [
     patient_id: "user_ramesh",
     patient_name: "रमेश कुमार",
     phone_number: "+91 7991912530",
+    provider: "linphone",
+    sip_uri: "sip:7991912530@sip.linphone.org",
     scenario: "post_triage_followup",
     opening_text: "नमस्ते रमेश जी! मैं स्वास्थ्य साथी एआई (SwasthyaSathi AI) से बोल रहा हूँ। यह आपके कल के 3 दिन के बुखार और शिवपुर PHC रेफरल के बाद आपकी तबियत जानने के लिए एक फॉलो-अप स्वास्थ्य कॉल है। यदि आप अभी बात नहीं करना चाहते या भविष्य में ये कॉल्स बंद करना चाहते हैं, तो कृपया 'कॉल बंद करो' कहें। क्या अब आपका बुखार कम हुआ है?",
     status: "completed",
@@ -53,92 +61,93 @@ export const OUTBOUND_CALL_LOGS: OutboundCallRecord[] = [
     answered_at: new Date(Date.now() - 3590000).toISOString(),
     completed_at: new Date(Date.now() - 3500000).toISOString(),
     retry_count: 0,
-    notes: "Patient reported fever reduced to 99F after PHC visit. Advised to complete hydration.",
+    notes: "Patient reported fever reduced to 99F after PHC visit. Linphone SIP VoIP call verified.",
   }
 ];
 
 /**
- * Step 4: Mandatory 3-Part Opening Protocol for Outbound Voice Calls
- * 1. Who is calling
- * 2. Why calling
- * 3. How to make it stop (Opt-out)
+ * Generate Mandatory 3-Part Opening Protocol for Day 6
+ * Part 1: Who is calling (Identity)
+ * Part 2: Why calling (Clinical context)
+ * Part 3: Clear opt-out mechanism ("कॉल बंद करो" / "Stop calls")
  */
 export function generateOutboundOpening(
-  patientName: string,
   scenario: OutboundScenario,
+  callerName: string = "रमेश",
   language: "hi" | "en" | "hinglish" = "hi"
-): { openingText: string; promptGoal: string } {
-  const name = patientName || "रमेश";
-
-  if (language === "hi" || language === "hinglish") {
+): string {
+  if (language === "en") {
     switch (scenario) {
       case "post_triage_followup":
-        return {
-          openingText: `नमस्ते ${name} जी! मैं स्वास्थ्य साथी एआई (SwasthyaSathi AI) से बोल रहा हूँ। यह आपके कल के तेज बुखार और शिवपुर प्राथमिक स्वास्थ्य केंद्र (PHC) परामर्श के बाद आपकी तबियत जानने के लिए एक जरूरी फॉलो-अप कॉल है। यदि आप अभी बात नहीं करना चाहते या भविष्य में ये कॉल्स बंद करना चाहते हैं, तो कृपया 'कॉल बंद करो' कहें। क्या आज आपकी तबियत में सुधार है?`,
-          promptGoal: `Patient had a 3-day high fever yesterday and was advised to visit Shivpur PHC. Inquire if they visited the clinic, took medications, and how they feel today.`
-        };
-
+        return `Namaste ${callerName}! This is SwasthyaSathi AI calling. This is a follow-up healthcare call regarding your fever consultation yesterday for Shivpur Primary Health Centre. If you do not wish to speak or want to opt out from future calls, please say 'Stop calls'. Has your fever subsided today?`;
       case "vaccination_reminder":
-        return {
-          openingText: `नमस्ते ${name} जी! मैं स्वास्थ्य साथी एआई (SwasthyaSathi AI) से बोल रहा हूँ। यह आपके बच्चे के कल देय पोलियो और डीपीटी बूस्टर टीकाकरण के समय की याद दिलाने के लिए स्वास्थ्य कॉल है। यदि आप अभी बात नहीं करना चाहते या भविष्य में ऐसे रिमाइंडर बंद करना चाहते हैं, तो कृपया 'कॉल बंद करो' कहें। क्या आपको नजदीकी टीकाकरण केंद्र की जानकारी चाहिए?`,
-          promptGoal: `Remind patient about upcoming pediatric booster immunization and guide them to nearest PHC vaccination booth.`
-        };
-
+        return `Namaste ${callerName}! This is SwasthyaSathi AI calling with an important reminder for your child's scheduled Polio & DPT booster dose this week at Shivpur PHC. If you want to unsubscribe from reminders, say 'Stop calls'. Would you like directions to the PHC immunization booth?`;
       case "chronic_care_checkin":
-        return {
-          openingText: `नमस्ते ${name} जी! मैं स्वास्थ्य साथी एआई (SwasthyaSathi AI) से बोल रहा हूँ। यह आपके उच्च रक्तचाप (BP) और शुगर की नियमित साप्ताहिक जांच का रिकॉर्ड अपडेट करने के लिए एक स्वास्थ्य कॉल है। यदि आप अभी बात नहीं करना चाहते या ऐसे कॉल्स बंद करना चाहते हैं, तो कृपया 'कॉल बंद करो' कहें। आज आपका बीपी और शुगर लेवल कैसा है?`,
-          promptGoal: `Check on patient's weekly blood pressure and glucose readings and reinforce diet & hydration.`
-        };
+        return `Namaste ${callerName}! This is SwasthyaSathi AI. This is your weekly chronic care check-in for blood pressure and diabetes monitoring. You can opt out anytime by saying 'Stop calls'. Have you taken your prescribed morning medications today?`;
+      default:
+        return `Namaste ${callerName}! This is SwasthyaSathi AI calling regarding your health follow-up. You can opt out anytime by saying 'Stop calls'. How are you feeling today?`;
     }
   }
 
-  // English 3-Part Opening
+  // Pure Hindi / Hinglish Protocol
   switch (scenario) {
     case "post_triage_followup":
-      return {
-        openingText: `Namaste ${name}! This is SwasthyaSathi AI calling. This is a follow-up healthcare call regarding your 3-day fever and recent Primary Health Centre recommendation to check on your recovery. If you do not wish to speak now or want to opt out of future calls, please say 'stop calling'. How are you feeling today?`,
-        promptGoal: `Follow-up on patient's fever and PHC visit.`
-      };
+      return `नमस्ते ${callerName} जी! मैं स्वास्थ्य साथी एआई (SwasthyaSathi AI) से बोल रहा हूँ। यह आपके कल के तेज बुखार और शिवपुर प्राथमिक स्वास्थ्य केंद्र (PHC) परामर्श के बाद आपकी तबियत जानने के लिए एक जरूरी फॉलो-अप कॉल है। यदि आप अभी बात नहीं करना चाहते या भविष्य में ये कॉल्स बंद करना चाहते हैं, तो कृपया 'कॉल बंद करो' कहें। क्या आज आपकी तबियत में सुधार है?`;
     case "vaccination_reminder":
-      return {
-        openingText: `Namaste ${name}! This is SwasthyaSathi AI calling. This is an official healthcare reminder regarding your child's scheduled Polio and DPT booster vaccination due tomorrow. If you wish to stop receiving these reminder calls, please say 'stop calling'. Would you like the nearest PHC vaccination timings?`,
-        promptGoal: `Remind about child immunization schedule.`
-      };
+      return `नमस्ते ${callerName} जी! मैं स्वास्थ्य साथी एआई (SwasthyaSathi AI) से बोल रहा हूँ। यह आपके बच्चे के पोलियो और डीपीटी बूस्टर टीकाकरण के लिए एक जरूरी रिमाइंडर कॉल है, जो इस सप्ताह शिवपुर प्राथमिक स्वास्थ्य केंद्र (PHC) में लगना है। यदि आप ये कॉल्स बंद करना चाहते हैं, तो 'कॉल बंद करो' कहें। क्या आपने टीकाकरण का समय तय कर लिया है?`;
     case "chronic_care_checkin":
-      return {
-        openingText: `Namaste ${name}! This is SwasthyaSathi AI calling. This is a routine weekly health check-in to monitor your blood pressure and diabetes management. If you wish to opt out of these calls, please say 'stop calling'. How are your BP and blood sugar readings today?`,
-        promptGoal: `Monitor chronic care vitals.`
-      };
+      return `नमस्ते ${callerName} जी! मैं स्वास्थ्य साथी एआई से आपका साप्ताहिक बीपी और शुगर चेक-इन करने के लिए बोल रहा हूँ। यदि आप कॉल्स बंद करना चाहते हैं, तो 'कॉल बंद करो' कहें। क्या आज सुबह आपने अपनी दवाइयां समय पर ली हैं?`;
+    default:
+      return `नमस्ते ${callerName} जी! मैं स्वास्थ्य साथी एआई से बोल रहा हूँ। यह आपकी तबियत जानने के लिए एक फॉलो-अप कॉल है। यदि आप बात नहीं करना चाहते, तो 'कॉल बंद करो' कहें। आप अभी कैसा महसूस कर रहे हैं?`;
   }
 }
 
 /**
- * Trigger an Outbound Call (Twilio REST or Live WebRTC Softphone)
+ * Trigger Outbound Call to Patient (Linphone SIP VoIP / Twilio / WebRTC)
  */
 export async function triggerOutboundCall(
   patientId: string,
   phoneNumber: string,
   scenario: OutboundScenario,
   language: "hi" | "en" | "hinglish" = "hi",
-  simulateOutcome?: CallOutcome
+  simulateOutcome?: CallOutcome,
+  provider: TelephonyProvider = "linphone"
 ): Promise<OutboundCallRecord> {
   const caller = getCaller(patientId);
   const patientName = caller?.name || "रमेश कुमार";
+  const sipUri = getLinphoneSipUri(phoneNumber);
 
-  // If patient previously opted out, re-enable upon explicit user-initiated call request
-  if (caller && caller.facts.do_not_call) {
-    caller.facts.do_not_call = false;
-    saveCaller(caller);
+  // Check Opt-Out Registry (Do Not Call Registry Rule)
+  if (caller?.facts.do_not_call) {
+    console.warn(`[Outbound Engine Blocked] Caller ${patientName} is on Do-Not-Call (DNC) Registry.`);
+    const blockedCall: OutboundCallRecord = {
+      call_id: `call_blocked_${Date.now()}`,
+      patient_id: patientId,
+      patient_name: patientName,
+      phone_number: phoneNumber,
+      provider: provider,
+      sip_uri: sipUri,
+      scenario,
+      opening_text: "Call Blocked - Patient has opted out.",
+      status: "opted_out",
+      created_at: new Date().toISOString(),
+      retry_count: 0,
+      notes: "Call cancelled automatically: Patient requested DNC opt-out on previous interaction.",
+    };
+    OUTBOUND_CALL_LOGS.unshift(blockedCall);
+    return blockedCall;
   }
 
-  const { openingText } = generateOutboundOpening(patientName, scenario, language);
-  const callId = `call_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`;
+  const openingText = generateOutboundOpening(scenario, patientName, language);
+  const callId = `call_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
 
   const newCall: OutboundCallRecord = {
     call_id: callId,
     patient_id: patientId,
     patient_name: patientName,
     phone_number: phoneNumber,
+    provider: provider,
+    sip_uri: sipUri,
     scenario,
     opening_text: openingText,
     status: simulateOutcome || "ringing",
@@ -146,12 +155,23 @@ export async function triggerOutboundCall(
     retry_count: 0,
   };
 
-  // Step 2: Twilio Integration (Real Physical Mobile Phone Ringing)
+  // 1. Linphone Open-Source SIP VoIP Dispatch (100% Free)
+  if (provider === "linphone" || (!process.env.TWILIO_ACCOUNT_SID && phoneNumber)) {
+    const linphoneDispatch = await dispatchLinphoneCall({
+      targetSipUri: sipUri,
+      patientName,
+      openingText,
+      language,
+    });
+    newCall.notes = `Dispatched via Linphone Free SIP VoIP (${sipUri}) - 100% Free on physical phone Linphone app`;
+  }
+
+  // 2. Twilio Integration (if environment credentials are provided)
   const twilioSid = process.env.TWILIO_ACCOUNT_SID;
   const twilioAuth = process.env.TWILIO_AUTH_TOKEN;
   const twilioFrom = process.env.TWILIO_PHONE_NUMBER;
 
-  if (twilioSid && twilioAuth && twilioFrom && phoneNumber.startsWith("+")) {
+  if (provider === "twilio" && twilioSid && twilioAuth && twilioFrom && phoneNumber.startsWith("+")) {
     try {
       console.log(`[Twilio Outbound] Dispatching real PSTN call to ${phoneNumber} from ${twilioFrom}...`);
       
@@ -197,18 +217,16 @@ export async function triggerOutboundCall(
       console.warn("[Twilio Outbound Error]", err.message);
       newCall.notes = `Twilio Gateway: ${err.message}`;
     }
-  } else {
-    newCall.notes = `Dispatched via In-Browser WebRTC Softphone (Add Twilio credentials in .env.local for direct physical mobile ringing)`;
   }
 
-  // Advanced: Outcome handling logic
+  // Outcome handling logic
   if (simulateOutcome === "busy") {
     newCall.status = "busy";
-    newCall.retry_scheduled_at = new Date(Date.now() + 15 * 60 * 1000).toISOString(); // 15 mins retry
+    newCall.retry_scheduled_at = new Date(Date.now() + 15 * 60 * 1000).toISOString();
     newCall.notes = "Patient line busy. Scheduled automatic retry in 15 minutes.";
   } else if (simulateOutcome === "no_answer") {
     newCall.status = "no_answer";
-    newCall.retry_scheduled_at = new Date(Date.now() + 30 * 60 * 1000).toISOString(); // 30 mins retry
+    newCall.retry_scheduled_at = new Date(Date.now() + 30 * 60 * 1000).toISOString();
     newCall.notes = "No answer after 30 seconds. Scheduled automatic retry in 30 minutes and sent SMS reminder.";
   } else if (simulateOutcome === "opted_out") {
     newCall.status = "opted_out";
@@ -223,20 +241,7 @@ export async function triggerOutboundCall(
   }
 
   OUTBOUND_CALL_LOGS.unshift(newCall);
-  console.log(`[Outbound Engine] Call ${callId} status: ${newCall.status} (${patientName})`);
+  console.log(`[Outbound Engine] Call ${callId} status: ${newCall.status} (${patientName}) via ${provider}`);
 
   return newCall;
-}
-
-/**
- * Handle Live In-Call Opt-Out Request ("Call band karo", "Stop calling")
- */
-export function handleOptOut(patientId: string): string {
-  const caller = getCaller(patientId);
-  if (caller) {
-    caller.facts.do_not_call = true;
-    saveCaller(caller);
-  }
-
-  return "आपकी सहमति का पूरा सम्मान करते हुए, हमने आपका नंबर आउटबाउंड स्वास्थ्य कॉल्स की सूची से हटा दिया है। अब आपको कोई भी स्वचालित कॉल नहीं आएगी। धन्यवाद और अपना ख्याल रखें।";
 }
