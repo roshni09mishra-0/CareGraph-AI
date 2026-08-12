@@ -29,8 +29,12 @@ export function getLinphoneSipUri(usernameOrPhone?: string, domain: string = "si
   if (usernameOrPhone && usernameOrPhone.startsWith("sip:")) {
     return usernameOrPhone;
   }
-  const user = usernameOrPhone ? usernameOrPhone.replace(/[\s\+\-]/g, "") : (process.env.LINPHONE_SIP_USERNAME || "roshu");
-  return `sip:${user || "roshu"}@${domain}`;
+  if (usernameOrPhone && !usernameOrPhone.startsWith("+") && !/^\d+$/.test(usernameOrPhone)) {
+    return `sip:${usernameOrPhone}@${domain}`;
+  }
+  // Default to configured user "roshu"
+  const defaultUser = process.env.LINPHONE_SIP_USERNAME || "roshu";
+  return `sip:${defaultUser}@${domain}`;
 }
 
 /**

@@ -206,6 +206,47 @@ export async function getSimulatedHealthcareResponse(
   const knownNameInConvo = currentCaller?.name || callerName || "रमेश";
 
   // =========================================================================
+  // DAY 6: OUTBOUND CALL VOICE TRIGGER ("Mujhe call karo", "Call lagao", "Call me", "Linphone")
+  // =========================================================================
+  const isMakeCallQuery = (
+    /\b(call me|call karo|call lagao|phone karo|phone lagao|outbound call|make a call|mujhe call karo|mujhe phone karo|follow up call|reminder call|linphone)\b/i.test(q) ||
+    q.includes("कॉल") || q.includes("फोन") || q.includes("call")
+  ) && (
+    q.includes("करो") || q.includes("लगाओ") || q.includes("karo") || q.includes("lagao") || 
+    q.includes("me") || q.includes("mujhe") || q.includes("outbound") || q.includes("follow") || 
+    q.includes("reminder") || q.includes("check") || q.includes("कॉल") || q.includes("फोन") || q.includes("linphone")
+  ) && !/\b(band|stop|mat|roko|opt out|dnc)\b/i.test(q) && !q.includes("बंद") && !q.includes("मत") && !q.includes("रोको");
+
+  if (isMakeCallQuery) {
+    let scenario: OutboundScenario = "post_triage_followup";
+    if (q.includes("vaccin") || q.includes("tika") || q.includes("polio") || q.includes("dpt") || q.includes("bacha") || q.includes("टीका") || q.includes("टीकाकरण") || q.includes("बच्चे")) {
+      scenario = "vaccination_reminder";
+    } else if (q.includes("bp") || q.includes("sugar") || q.includes("chronic") || q.includes("बीपी") || q.includes("शुगर") || q.includes("रक्तचाप")) {
+      scenario = "chronic_care_checkin";
+    }
+
+    const patientId = userId || currentCaller?.user_id || "user_ramesh";
+    const phone = currentCaller?.phone_number || "+91 7991912530";
+
+    try {
+      const callRecord = await triggerOutboundCall(patientId, phone, scenario, userLang, "answered", "linphone");
+      
+      const spokenConfirm = (userLang === "hi" || userLang === "hinglish")
+        ? `नमस्ते ${knownNameInConvo} जी! मैंने आपके फोन पर Linphone ऐप (अकाउंट roshu) के लिए कॉल लगा दी है। कृपया अपने फोन में आ रही कॉल उठाएं।`
+        : `Namaste ${knownNameInConvo}! I have placed a live SIP call to your phone on Linphone (user roshu). Please answer the incoming call on your phone.`;
+
+      return {
+        response: spokenConfirm,
+        caller: currentCaller,
+        functionCalled: "trigger_outbound_call",
+        outboundCallData: callRecord,
+      };
+    } catch (e: any) {
+      console.error("[Outbound Trigger Error]", e);
+    }
+  }
+
+  // =========================================================================
   // DAY 7: STEP 4 - CALLER CONSENT RESPONSE FOR HUMAN DOCTOR ESCALATION
   // =========================================================================
   const isPreviousTurnConsentAsk = (
