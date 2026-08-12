@@ -1079,7 +1079,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
         {/* Quick Health Questions */}
         <QuickPrompts
           onSelectPrompt={(text) => handleSendUserMessage(text)}
-          disabled={assistantState === "connecting" || isTranscribing}
+          disabled={false}
           language={uiLanguage}
         />
 
