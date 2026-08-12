@@ -1,5 +1,27 @@
 [
   {
+    "ticket_id": "ESC-2026-1034",
+    "patient_id": "user_ramesh",
+    "patient_name": "रमेश कुमार",
+    "phone_number": "+91 7991912530",
+    "masked_phone": "+9179919 •••••",
+    "reason": "caller_requested_human",
+    "urgency": "high",
+    "summary": "Direct Human Assistance Request: Patient रमेश कुमार requested to speak with a human doctor / raise an assistance ticket for clinical guidance. | Update (12:28:22 pm): Direct Human Assistance Request: Patient रमेश कुमार requested to speak with a human doctor / raise an assistance ticket for clinical guidance.",
+    "checked_items": [
+      "Direct human doctor assistance requested by caller",
+      "Patient consent recorded",
+      "Assigned to Shivpur PHC duty medical officer",
+      "Ticket raised in live doctor dashboard"
+    ],
+    "caller_language": "hi",
+    "preferred_followup": "phone_call",
+    "consent_given": true,
+    "assigned_facility": "Shivpur Primary Health Centre (PHC)",
+    "status": "open",
+    "created_at": "2026-08-12T06:58:22.204Z"
+  },
+  {
     "ticket_id": "ESC-2026-1042",
     "patient_id": "user_ramesh",
     "patient_name": "रमेश कुमार",

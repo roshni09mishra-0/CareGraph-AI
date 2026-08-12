@@ -247,6 +247,52 @@ export async function getSimulatedHealthcareResponse(
   }
 
   // =========================================================================
+  // DAY 7: DIRECT HUMAN HELP / TICKET RAISING TRIGGER ("Human help", "Doctor se baat", "Ticket raise karo")
+  // =========================================================================
+  const isDirectHumanHelpQuery = (
+    /\b(human help|human agent|talk to human|talk to doctor|doctor se baat|doctor se connect|insan se baat|human se baat|ticket raise|raise ticket|ticket banao|doctor ticket|escalate|escalation)\b/i.test(q) ||
+    (
+      (q.includes("human") || q.includes("इंसान") || q.includes("ह्यूमन") || q.includes("doctor") || q.includes("डॉक्टर") || q.includes("ticket") || q.includes("टिकट")) &&
+      (q.includes("help") || q.includes("मदद") || q.includes("सहायता") || q.includes("बात") || q.includes("connect") || q.includes("raise") || q.includes("रेज़") || q.includes("बनाओ") || q.includes("चाहिए"))
+    )
+  ) && !/\b(nahi|no|mat|don't)\b/i.test(q) && !q.includes("नहीं") && !q.includes("मत");
+
+  if (isDirectHumanHelpQuery) {
+    const patientId = userId || currentCaller?.user_id || "user_ramesh";
+    const patientName = currentCaller?.name || callerName || "रमेश कुमार";
+    const phoneNumber = currentCaller?.phone_number || "+91 7991912530";
+
+    const { ticket } = createEscalationTicket({
+      patient_id: patientId,
+      patient_name: patientName,
+      phone_number: phoneNumber,
+      reason: "caller_requested_human",
+      urgency: "high",
+      summary: `Direct Human Assistance Request: Patient ${patientName} requested to speak with a human doctor / raise an assistance ticket for clinical guidance.`,
+      checked_items: [
+        "Direct human doctor assistance requested by caller",
+        "Patient consent recorded",
+        "Assigned to Shivpur PHC duty medical officer",
+        "Ticket raised in live doctor dashboard"
+      ],
+      caller_language: userLang as any,
+      preferred_followup: "phone_call",
+      consent_given: true,
+    });
+
+    const spokenConfirm = (userLang === "hi" || userLang === "hinglish")
+      ? `नमस्ते ${patientName} जी! मैंने आपके लिए डॉक्टर सहायता का टिकट नंबर ${ticket.ticket_id} सफलतापूर्वक रेज़ कर दिया है। यह विवरण शिवपुर PHC के ड्यूटी डॉक्टर के डैशबोर्ड पर भेज दिया गया है, जो अगले 30 से 60 मिनट में आपसे संपर्क करेंगे। आप स्क्रीन पर डॉक्टर डैशबोर्ड में भी अपना टिकट देख सकते हैं।`
+      : `Namaste ${patientName}! I have raised ticket ${ticket.ticket_id} for human doctor assistance. A duty medical officer from Shivpur PHC will reach out to you within 30 to 60 minutes. You can also view this ticket on your live doctor dashboard.`;
+
+    return {
+      response: spokenConfirm,
+      caller: currentCaller,
+      functionCalled: "create_escalation",
+      escalationData: ticket,
+    };
+  }
+
+  // =========================================================================
   // DAY 7: STEP 4 - CALLER CONSENT RESPONSE FOR HUMAN DOCTOR ESCALATION
   // =========================================================================
   const isPreviousTurnConsentAsk = (

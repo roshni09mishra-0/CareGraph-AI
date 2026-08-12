@@ -1,5 +1,6 @@
 import { HealthFacility, findFacilities } from "./facilityData";
 import { getCaller, getCallerByName } from "./db";
+import { EscalationTicket, EscalationReason, EscalationUrgency, createEscalationTicket } from "./escalation";
 
 export interface FacilityLookupResult {
   toolName: "lookup_nearest_facility";
@@ -22,13 +23,15 @@ export interface TriageClassificationResult {
   dataTimestamp: string;
 }
 
+export interface EscalationResult {
+  toolName: "create_escalation";
+  ticket: EscalationTicket;
+  spokenText: string;
+  referenceId: string;
+}
+
 /**
  * Day 5 Tool 1: Lookup Nearest PHC, CHC, or Government Hospital
- * Features:
- * - Chaining with Day 4 caller memory (e.g. Ramesh -> Varanasi, UP)
- * - Freshness timestamp declaration ("आज 10 अगस्त के अनुसार...")
- * - Spoken-first natural output for Murf Falcon
- * - Out-loud graceful failure handling
  */
 export async function lookupNearestFacilityTool(
   requestedDistrict?: string,
@@ -40,7 +43,6 @@ export async function lookupNearestFacilityTool(
   const currentDateStr = "10 August 2026";
   const hindiDateStr = "10 अगस्त 2026";
 
-  // Step 4: Graceful Out-Loud Failure Path
   if (simulateError) {
     console.warn("[Day 5 Tool Error] Facility database lookup timed out / simulated outage.");
     const failureSpoken = language === "en"
@@ -57,66 +59,45 @@ export async function lookupNearestFacilityTool(
     };
   }
 
-  // Advanced: Chain with Day 4 Caller Memory if district not specified
-  let targetDistrict = requestedDistrict?.trim();
-  if (!targetDistrict && userId) {
+  let finalDistrict = requestedDistrict;
+  if (!finalDistrict && userId) {
     const caller = getCaller(userId);
-    if (caller && caller.user_id === "user_ramesh") {
-      targetDistrict = "Varanasi";
+    if (caller && (caller.facts as any)?.location) {
+      finalDistrict = (caller.facts as any).location.split(",")[0].trim();
     }
   }
+  if (!finalDistrict) finalDistrict = "Varanasi";
 
-  if (!targetDistrict) {
-    targetDistrict = "Varanasi"; // Default health hub
-  }
+  const results = findFacilities(finalDistrict, facilityType);
 
-  // Fetch real facilities from dataset
-  const facilities = findFacilities(targetDistrict, facilityType);
-  const primaryFacility = facilities[0];
+  const topFacilities = results.slice(0, 2);
+  let spoken = "";
 
-  if (!primaryFacility) {
-    const fallbackSpoken = language === "en"
-      ? `As of ${currentDateStr}, no specific PHC was found in ${targetDistrict}. Please call 108 emergency service for immediate hospital transport.`
-      : `आज ${hindiDateStr} के अनुसार ${targetDistrict} में प्राथमिक केंद्र नहीं मिला। तत्काल सहायता के लिए कृपया 108 पर कॉल करें।`;
-
-    return {
-      toolName: "lookup_nearest_facility",
-      district: targetDistrict,
-      facilities: [],
-      spokenText: fallbackSpoken,
-      isFallback: true,
-      dataTimestamp: currentDateStr,
-    };
-  }
-
-  // Step 5: Say when the data is from + Natural Spoken Delivery
-  const isHindi = language === "hi" || language === "hinglish";
-  let spokenText = "";
-
-  if (isHindi) {
-    spokenText = `आज ${hindiDateStr} के सत्यापित स्वास्थ्य डायरेक्टरी के अनुसार, ${targetDistrict} में आपके सबसे नजदीक ${primaryFacility.distance_km} किलोमीटर की दूरी पर "${primaryFacility.name}" है। यह केंद्र ${primaryFacility.is_24x7 ? "24 घंटे खुला" : primaryFacility.operating_hours} रहता है और इसका हेल्पलाइन नंबर ${primaryFacility.emergency_helpline} तथा एम्बुलेंस 108 है।`;
+  if (topFacilities.length > 0) {
+    const primary = topFacilities[0];
+    if (language === "hi" || language === "hinglish") {
+      spoken = `आज ${hindiDateStr} की सरकारी स्वास्थ्य निर्देशिका के अनुसार, ${finalDistrict} में आपका सबसे नजदीकी केंद्र ${primary.name} है, जो ${primary.address} में स्थित है। यह अभी खुला है और यहाँ ${primary.services.slice(0, 3).join(", ")} की सुविधा उपलब्ध है। आपातकालीन हेल्पलाइन 108 है।`;
+    } else {
+      spoken = `According to the official directory as of ${currentDateStr}, your nearest healthcare facility in ${finalDistrict} is ${primary.name} located at ${primary.address}. It is currently open and offers ${primary.services.slice(0, 3).join(", ")}. Emergency helpline is 108.`;
+    }
   } else {
-    spokenText = `According to verified health records from ${currentDateStr}, the nearest healthcare facility in ${targetDistrict} is "${primaryFacility.name}", located ${primaryFacility.distance_km} kilometers away. It operates ${primaryFacility.operating_hours} with emergency contact ${primaryFacility.emergency_helpline} and ambulance 108.`;
+    spoken = language === "en"
+      ? `No specific PHC found for ${finalDistrict}. Please proceed to the nearest District Hospital or call emergency 108.`
+      : `${finalDistrict} के लिए कोई विशिष्ट पीएचसी नहीं मिला। कृपया नजदीकी जिला अस्पताल जाएं या आपातकालीन 108 पर संपर्क करें।`;
   }
-
-  console.log(`[Day 5 Tool Executed] Nearest Facility Found for "${targetDistrict}":`, primaryFacility.name);
 
   return {
     toolName: "lookup_nearest_facility",
-    district: targetDistrict,
-    facilities: facilities.slice(0, 3),
-    spokenText,
+    district: finalDistrict,
+    facilities: topFacilities,
+    spokenText: spoken,
     isFallback: false,
     dataTimestamp: currentDateStr,
   };
 }
 
 /**
- * Day 5 Tool 2: Clinical Symptom-to-Triage-Level Classifier
- * Categorizes urgency into:
- * Level 1: Red (Immediate Emergency / 108 / Hospital)
- * Level 2: Yellow (Urgent PHC / CHC Visit within 24h)
- * Level 3: Green (Home Care / Wellness & Hydration)
+ * Day 5 Tool 2: Clinical Symptom Triage Classifier
  */
 export async function classifySymptomTriageTool(
   symptomQuery: string,
@@ -125,15 +106,15 @@ export async function classifySymptomTriageTool(
   language: "hi" | "en" | "hinglish" = "hi"
 ): Promise<TriageClassificationResult> {
   const currentDateStr = "10 August 2026";
-  const hindiDateStr = "10 अगस्त 2026";
   const text = symptomQuery.toLowerCase();
 
-  // 1. Level 1 - Red Emergency Check
-  const emergencyKeywords = ["chest pain", "breathless", "unconscious", "stroke", "heavy bleeding", "heart attack", "सीने में दर्द", "सांस फूलना", "बेहोश", "खून"];
-  if (emergencyKeywords.some(kw => text.includes(kw))) {
-    const spoken = language === "en"
-      ? `Triage Alert! This indicates a Level 1 Emergency. Please call emergency helpline 108 immediately or visit the nearest trauma center.`
-      : `आपातकालीन ट्राइएज चेतावनी! यह लेवल 1 का गंभीर आपातकाल है। कृपया तुरंत 108 एम्बुलेंस पर कॉल करें या नजदीकी आपातकालीन अस्पताल जाएं।`;
+  const emergencyKeywords = ["chest pain", "chhati me dard", "saans", "breath", "dama", "paralysis", "blood", "khoon", "stroke", "severe burn", "heart attack", "unconscious", "behosh"];
+  const isEmergency = emergencyKeywords.some(kw => text.includes(kw));
+
+  if (isEmergency) {
+    const spoken = (language === "hi" || language === "hinglish")
+      ? `क्लीनिकल ट्राइएज मूल्यांकन: यह "लेवल 1 तत्काल आपातकाल (रेड अलर्ट)" है। तुरंत एम्बुलेंस 108 पर कॉल करें या नजदीकी आपातकालीन अस्पताल जाएं। घर पर प्रतीक्षा न करें।`
+      : `Clinical triage classification: This is Level 1 Immediate Emergency (Red Alert). Please call emergency ambulance 108 immediately or proceed to the casualty department. Do not wait at home.`;
 
     return {
       toolName: "classify_symptom_triage",
@@ -147,12 +128,10 @@ export async function classifySymptomTriageTool(
     };
   }
 
-  // 2. Level 2 - Yellow Urgent PHC Visit (Fever > 2 days, severe pain, vomiting, Dengue signs)
   const urgentKeywords = ["3 din", "4 din", "do din", "high fever", "vomit", "ulti", "dengue", "malaria", "typhoid", "pathri", "jaundice", "piliya", "tez bukhar", "dast"];
   const isMultiDayFever = durationDays >= 2 || urgentKeywords.some(kw => text.includes(kw));
 
   if (isMultiDayFever) {
-    // Chain with nearest facility lookup
     const facilityRes = await lookupNearestFacilityTool(undefined, "PHC", userId, language);
     const nearest = facilityRes.facilities[0];
 
@@ -173,7 +152,6 @@ export async function classifySymptomTriageTool(
     };
   }
 
-  // 3. Level 3 - Green Routine Care (Mild symptoms < 24h, cold, acidity, hydration)
   const spoken = (language === "hi" || language === "hinglish")
     ? `क्लीनिकल ट्राइएज मूल्यांकन: यह "लेवल 3 प्राथमिक घरेलू देखभाल" श्रेणी में आता है। पर्याप्त विश्राम करें, गुनगुना पानी पिएं और सुपाच्य भोजन लें। यदि 48 घंटे में आराम न मिले तो डॉक्टर से जांच करवाएं।`
     : `Clinical triage classifies this as Level 3 Routine Care. We recommend adequate rest, oral hydration, and home remedies. Consult a doctor if symptoms persist beyond 48 hours.`;
@@ -187,5 +165,48 @@ export async function classifySymptomTriageTool(
     recommendedAction: "Rest, oral hydration (ORS/fluids), monitor temperature",
     spokenText: spoken,
     dataTimestamp: currentDateStr,
+  };
+}
+
+/**
+ * Day 7 Tool 3: Create Human Escalation Ticket in Dashboard
+ */
+export async function createEscalationTool(params: {
+  patientId: string;
+  patientName: string;
+  phoneNumber?: string;
+  reason: EscalationReason;
+  urgency: EscalationUrgency;
+  summary: string;
+  callerLanguage?: "hi" | "en" | "hinglish";
+}): Promise<EscalationResult> {
+  const result = createEscalationTicket({
+    patient_id: params.patientId,
+    patient_name: params.patientName,
+    phone_number: params.phoneNumber || "+91 7991912530",
+    reason: params.reason,
+    urgency: params.urgency,
+    summary: params.summary,
+    checked_items: [
+      "Caller requested human doctor assistance",
+      "Consent recorded",
+      "Escalated to duty medical officer",
+      "Added to live dashboard"
+    ],
+    caller_language: params.callerLanguage || "hi",
+    preferred_followup: "phone_call",
+    consent_given: true,
+  });
+
+  const refId = result.ticket.ticket_id;
+  const spoken = (params.callerLanguage === "en")
+    ? `I have raised ticket ${refId} for human doctor assistance. A duty doctor from Shivpur PHC will contact you within 30 to 60 minutes. You can also monitor this in your live doctor dashboard.`
+    : `मैंने आपके लिए डॉक्टर सहायता का टिकट नंबर ${refId} सफलतापूर्वक रेज़ कर दिया है। शिवपुर PHC के ड्यूटी डॉक्टर अगले 30 से 60 मिनट में आपसे संपर्क करेंगे। आपका टिकट डॉक्टर डैशबोर्ड में दर्ज हो चुका है।`;
+
+  return {
+    toolName: "create_escalation",
+    ticket: result.ticket,
+    spokenText: spoken,
+    referenceId: refId,
   };
 }
