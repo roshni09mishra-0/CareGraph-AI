@@ -6,10 +6,12 @@ import HeroSection from "@/components/HeroSection";
 import VoiceInterface from "@/components/VoiceInterface";
 import FeatureCards from "@/components/FeatureCards";
 import SetupInstructionsModal from "@/components/SetupInstructionsModal";
+import EscalationDashboardModal from "@/components/EscalationDashboardModal";
 import { Activity, HeartPulse, Sparkles, ShieldCheck, Stethoscope } from "lucide-react";
 
 export default function Home() {
   const [isSetupOpen, setIsSetupOpen] = useState(false);
+  const [isEscalationsOpen, setIsEscalationsOpen] = useState(false);
   const [isLiveKitConnected, setIsLiveKitConnected] = useState(false);
   const [isSessionStarted, setIsSessionStarted] = useState(false);
 
@@ -26,6 +28,7 @@ export default function Home() {
       {/* Top Header */}
       <Header
         onOpenSetup={() => setIsSetupOpen(true)}
+        onOpenEscalations={() => setIsEscalationsOpen(true)}
         isLiveKitConnected={isLiveKitConnected}
       />
 
@@ -56,13 +59,19 @@ export default function Home() {
         onClose={() => setIsSetupOpen(false)}
       />
 
+      {/* Day 7 Doctor Escalation Dashboard Modal */}
+      <EscalationDashboardModal
+        isOpen={isEscalationsOpen}
+        onClose={() => setIsEscalationsOpen(false)}
+      />
+
       {/* Footer */}
       <footer className="w-full glass-panel border-t border-teal-100 py-6 px-4 text-center text-xs text-slate-500 bg-white/80">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <Stethoscope className="w-4 h-4 text-teal-600" />
             <span className="font-bold text-slate-800">SwasthyaSathi AI</span>
-            <span>— Indian Voice Healthcare Assistant (#VoiceForBharat)</span>
+            <span>— Indian Voice Healthcare Assistant (#VoiceForBharat Day 7)</span>
           </div>
 
           <div className="flex items-center gap-4 text-[11px] text-slate-500 font-medium">
@@ -70,7 +79,7 @@ export default function Home() {
             <span>•</span>
             <span>Deepgram Nova-2 STT</span>
             <span>•</span>
-            <span>LiveKit WebRTC</span>
+            <span>Human Doctor Escalations</span>
           </div>
         </div>
       </footer>

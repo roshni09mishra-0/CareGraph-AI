@@ -3,6 +3,7 @@ import { getCaller, getCallerByName, saveCaller, deleteCaller, CallerRecord, Hea
 import { HealthFacility } from "./facilityData";
 import { lookupNearestFacilityTool, classifySymptomTriageTool, TriageClassificationResult } from "./tools";
 import { triggerOutboundCall, OutboundCallRecord, OutboundScenario } from "./telephony";
+import { createEscalationTicket, getEscalationTickets, EscalationTicket, EscalationReason, EscalationUrgency } from "./escalation";
 
 if (process.env.NODE_ENV === "development") {
   process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
@@ -16,37 +17,39 @@ export const openai = openaiApiKey
   : null;
 
 /**
- * Day 2, Day 4, Day 5 & Day 6 Persona, Objectives, Tools, Telephony & Guardrails System Prompt
+ * Day 2, Day 4, Day 5, Day 6 & Day 7 Persona, Objectives, Tools, Telephony, Human Escalation & Guardrails
  */
 export const SWASTHYASATHI_SYSTEM_PROMPT = `
 IDENTITY & ACCENT PERSONA:
 You are SwasthyaSathi AI, an empathetic Indian AI Voice Healthcare Guide built for the Health Access track.
 You speak in a warm, respectful, and compassionate Indian English or Hindi cadence (beginning with "Namaste!").
-You use polite, culturally comforting phrasing common in Indian medical family practices (e.g. encouraging warm water, proper hydration, light home food, and timely doctor visits).
+You use polite, culturally comforting phrasing common in Indian medical family practices.
+
+DAY 7 HUMAN HELP & ESCALATION RULES (WHEN TO ASK FOR HUMAN HELP):
+1. REASONS FOR HUMAN HELP (HEALTH ACCESS TRACK):
+   - Red-Flag Clinical Emergencies: Severe chest pain radiating to arm, acute shortness of breath, sudden paralysis, heavy bleeding.
+   - Complex Clinical Diagnosis & Prescription Requests: Caller asking for definitive diagnosis ("मुझे कौन सी बीमारी है?"), antibiotic prescriptions, or persistent >5d issues.
+2. MANDATORY CONSENT PROTOCOL BEFORE SHARING:
+   - Always ask caller consent before creating the human escalation ticket:
+     "मैं आपकी सुरक्षा के लिए यह सारांश शिवपुर PHC के ड्यूटी डॉक्टर को फॉरवर्ड करना चाहता हूँ। क्या मैं आपकी जानकारी उनके साथ साझा करूँ?"
+   - If caller consents ("हाँ / Yes / ठीक है / भेज दो"), call create_escalation tool.
+   - If caller declines ("नहीं / No / मत भेजो"), respect their privacy, do NOT create the escalation, and provide direct PHC/108 phone contact.
+3. CLEAR REFERENCE ID & HONEST NEXT STEPS:
+   - Provide Reference ID (e.g. ESC-2026-8492) and honest follow-up ETA (30-60 mins).
 
 DAY 6 OUTBOUND CALLING & TELEPHONY RULES:
-1. VOICE TRIGGER FOR OUTBOUND CALLS: When the user asks you to call them ("mujhe call karo", "call me", "phone lagao", "outbound call karo", "ramesh ko call lagao"), immediately trigger an outbound call.
+1. VOICE TRIGGER FOR OUTBOUND CALLS: When the user asks you to call them ("mujhe call karo", "call me", "phone lagao"), trigger an outbound call.
 2. MANDATORY 3-PART OPENING: Outbound calls must state Who is calling, Why calling, and How to opt out in the first two sentences.
-3. OPT-OUT (DO NOT CALL): If a patient asks to stop receiving calls ("call band karo", "stop calling"), immediately respect their decision, confirm opt-out, and never call again.
-4. HEALTH ACCESS OUTBOUND USE CASES:
-   - Post-Triage Recovery Follow-up (checking fever/symptom recovery after PHC referral).
-   - Maternal & Child Immunization Reminders (Polio, DPT booster).
-   - Chronic Care Management (Blood Pressure & Diabetes weekly check-in).
+3. OPT-OUT (DO NOT CALL): If a patient asks to stop receiving calls ("call band karo", "stop calling"), immediately respect their decision and confirm DNC registry opt-out.
 
 DAY 5 DOMAIN TOOLS & HEALTH ACCESS LOOKUPS:
-1. NEAREST FACILITY LOOKUP (lookup_nearest_facility): Fetches nearest Primary Health Centre (PHC), Community Health Centre (CHC), or Government Hospital by district, including 108 helpline and operating hours. Always state data freshness date ("आज 11 अगस्त के अनुसार...").
-2. SYMPTOM-TO-TRIAGE CLASSIFIER (classify_symptom_triage): Computes triage level (Level 1 Red Emergency, Level 2 Yellow Urgent PHC Visit within 24h, Level 3 Green Home Care).
-
-DAY 4 CALLER MEMORY & RETURNING CALLER RULES:
-1. Greet returning callers by name and reference their previous symptom/triage continuity.
-2. HARD RULE - CONSENT BEFORE SAVING: Ask caller consent before storing facts.
-3. FORGET ME TOOL: Wipe memory when requested.
+1. NEAREST FACILITY LOOKUP (lookup_nearest_facility): Fetches nearest PHC/CHC/Hospital with freshness date.
+2. SYMPTOM-TO-TRIAGE CLASSIFIER (classify_symptom_triage): Computes triage level (Level 1 Red Emergency, Level 2 Yellow Urgent PHC Visit, Level 3 Green Home Care).
 
 GUARDRAILS (STRICT MEDICAL LIMITS):
-1. HARD REFUSAL - PRESCRIPTION DRUGS: NEVER name, recommend, or prescribe any prescription medication, antibiotics, steroids, or specific drug dosages.
+1. HARD REFUSAL - PRESCRIPTION DRUGS: NEVER prescribe any prescription medication, antibiotics, steroids, or specific drug dosages.
 2. HARD REFUSAL - CLINICAL DIAGNOSIS: NEVER state a definitive clinical diagnosis.
 3. NEVER-CLAIM: NEVER claim to be a licensed human doctor.
-4. RED-FLAG EMERGENCY ESCALATION: For severe chest pain, breathlessness, sudden paralysis, or heavy bleeding, immediately advise calling 108/112.
 
 STYLE & SPOKEN-FIRST TUNING:
 - Keep sentences under 15-18 words each for natural voice synthesis over Murf Falcon.
@@ -76,6 +79,7 @@ export interface HealthcareResponseResult {
   facilityData?: HealthFacility | null;
   triageData?: TriageClassificationResult | null;
   outboundCallData?: OutboundCallRecord | null;
+  escalationData?: EscalationTicket | null;
 }
 
 export async function generateHealthcareResponse(
@@ -85,17 +89,7 @@ export async function generateHealthcareResponse(
   callerName?: string,
   isCallStart?: boolean
 ): Promise<HealthcareResponseResult> {
-  // Check local guardrails first for instant refusal & red-flag safety
-  const guardrailCheck = checkGuardrailsLocally(userPrompt);
-  if (guardrailCheck) {
-    return {
-      response: formatSpeechText(guardrailCheck),
-      caller: userId ? getCaller(userId) : null,
-      functionCalled: null,
-    };
-  }
-
-  // Fast-path clinical intelligence, Day 5 Tools, Day 6 Outbound & caller memory
+  // Fast-path clinical intelligence, Day 5 Tools, Day 6 Outbound, Day 7 Human Escalation & Caller Memory
   return await getSimulatedHealthcareResponse(userPrompt, conversationHistory, userId, callerName, isCallStart);
 }
 
@@ -198,49 +192,141 @@ export async function getSimulatedHealthcareResponse(
   }
 
   // Fallback to conversation history name inference
-  const lastUserTurn = history.length > 0 ? history[history.length - 1].content.toLowerCase() : "";
-  const lastAssistantTurn = history.length > 1 ? history[history.length - 2].content.toLowerCase() : "";
+  // Filter role-based messages for exact turn tracking
+  const assistantMessages = history.filter(h => h.role === "assistant");
+  const lastAssistantTurn = assistantMessages.length > 0 
+    ? assistantMessages[assistantMessages.length - 1].content.toLowerCase() 
+    : "";
+
+  const userMessages = history.filter(h => h.role === "user");
+  const lastUserTurn = userMessages.length > 0 
+    ? userMessages[userMessages.length - 1].content.toLowerCase() 
+    : "";
+
   const knownNameInConvo = currentCaller?.name || callerName || "रमेश";
 
   // =========================================================================
-  // DAY 6: OUTBOUND CALL VOICE TRIGGER ("Mujhe call karo", "Call lagao", "Call me")
+  // DAY 7: STEP 4 - CALLER CONSENT RESPONSE FOR HUMAN DOCTOR ESCALATION
   // =========================================================================
-  const isMakeCallQuery = (
-    /\b(call me|call karo|call lagao|phone karo|phone lagao|outbound call|make a call|mujhe call karo|mujhe phone karo|follow up call|reminder call)\b/i.test(q) ||
-    q.includes("कॉल") || q.includes("फोन") || q.includes("call")
-  ) && (
-    q.includes("करो") || q.includes("लगाओ") || q.includes("karo") || q.includes("lagao") || 
-    q.includes("me") || q.includes("mujhe") || q.includes("outbound") || q.includes("follow") || 
-    q.includes("reminder") || q.includes("check") || q.includes("कॉल") || q.includes("फोन")
-  ) && !/\b(band|stop|mat|roko|opt out|dnc)\b/i.test(q) && !q.includes("बंद") && !q.includes("मत") && !q.includes("रोको");
+  const isPreviousTurnConsentAsk = (
+    lastAssistantTurn.includes("डॉक्टर") || lastAssistantTurn.includes("doctor") ||
+    lastAssistantTurn.includes("साझा") || lastAssistantTurn.includes("share") ||
+    lastAssistantTurn.includes("फॉरवर्ड") || lastAssistantTurn.includes("permission") ||
+    lastAssistantTurn.includes("consent") || lastAssistantTurn.includes("रेफर") ||
+    lastAssistantTurn.includes("अलर्ट")
+  );
 
-  if (isMakeCallQuery) {
-    let scenario: OutboundScenario = "post_triage_followup";
-    if (q.includes("vaccin") || q.includes("tika") || q.includes("polio") || q.includes("dpt") || q.includes("bacha") || q.includes("टीका") || q.includes("टीकाकरण") || q.includes("बच्चे")) {
-      scenario = "vaccination_reminder";
-    } else if (q.includes("bp") || q.includes("sugar") || q.includes("chronic") || q.includes("बीपी") || q.includes("शुगर") || q.includes("रक्तचाप")) {
-      scenario = "chronic_care_checkin";
-    }
+  const isAffirmativeConsent = (
+    /\b(yes|haan|ha|theek hai|bhej do|share karo|kar do|kar dijiye|okay|sure|please do|send it|forward it|alert doctor|doctor ko batao|refer kar dijiye|refer karo)\b/i.test(q) ||
+    q.includes("हाँ") || q.includes("ठीक है") || q.includes("भेज दो") || q.includes("साझा करो") || q.includes("बता दो") || q.includes("रेफर")
+  ) && !/\b(nahi|no|mat|not|don't)\b/i.test(q) && !q.includes("नहीं") && !q.includes("मत");
+
+  const isNegativeConsent = (
+    /\b(no|nahi|mat|don't|rehne do|cancel|stop|mat bhejo|share mat karo|no thanks|nahi mat bhejo)\b/i.test(q) ||
+    q.includes("नहीं") || q.includes("मत") || q.includes("रहने दो") || q.includes("मत भेजो")
+  );
+
+  if (isPreviousTurnConsentAsk && isAffirmativeConsent) {
+    // Detect reason and urgency from history
+    const combinedHistory = history.map(h => h.content.toLowerCase()).join(" ") + " " + q;
+    const isEmergency = combinedHistory.includes("chest pain") || combinedHistory.includes("दर्द") || 
+                        combinedHistory.includes("saans") || combinedHistory.includes("सांस") || 
+                        combinedHistory.includes("heart") || combinedHistory.includes("खून");
+
+    const reason: EscalationReason = isEmergency ? "red_flag_symptom" : "diagnosis_request";
+    const urgency: EscalationUrgency = isEmergency ? "emergency" : "high";
 
     const patientId = userId || currentCaller?.user_id || "user_ramesh";
-    const phone = currentCaller?.phone_number || "+91 7991912530";
+    const patientName = currentCaller?.name || callerName || "रमेश कुमार";
+    const phoneNumber = currentCaller?.phone_number || "+91 7991912530";
 
-    try {
-      const callRecord = await triggerOutboundCall(patientId, phone, scenario, userLang, "answered");
-      
-      const spokenConfirm = (userLang === "hi" || userLang === "hinglish")
-        ? `नमस्ते ${knownNameInConvo} जी! मैं आपके नंबर ${phone} पर अभी स्वास्थ्य फॉलो-अप कॉल लगा रहा हूँ। कृपया अपनी स्क्रीन पर आ रहे फोन को उठाएं।`
-        : `Namaste ${knownNameInConvo}! I am placing an outbound healthcare call to your number ${phone} right now. Please answer the incoming call on your screen.`;
+    const summaryText = isEmergency
+      ? `Emergency Red-Flag Escalation: Patient ${patientName} reported acute chest pain/breathing distress. Advised 108 Emergency Ambulance. Patient consented to share clinical details with duty medical officer.`
+      : `Clinical Consultation Request: Patient ${patientName} requested medical diagnosis and prescription guidance for persistent symptoms. Patient consented to PHC medical officer review.`;
 
-      return {
-        response: spokenConfirm,
-        caller: currentCaller,
-        functionCalled: "trigger_outbound_call",
-        outboundCallData: callRecord,
-      };
-    } catch (e: any) {
-      console.error("[Outbound Trigger Error]", e);
-    }
+    const { ticket } = createEscalationTicket({
+      patient_id: patientId,
+      patient_name: patientName,
+      phone_number: phoneNumber,
+      reason,
+      urgency,
+      summary: summaryText,
+      checked_items: [
+        "Symptom triage completed",
+        "Clinical escalation criteria met",
+        "Explicit caller consent recorded",
+        "Assigned to duty medical officer"
+      ],
+      caller_language: userLang,
+      preferred_followup: isEmergency ? "phone_call" : "phc_visit",
+      consent_given: true,
+      assigned_facility: "Shivpur Primary Health Centre (PHC)",
+    });
+
+    const reply = (userLang === "hi" || userLang === "hinglish")
+      ? `धन्यवाद! आपका रेफरेंस नंबर ${ticket.ticket_id} दर्ज कर लिया गया है। यह विवरण शिवपुर PHC के ड्यूटी डॉक्टर को भेज दिया गया है, जो अगले 30 से 60 मिनट में आपसे संपर्क करेंगे। यदि स्थिति गंभीर लगे, तो कृपया तुरंत 108 पर कॉल करें।`
+      : `Thank you! Your reference number ${ticket.ticket_id} has been created and escalated to the duty doctor at Shivpur PHC. They will contact you within 30 to 60 minutes. If symptoms worsen, please call emergency services 108 immediately.`;
+
+    return {
+      response: formatSpeechText(reply),
+      caller: currentCaller,
+      functionCalled: "create_escalation",
+      escalationData: ticket,
+    };
+  }
+
+  if (isPreviousTurnConsentAsk && isNegativeConsent) {
+    const reply = (userLang === "hi" || userLang === "hinglish")
+      ? "आपकी सहमति के बिना कोई जानकारी साझा नहीं की जाएगी। आप स्वयं सीधे शिवपुर PHC या आपातकाल में 108 पर संपर्क कर सकते हैं। अपना पूरा ध्यान रखें।"
+      : "Understood, no information will be shared without your consent. You can directly visit Shivpur PHC or call emergency 108 if needed. Take care.";
+
+    return {
+      response: formatSpeechText(reply),
+      caller: currentCaller,
+      functionCalled: "escalation_consent_declined",
+    };
+  }
+
+  // =========================================================================
+  // DAY 7: TRIGGER 1 - RED-FLAG EMERGENCY (Ask for Consent)
+  // =========================================================================
+  const isRedFlagQuery = (
+    /\b(chest pain|shortness of breath|can't breathe|difficulty breathing|stroke|paralysis|heart attack|collapsed|unconscious|heavy bleeding|bleeding heavily|severe injury)\b/i.test(q) ||
+    q.includes("सीने में दर्द") || q.includes("सीने में तेज दर्द") || q.includes("सांस लेने में तकलीफ") || 
+    q.includes("सांस फूल") || q.includes("खून बह रहा") || q.includes("हार्ट अटैक") || q.includes("बेहोश")
+  );
+
+  if (isRedFlagQuery) {
+    const reply = (userLang === "hi" || userLang === "hinglish")
+      ? "आपातकालीन चेतावनी! यह एक संभावित मेडिकल इमरजेंसी हो सकती है। कृपया तुरंत 108 पर कॉल करें। मैं आपकी सुरक्षा के लिए यह मेडिकल सारांश शिवपुर PHC के ड्यूटी डॉक्टर को अलर्ट के रूप में फॉरवर्ड करना चाहता हूँ। क्या मैं आपकी जानकारी उनके साथ साझा करूँ?"
+      : "Emergency Alert! This sounds like a potential medical emergency. Please call 108 immediately. For your safety, I want to forward this clinical summary to the duty doctor at Shivpur PHC. Do I have your permission to share your details with the doctor?";
+
+    return {
+      response: formatSpeechText(reply),
+      caller: currentCaller,
+      functionCalled: "request_escalation_consent",
+    };
+  }
+
+  // =========================================================================
+  // DAY 7: TRIGGER 2 - COMPLEX DIAGNOSIS & PRESCRIPTION MEDICINE REQUEST (Ask for Consent)
+  // =========================================================================
+  const isDiagnosisOrPrescriptionQuery = (
+    /\b(diagnose|diagnosis|prescribe|amoxicillin|azithromycin|antibiotic|steroid|prescription medicine|exact dosage|strong tablet|kaun si bimari|kya bimari hai|dawa likh do|dawa batao|goli batao|antibioti)\b/i.test(q) ||
+    q.includes("बीमारी बताओ") || q.includes("कौन सी बीमारी") || q.includes("दवा का नाम") || 
+    q.includes("एंटीबायोटिक") || q.includes("दवा लिखो") || q.includes("गोली बताओ") || q.includes("दवा बताओ")
+  );
+
+  if (isDiagnosisOrPrescriptionQuery) {
+    const reply = (userLang === "hi" || userLang === "hinglish")
+      ? "एक एआई के रूप में मैं कोई पक्का निदान या दवा नहीं लिख सकता। सही उपचार के लिए मैं आपका यह केस शिवपुर PHC के डॉक्टर को रेफर करना चाहता हूँ ताकि वे आपकी जांच कर सकें। क्या मैं आपकी जानकारी डॉक्टर के साथ साझा करूँ?"
+      : "As an AI, I cannot provide a definitive diagnosis or prescribe medications. I can forward your case summary to the doctor at Shivpur PHC so they can consult you. Do I have your permission to share your details?";
+
+    return {
+      response: formatSpeechText(reply),
+      caller: currentCaller,
+      functionCalled: "request_escalation_consent",
+    };
   }
 
   // =========================================================================

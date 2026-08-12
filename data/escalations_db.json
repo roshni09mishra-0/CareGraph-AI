@@ -1,0 +1,55 @@
+[
+  {
+    "ticket_id": "ESC-2026-1042",
+    "patient_id": "user_ramesh",
+    "patient_name": "रमेश कुमार",
+    "phone_number": "+91 7991912530",
+    "masked_phone": "+91 79919 •••••",
+    "reason": "red_flag_symptom",
+    "urgency": "emergency",
+    "summary": "Patient reported acute radiating chest pain towards left arm with cold sweats for past 45 minutes. Advised immediate 108 ambulance dispatch and resting in comfortable position. | Update (9:17:55 am): Emergency Red-Flag Escalation: Patient रमेश कुमार reported acute chest pain/breathing distress. Advised 108 Emergency Ambulance. Patient consented to share clinical details with duty medical officer. | Update (9:24:59 am): Emergency Red-Flag Escalation: Patient रमेश कुमार reported acute chest pain/breathing distress. Advised 108 Emergency Ambulance. Patient consented to share clinical details with duty medical officer.",
+    "checked_items": [
+      "Checked onset time (45 mins ago)",
+      "Checked pain radiation (left arm)",
+      "Advised 108 Emergency Ambulance",
+      "Confirmed patient consent to alert duty doctor",
+      "Symptom triage completed",
+      "Clinical escalation criteria met",
+      "Explicit caller consent recorded",
+      "Assigned to duty medical officer"
+    ],
+    "caller_language": "hi",
+    "preferred_followup": "phone_call",
+    "consent_given": true,
+    "assigned_facility": "Shivpur Primary Health Centre (PHC)",
+    "status": "open",
+    "created_at": "2026-08-12T03:18:34.509Z"
+  },
+  {
+    "ticket_id": "ESC-2026-0985",
+    "patient_id": "user_priya",
+    "patient_name": "प्रिया देवी",
+    "phone_number": "+91 7991912530",
+    "masked_phone": "+91 79919 •••••",
+    "reason": "diagnosis_request",
+    "urgency": "medium",
+    "summary": "Patient asking for prescription medication and definitive diagnosis for persistent joint swelling and skin rash lasting 6 days. | Update (9:17:56 am): Clinical Consultation Request: Patient प्रिया देवी requested medical diagnosis and prescription guidance for persistent symptoms. Patient consented to PHC medical officer review. | Update (9:24:59 am): Clinical Consultation Request: Patient प्रिया देवी requested medical diagnosis and prescription guidance for persistent symptoms. Patient consented to PHC medical officer review.",
+    "checked_items": [
+      "Checked symptom duration (6 days)",
+      "Verified lack of red-flag breathing distress",
+      "Explained AI non-diagnostic scope",
+      "Scheduled PHC medical officer review",
+      "Symptom triage completed",
+      "Clinical escalation criteria met",
+      "Explicit caller consent recorded",
+      "Assigned to duty medical officer"
+    ],
+    "caller_language": "hi",
+    "preferred_followup": "phc_visit",
+    "consent_given": true,
+    "assigned_facility": "Shivpur Primary Health Centre (PHC)",
+    "status": "in_progress",
+    "created_at": "2026-08-12T02:13:34.509Z",
+    "doctor_notes": "Dr. Sharma assigned - Scheduled for 11:30 AM PHC outpatient visit."
+  }
+]

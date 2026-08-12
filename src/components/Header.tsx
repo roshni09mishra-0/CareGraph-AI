@@ -1,15 +1,33 @@
 "use client";
 
-import { useState } from "react";
-import { Activity, ShieldAlert, Settings, Radio, Sparkles, PhoneCall, HeartPulse, Stethoscope } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Activity, ShieldAlert, Settings, Radio, Sparkles, PhoneCall, HeartPulse, Stethoscope, ClipboardList } from "lucide-react";
+import Link from "next/link";
 
 interface HeaderProps {
   onOpenSetup: () => void;
+  onOpenEscalations?: () => void;
   isLiveKitConnected?: boolean;
 }
 
-export default function Header({ onOpenSetup, isLiveKitConnected = false }: HeaderProps) {
+export default function Header({ onOpenSetup, onOpenEscalations, isLiveKitConnected = false }: HeaderProps) {
   const [showSosModal, setShowSosModal] = useState(false);
+  const [openTicketsCount, setOpenTicketsCount] = useState<number>(0);
+
+  useEffect(() => {
+    const fetchCounts = async () => {
+      try {
+        const res = await fetch("/api/escalation");
+        const data = await res.json();
+        if (data.success && data.counts) {
+          setOpenTicketsCount(data.counts.open || 0);
+        }
+      } catch (e) {}
+    };
+    fetchCounts();
+    const interval = setInterval(fetchCounts, 15000);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <header className="sticky top-0 z-40 w-full glass-panel border-b border-teal-100/90 px-4 lg:px-8 py-3.5 transition-all bg-white/90 shadow-sm">
@@ -43,21 +61,21 @@ export default function Header({ onOpenSetup, isLiveKitConnected = false }: Head
         {/* Live Status Indicators & Actions */}
         <div className="flex items-center gap-2.5">
           
-          {/* LiveKit Connection Badge */}
-          <div className={`hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold border ${
-            isLiveKitConnected 
-              ? "bg-emerald-50 text-emerald-800 border-emerald-300 shadow-sm" 
-              : "bg-slate-100 text-slate-700 border-slate-200"
-          }`}>
-            <Radio className={`w-3.5 h-3.5 ${isLiveKitConnected ? "text-emerald-600 animate-pulse" : "text-slate-400"}`} />
-            <span>{isLiveKitConnected ? "LiveKit WebRTC: Active" : "LiveKit Ready"}</span>
-          </div>
-
-          {/* Murf Falcon Voice Badge */}
-          <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-teal-50 text-teal-800 border border-teal-200">
-            <Sparkles className="w-3.5 h-3.5 text-teal-600" />
-            <span>Murf Falcon Voice</span>
-          </div>
+          {/* Day 7 Doctor Escalations Dashboard Button */}
+          <button
+            onClick={onOpenEscalations}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-gradient-to-r from-teal-50 to-emerald-50 hover:from-teal-100 hover:to-emerald-100 text-teal-900 border-2 border-teal-400/80 shadow-sm transition active:scale-95 relative"
+            title="Open Doctor Escalation Dashboard"
+          >
+            <ClipboardList className="w-4 h-4 text-teal-700" />
+            <span className="hidden md:inline">डॉक्टर एस्केलेशन (Day 7)</span>
+            <span className="md:hidden">Day 7</span>
+            {openTicketsCount > 0 && (
+              <span className="px-1.5 py-0.2 rounded-full bg-rose-600 text-white font-mono font-extrabold text-[10px] animate-pulse">
+                {openTicketsCount}
+              </span>
+            )}
+          </button>
 
           {/* Emergency SOS Disclaimer Trigger */}
           <button
@@ -83,43 +101,46 @@ export default function Header({ onOpenSetup, isLiveKitConnected = false }: Head
       {/* Emergency SOS Modal */}
       {showSosModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
-          <div className="bg-white border border-rose-200 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl space-y-4">
-            <div className="flex items-center gap-3 text-rose-600">
-              <ShieldAlert className="w-9 h-9 stroke-[2.5]" />
-              <div>
-                <h3 className="text-lg font-extrabold text-slate-900">आपातकालीन सहायता (Emergency SOS)</h3>
-                <p className="text-xs text-rose-700 font-semibold">India Emergency Response Protocol</p>
+          <div className="w-full max-w-md rounded-3xl bg-white border border-rose-200 p-6 shadow-2xl space-y-4 text-slate-800">
+            <div className="flex items-center justify-between border-b border-rose-100 pb-3">
+              <div className="flex items-center gap-2 text-rose-600 font-bold">
+                <ShieldAlert className="w-6 h-6" />
+                <span className="text-base sm:text-lg">Emergency Medical Protocol (108)</span>
               </div>
+              <button 
+                onClick={() => setShowSosModal(false)}
+                className="text-slate-400 hover:text-slate-600 text-sm font-bold p-1"
+              >
+                ✕
+              </button>
             </div>
-            
-            <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
-              SwasthyaSathi AI is an automated AI voice assistant for health guidance and symptom awareness. It does not replace certified clinical emergency care.
-            </p>
-            
-            <div className="p-3.5 bg-rose-50 rounded-2xl border border-rose-200 text-xs text-rose-900 space-y-1.5">
-              <p className="font-bold text-rose-800">यदि आप गंभीर लक्षण महसूस कर रहे हैं (Red Flags):</p>
-              <ul className="list-disc pl-4 space-y-0.5 text-rose-900 font-medium">
-                <li>तीव्र सीने में दर्द (Severe Chest Pain / Heart)</li>
-                <li>सांस लेने में अत्यधिक कठिनाई (Severe Breathlessness)</li>
-                <li>अचानक पक्षाघात या कमजोरी (Stroke / Paralysis)</li>
+
+            <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-900 text-xs space-y-2 leading-relaxed">
+              <p className="font-extrabold text-rose-800 uppercase tracking-wide">
+                ⚠️ जब तुरंत आपातकालीन मदद चाहिए (Red Flag Symptoms):
+              </p>
+              <ul className="list-disc list-inside space-y-1 font-medium">
+                <li>सीने में तेज दर्द या दबाव (Severe Chest Pain)</li>
+                <li>सांस लेने में भारी तकलीफ (Acute Shortness of Breath)</li>
+                <li>अचानक बेहोशी या लकवा (Sudden Collapse / Stroke signs)</li>
                 <li>अत्यधिक रक्तस्राव (Severe Uncontrolled Bleeding)</li>
               </ul>
             </div>
 
-            <div className="pt-2 flex flex-col gap-2">
+            <div className="space-y-2 pt-1">
               <a
                 href="tel:108"
-                className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-sm shadow-lg shadow-rose-600/30 transition transform active:scale-95"
+                className="w-full flex items-center justify-center gap-2 p-3.5 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-sm shadow-lg shadow-rose-600/30 transition"
               >
                 <PhoneCall className="w-4 h-4" />
-                <span>Call Ambulance 108</span>
+                <span>कॉल करें 108 (राष्ट्रीय एम्बुलेंस सेवा)</span>
               </a>
-              <button
-                onClick={() => setShowSosModal(false)}
-                className="w-full py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 transition"
+              <a
+                href="tel:112"
+                className="w-full flex items-center justify-center gap-2 p-3 rounded-2xl bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs transition"
               >
-                Close Emergency Notice
-              </button>
+                <span>कॉल करें 112 (राष्ट्रीय आपातकालीन हेल्पलाइन)</span>
+              </a>
             </div>
           </div>
         </div>

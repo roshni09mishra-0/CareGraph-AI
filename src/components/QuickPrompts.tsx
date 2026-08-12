@@ -1,6 +1,6 @@
 "use client";
 
-import { Sparkles, Thermometer, Coffee, Salad, Bandage, Moon, HelpCircle, PhoneCall, Activity, Hospital } from "lucide-react";
+import { Sparkles, Thermometer, Coffee, Salad, Bandage, Moon, HelpCircle, PhoneCall, Activity, Hospital, AlertTriangle, Stethoscope, CheckCircle2 } from "lucide-react";
 
 interface QuickPromptsProps {
   onSelectPrompt: (promptText: string) => void;
@@ -11,57 +11,57 @@ interface QuickPromptsProps {
 export default function QuickPrompts({ onSelectPrompt, disabled = false, language = "en" }: QuickPromptsProps) {
   const englishPrompts = [
     {
+      icon: <AlertTriangle className="w-3.5 h-3.5 text-rose-600 animate-pulse" />,
+      text: "I have severe radiating chest pain and shortness of breath",
+      tag: "🚨 Day 7 Red-Flag",
+    },
+    {
+      icon: <Stethoscope className="w-3.5 h-3.5 text-amber-600" />,
+      text: "What exact disease do I have? Can you prescribe antibiotic pills?",
+      tag: "💊 Day 7 Diagnosis Request",
+    },
+    {
+      icon: <CheckCircle2 className="w-3.5 h-3.5 text-teal-600" />,
+      text: "I have a mild headache since yesterday, what home care helps?",
+      tag: "🌿 Routine Non-Escalation",
+    },
+    {
       icon: <PhoneCall className="w-3.5 h-3.5 text-emerald-700" />,
       text: "Call me for a health follow-up check",
       tag: "📞 Outbound Call",
-    },
-    {
-      icon: <HelpCircle className="w-3.5 h-3.5 text-teal-700" />,
-      text: "What is my patient name and previous record?",
-      tag: "👤 Memory Check",
     },
     {
       icon: <Hospital className="w-3.5 h-3.5 text-cyan-700" />,
       text: "Where is the nearest Primary Health Centre PHC?",
       tag: "🏥 PHC Lookup",
     },
-    {
-      icon: <Sparkles className="w-3.5 h-3.5 text-cyan-700" />,
-      text: "Mujhe do din se thoda bukhar aur gala kharab hai, kya karu?",
-      tag: "🇮🇳 Hinglish Triage",
-    },
-    {
-      icon: <Bandage className="w-3.5 h-3.5 text-rose-700" />,
-      text: "Can you prescribe me Amoxicillin 500mg?",
-      tag: "🛡️ Safety Guardrail",
-    },
   ];
 
   const hindiPrompts = [
+    {
+      icon: <AlertTriangle className="w-3.5 h-3.5 text-rose-600 animate-pulse" />,
+      text: "मुझे सीने में तेज दर्द हो रहा है और सांस फूल रही है",
+      tag: "🚨 Day 7 इमरजेंसी डॉक्टर अलर्ट",
+    },
+    {
+      icon: <Stethoscope className="w-3.5 h-3.5 text-amber-600" />,
+      text: "मुझे कौन सी बीमारी है? मुझे एंटीबायोटिक दवाई लिख दो",
+      tag: "💊 Day 7 डॉक्टर रेफरल रिक्वेस्ट",
+    },
+    {
+      icon: <CheckCircle2 className="w-3.5 h-3.5 text-teal-600" />,
+      text: "मुझे कल से हल्का सिरदर्द है, घरेलू देखभाल बताएं",
+      tag: "🌿 सामान्य परामर्श (No Escalation)",
+    },
     {
       icon: <PhoneCall className="w-3.5 h-3.5 text-emerald-700" />,
       text: "मुझे फॉलो-अप स्वास्थ्य कॉल लगाओ",
       tag: "📞 आउटबाउंड कॉल",
     },
     {
-      icon: <Activity className="w-3.5 h-3.5 text-teal-700" />,
-      text: "मुझे बच्चे के टीकाकरण का रिमाइंडर कॉल करो",
-      tag: "💉 टीकाकरण कॉल",
-    },
-    {
       icon: <Hospital className="w-3.5 h-3.5 text-cyan-700" />,
       text: "वाराणसी में नजदीकी प्राथमिक स्वास्थ्य केंद्र PHC बताओ",
       tag: "🏥 PHC खोज",
-    },
-    {
-      icon: <HelpCircle className="w-3.5 h-3.5 text-teal-700" />,
-      text: "मेरा नाम क्या है और मेरी पिछली बीमारी का रिकॉर्ड क्या है?",
-      tag: "👤 नाम व मेमोरी",
-    },
-    {
-      icon: <Thermometer className="w-3.5 h-3.5 text-amber-700" />,
-      text: "मुझे 3 दिन से तेज बुखार है, क्या मुझे अस्पताल जाना चाहिए?",
-      tag: "🚨 ट्राइएज वर्गीकरण",
     },
   ];
 
@@ -70,7 +70,7 @@ export default function QuickPrompts({ onSelectPrompt, disabled = false, languag
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between text-xs font-semibold text-slate-500">
-        <span>Suggested Queries:</span>
+        <span>Suggested Queries (Day 7 Human Help & Voice Testing):</span>
         <span className="text-[10px] text-teal-700 font-bold bg-teal-50 px-2 py-0.5 rounded-full border border-teal-100">
           Click any prompt to speak
         </span>
