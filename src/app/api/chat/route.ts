@@ -22,6 +22,17 @@ export async function POST(req: NextRequest) {
       isCallStart
     );
 
+    // Multi-Device Sync: If an outbound call was triggered, broadcast it
+    if (typeof aiResult === "object" && aiResult.outboundCallData) {
+      try {
+        await fetch(`http://localhost:3000/api/telephony/active-call`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ call: aiResult.outboundCallData }),
+        });
+      } catch (e) {}
+    }
+
     return NextResponse.json({
       response: typeof aiResult === "string" ? aiResult : aiResult.response,
       caller: typeof aiResult === "object" ? aiResult.caller : null,

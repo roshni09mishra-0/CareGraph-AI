@@ -9,20 +9,21 @@ export const dynamic = "force-dynamic";
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { patientId, phoneNumber, scenario, language, simulateOutcome } = body;
+    const { patientId, phoneNumber, scenario, language, simulateOutcome, provider } = body;
 
     const targetPatient = patientId || "user_ramesh";
-    const targetPhone = phoneNumber || "+91 98765 43210";
+    const targetPhone = phoneNumber || "+91 7991912530";
     const targetScenario: OutboundScenario = scenario || "post_triage_followup";
     const lang = (language as "hi" | "en" | "hinglish") || "hi";
 
-    // 1. Trigger Outbound Call in Telephony Engine
+    // 1. Trigger Outbound Call in Telephony Engine (Linphone SIP / WebRTC)
     const callRecord = await triggerOutboundCall(
       targetPatient,
       targetPhone,
       targetScenario,
       lang,
-      simulateOutcome as CallOutcome
+      simulateOutcome as CallOutcome,
+      provider || "linphone"
     );
 
     // 2. Synthesize 3-Part Opening Audio with Murf Falcon
@@ -36,6 +37,15 @@ export async function POST(req: NextRequest) {
     } catch (e) {
       console.warn("[Outbound Murf Warning] Murf audio generation deferred to client:", e);
     }
+
+    // 3. Broadcast to multi-device sync
+    try {
+      await fetch(`http://localhost:3000/api/telephony/active-call`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ call: callRecord }),
+      });
+    } catch (e) {}
 
     return NextResponse.json({
       success: true,
@@ -58,8 +68,8 @@ export async function GET() {
     logs: OUTBOUND_CALL_LOGS,
     scenarios: [
       { id: "post_triage_followup", name: "Post-Triage Fever Follow-up (3-Day Recovery Check)" },
-      { id: "vaccination_reminder", name: "Maternal & Child Vaccination Reminder (Polio/DPT)" },
-      { id: "chronic_care_checkin", name: "Ayushman Bharat Chronic Care (BP/Diabetes Check)" },
+      { id: "vaccination_reminder", name: "Child Immunization Reminder (Polio & DPT Booster)" },
+      { id: "chronic_care_checkin", name: "Chronic Care (Hypertension & Diabetes Weekly Review)" },
     ],
   });
 }
