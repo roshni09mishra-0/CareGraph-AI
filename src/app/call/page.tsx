@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { Phone, PhoneCall, PhoneOff, Mic, Volume2, Sparkles, Activity, ShieldCheck, Clock, CheckCircle2, User, VolumeX } from "lucide-react";
+import { Phone, PhoneCall, PhoneOff, Mic, Volume2, Sparkles, Activity, ShieldCheck, Clock, CheckCircle2, User, VolumeX, MicOff } from "lucide-react";
 
 export default function DirectMobileCallPage() {
   const [callState, setCallState] = useState<"idle" | "ringing" | "connected" | "ended">("ringing");
@@ -14,7 +14,6 @@ export default function DirectMobileCallPage() {
   const [isSpeaking, setIsSpeaking] = useState<boolean>(false);
   const [isListening, setIsListening] = useState<boolean>(false);
   const [callDuration, setCallDuration] = useState<number>(0);
-  const [language, setLanguage] = useState<"hi" | "en">("hi");
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const recognitionRef = useRef<any>(null);
@@ -31,7 +30,6 @@ export default function DirectMobileCallPage() {
           setMaskedPhone(data.call.phone_number?.replace(/\d{5}$/, "•••••") || "+91 79919 •••••");
           setOpeningText(data.call.opening_text || openingText);
           setCallState("ringing");
-          // Play ringtone if not playing
           if (audioRef.current && audioRef.current.paused) {
             audioRef.current.play().catch(() => {});
           }
@@ -39,7 +37,7 @@ export default function DirectMobileCallPage() {
       } catch (e) {}
     };
 
-    const interval = setInterval(checkActiveCall, 1200);
+    const interval = setInterval(checkActiveCall, 1000);
     return () => clearInterval(interval);
   }, [callState, openingText]);
 
@@ -64,17 +62,14 @@ export default function DirectMobileCallPage() {
     setAssistantText(openingText);
     setIsSpeaking(true);
 
-    // Clear active call on server
     try {
       fetch("/api/telephony/active-call", { method: "DELETE" }).catch(() => {});
     } catch (e) {}
 
-    // Start timer
     timerRef.current = setInterval(() => {
       setCallDuration((prev) => prev + 1);
     }, 1000);
 
-    // Speak Opening with Murf TTS / WebSpeech
     speakTTS(openingText, () => {
       setIsSpeaking(false);
       startSpeechRecognition();
@@ -105,7 +100,6 @@ export default function DirectMobileCallPage() {
       }
     } catch (e) {}
 
-    // Fallback WebSpeech
     if (typeof window !== "undefined" && "speechSynthesis" in window) {
       window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(text);
@@ -209,7 +203,7 @@ export default function DirectMobileCallPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white flex flex-col justify-between p-6 max-w-md mx-auto font-sans select-none relative overflow-hidden">
+    <div className="min-h-screen bg-slate-950 text-white flex flex-col justify-between p-5 max-w-md mx-auto font-sans select-none relative overflow-hidden">
       
       {/* Top Header */}
       <div className="flex items-center justify-between border-b border-slate-800 pb-3 z-10">
@@ -219,7 +213,7 @@ export default function DirectMobileCallPage() {
           </div>
           <div>
             <h1 className="text-sm font-extrabold text-white">SwasthyaSathi AI</h1>
-            <span className="text-[10px] text-teal-400 font-bold">#VoiceForBharat Direct Mobile Call</span>
+            <span className="text-[10px] text-teal-400 font-bold">#VoiceForBharat Direct Phone Call</span>
           </div>
         </div>
 
@@ -232,7 +226,7 @@ export default function DirectMobileCallPage() {
       </div>
 
       {/* Main Calling Display */}
-      <div className="flex-1 flex flex-col items-center justify-center my-6 space-y-6 text-center z-10">
+      <div className="flex-1 flex flex-col items-center justify-center my-4 space-y-5 text-center z-10">
         
         {/* Caller Avatar */}
         <div className="relative flex items-center justify-center">
@@ -242,80 +236,101 @@ export default function DirectMobileCallPage() {
           {isSpeaking && (
             <div className="w-36 h-36 rounded-full bg-teal-500/30 animate-pulse absolute" />
           )}
-          <div className={`w-28 h-28 rounded-3xl flex items-center justify-center shadow-2xl transition duration-500 ${
+          <div className={`w-24 h-24 rounded-3xl flex items-center justify-center shadow-2xl transition duration-500 ${
             callState === "ringing" ? "bg-gradient-to-tr from-emerald-600 to-teal-500 ring-4 ring-emerald-400/50 animate-bounce" :
             callState === "connected" ? "bg-gradient-to-tr from-teal-600 to-slate-800 ring-2 ring-teal-400/40" :
             "bg-slate-800 opacity-60"
           }`}>
             {callState === "connected" ? (
-              <Sparkles className="w-12 h-12 text-teal-300" />
+              <Sparkles className="w-10 h-10 text-teal-300" />
             ) : (
-              <PhoneCall className="w-12 h-12 text-white" />
+              <PhoneCall className="w-10 h-10 text-white" />
             )}
           </div>
         </div>
 
         {/* Patient / Target Caller Info */}
-        <div className="space-y-1.5">
-          <span className="text-[10px] font-bold px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 uppercase tracking-wider">
+        <div className="space-y-1">
+          <span className="text-[10px] font-bold px-3 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 uppercase tracking-wider">
             {callState === "ringing" ? "📞 Incoming Health Call..." :
              callState === "connected" ? `🟢 In Call • ${formatTime(callDuration)}` :
              "Call Ended"}
           </span>
 
-          <h2 className="text-2xl font-extrabold text-white">
+          <h2 className="text-xl font-extrabold text-white">
             {patientName}
           </h2>
 
           <p className="text-xs text-slate-400 font-mono">
-            {maskedPhone} • Shivpur PHC Outbound
+            {maskedPhone} • Shivpur PHC
           </p>
         </div>
 
         {/* Assistant Spoken / Transcript Box */}
         {callState === "connected" && (
-          <div className="w-full p-4 rounded-2xl bg-slate-900/90 border border-slate-800 text-left space-y-2">
+          <div className="w-full p-4 rounded-2xl bg-slate-900/95 border border-slate-800 text-left space-y-2">
             <div className="flex items-center justify-between text-[11px]">
               <span className="text-teal-400 font-bold flex items-center gap-1">
                 <Sparkles className="w-3 h-3" />
-                SwasthyaSathi Voice:
+                SwasthyaSathi AI Voice:
               </span>
-              <span className="text-slate-500">{isSpeaking ? "Speaking..." : isListening ? "Listening to you..." : "Ready"}</span>
+              <span className="text-xs font-bold text-emerald-400">
+                {isSpeaking ? "🔊 बोल रहा है..." : isListening ? "🎙️ सुन रहा है (बोलिए)..." : "तैयार"}
+              </span>
             </div>
 
             <p className="text-xs text-slate-200 leading-relaxed font-medium">
-              {assistantText || "Connecting audio..."}
+              {assistantText || "नमस्ते! क्या आज आपकी तबियत में सुधार है?"}
             </p>
 
             {userTranscript && (
               <div className="pt-2 border-t border-slate-800 text-xs text-teal-300 font-medium">
-                <span className="text-[10px] text-slate-500 block">Your Speech:</span>
+                <span className="text-[10px] text-slate-500 block">आपकी आवाज़ (You Said):</span>
                 "{userTranscript}"
               </div>
+            )}
+
+            {/* Tap to Speak Helper Button */}
+            {!isSpeaking && (
+              <button
+                onClick={() => {
+                  if (recognitionRef.current) {
+                    try { recognitionRef.current.start(); } catch(e) {}
+                  } else {
+                    startSpeechRecognition();
+                  }
+                }}
+                className={`w-full mt-2 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition ${
+                  isListening 
+                    ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 animate-pulse" 
+                    : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+                }`}
+              >
+                <Mic className="w-3.5 h-3.5" />
+                <span>{isListening ? "🎙️ माइक चालू है (बोलिए...)" : "🎤 बोलने के लिए दबाएं (Tap to Speak)"}</span>
+              </button>
             )}
           </div>
         )}
 
         {/* Action Controls */}
-        <div className="w-full space-y-3 pt-4">
+        <div className="w-full space-y-2.5 pt-2">
           {callState === "ringing" && (
-            <div className="space-y-3">
-              <button
-                onClick={handleAnswerCall}
-                className="w-full p-4 rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-500 text-white font-extrabold text-lg flex items-center justify-center gap-3 shadow-2xl shadow-emerald-600/40 active:scale-95 transition"
-              >
-                <Phone className="w-6 h-6 animate-bounce" />
-                <span>कॉल उठाएं (Answer Call)</span>
-              </button>
-            </div>
+            <button
+              onClick={handleAnswerCall}
+              className="w-full p-4 rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-500 text-white font-extrabold text-base flex items-center justify-center gap-3 shadow-2xl shadow-emerald-600/40 active:scale-95 transition"
+            >
+              <Phone className="w-6 h-6 animate-bounce" />
+              <span>कॉल उठाएं (Answer Call)</span>
+            </button>
           )}
 
           {callState === "connected" && (
             <button
               onClick={handleEndCall}
-              className="w-full p-3.5 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-rose-600/30 active:scale-95 transition"
+              className="w-full p-3 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-rose-600/30 active:scale-95 transition"
             >
-              <PhoneOff className="w-5 h-5" />
+              <PhoneOff className="w-4 h-4" />
               <span>कॉल समाप्त करें (End Call)</span>
             </button>
           )}
@@ -327,7 +342,7 @@ export default function DirectMobileCallPage() {
                 setCallDuration(0);
                 if (audioRef.current) audioRef.current.play().catch(() => {});
               }}
-              className="w-full p-3.5 rounded-2xl bg-teal-700 hover:bg-teal-600 text-white font-bold text-sm flex items-center justify-center gap-2 transition"
+              className="w-full p-3 rounded-xl bg-teal-700 hover:bg-teal-600 text-white font-bold text-xs flex items-center justify-center gap-2 transition"
             >
               <PhoneCall className="w-4 h-4" />
               <span>दोबारा कॉल लगाएं (Call Again)</span>
@@ -338,8 +353,8 @@ export default function DirectMobileCallPage() {
       </div>
 
       {/* Footer */}
-      <footer className="text-center text-[10.5px] text-slate-500 border-t border-slate-900 pt-3 z-10">
-        Murf Falcon 2 Fast Voice • Real-Time Mobile Sync
+      <footer className="text-center text-[10px] text-slate-500 border-t border-slate-900 pt-2 z-10">
+        Murf Falcon 2 + Deepgram STT • Direct Phone Call
       </footer>
 
     </div>
