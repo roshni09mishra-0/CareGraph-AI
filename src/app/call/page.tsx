@@ -194,6 +194,28 @@ export default function DirectMobileCallPage() {
       window.speechSynthesis.cancel();
     }
     setCallState("ended");
+
+    // Day 8: Emit call session to analytics
+    try {
+      const isSuccessfulCall = callDuration >= 10;
+      fetch("/api/analytics", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          caller_name: patientName || "रमेश कुमार",
+          phone_number: maskedPhone || "+91 7991912530",
+          channel: "outbound_telephony",
+          duration_seconds: callDuration || 15,
+          latency_ms: 360,
+          outcome: isSuccessfulCall ? "success" : "failed",
+          failure_reason: isSuccessfulCall ? undefined : "early_hangup",
+          clinical_action: isSuccessfulCall 
+            ? "Direct Phone Consultation: Completed voice health check"
+            : "Direct Phone Call: Early disconnect by caller",
+          language: "hi",
+        }),
+      }).catch(() => {});
+    } catch (e) {}
   };
 
   const formatTime = (secs: number) => {

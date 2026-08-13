@@ -1,31 +1,41 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Activity, ShieldAlert, Settings, Radio, Sparkles, PhoneCall, HeartPulse, Stethoscope, ClipboardList } from "lucide-react";
+import { Activity, ShieldAlert, Settings, Radio, Sparkles, PhoneCall, HeartPulse, Stethoscope, ClipboardList, BarChart3 } from "lucide-react";
 import Link from "next/link";
 
 interface HeaderProps {
   onOpenSetup: () => void;
   onOpenEscalations?: () => void;
+  onOpenAnalytics?: () => void;
   isLiveKitConnected?: boolean;
 }
 
-export default function Header({ onOpenSetup, onOpenEscalations, isLiveKitConnected = false }: HeaderProps) {
+export default function Header({ onOpenSetup, onOpenEscalations, onOpenAnalytics, isLiveKitConnected = false }: HeaderProps) {
   const [showSosModal, setShowSosModal] = useState(false);
   const [openTicketsCount, setOpenTicketsCount] = useState<number>(0);
+  const [successRate, setSuccessRate] = useState<number | null>(null);
 
   useEffect(() => {
     const fetchCounts = async () => {
       try {
-        const res = await fetch("/api/escalation");
-        const data = await res.json();
-        if (data.success && data.counts) {
-          setOpenTicketsCount(data.counts.open || 0);
+        const [escRes, analRes] = await Promise.all([
+          fetch("/api/escalation"),
+          fetch("/api/analytics")
+        ]);
+        const escData = await escRes.json();
+        const analData = await analRes.json();
+
+        if (escData.success && escData.counts) {
+          setOpenTicketsCount(escData.counts.open || 0);
+        }
+        if (analData.success && analData.summary) {
+          setSuccessRate(analData.summary.successRate);
         }
       } catch (e) {}
     };
     fetchCounts();
-    const interval = setInterval(fetchCounts, 15000);
+    const interval = setInterval(fetchCounts, 12000);
     return () => clearInterval(interval);
   }, []);
 
@@ -59,8 +69,24 @@ export default function Header({ onOpenSetup, onOpenEscalations, isLiveKitConnec
         </div>
 
         {/* Live Status Indicators & Actions */}
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2">
           
+          {/* Day 8 Call Analytics Dashboard Button */}
+          <button
+            onClick={onOpenAnalytics}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 text-indigo-950 border-2 border-indigo-300 shadow-sm transition active:scale-95"
+            title="Open Day 8 Call Analytics Dashboard"
+          >
+            <BarChart3 className="w-4 h-4 text-indigo-700" />
+            <span className="hidden md:inline">एनालिटिक्स (Day 8)</span>
+            <span className="md:hidden">Day 8</span>
+            {successRate !== null && (
+              <span className="px-1.5 py-0.2 rounded-full bg-emerald-600 text-white font-mono font-extrabold text-[10px]">
+                {successRate}%
+              </span>
+            )}
+          </button>
+
           {/* Day 7 Doctor Escalations Dashboard Button */}
           <button
             onClick={onOpenEscalations}
@@ -84,13 +110,13 @@ export default function Header({ onOpenSetup, onOpenEscalations, isLiveKitConnec
             title="Emergency Medical Protocol"
           >
             <ShieldAlert className="w-4 h-4 text-rose-600 animate-pulse" />
-            <span>SOS 108/112</span>
+            <span>SOS 108</span>
           </button>
 
           {/* Setup Instructions Button */}
           <button
             onClick={onOpenSetup}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-teal-700 hover:bg-teal-800 text-white shadow-md shadow-teal-800/15 transition transform active:scale-95"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-teal-700 hover:bg-teal-800 text-white shadow-md shadow-teal-800/15 transition transform active:scale-95"
           >
             <Settings className="w-4 h-4" />
             <span className="hidden sm:inline">Settings</span>
@@ -98,49 +124,39 @@ export default function Header({ onOpenSetup, onOpenEscalations, isLiveKitConnec
         </div>
       </div>
 
-      {/* Emergency SOS Modal */}
+      {/* Emergency Protocol Dialog */}
       {showSosModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
-          <div className="w-full max-w-md rounded-3xl bg-white border border-rose-200 p-6 shadow-2xl space-y-4 text-slate-800">
-            <div className="flex items-center justify-between border-b border-rose-100 pb-3">
-              <div className="flex items-center gap-2 text-rose-600 font-bold">
-                <ShieldAlert className="w-6 h-6" />
-                <span className="text-base sm:text-lg">Emergency Medical Protocol (108)</span>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border-2 border-rose-200 space-y-4">
+            <div className="flex items-center gap-3 text-rose-700">
+              <div className="p-3 rounded-2xl bg-rose-100">
+                <ShieldAlert className="w-7 h-7" />
               </div>
-              <button 
-                onClick={() => setShowSosModal(false)}
-                className="text-slate-400 hover:text-slate-600 text-sm font-bold p-1"
-              >
-                ✕
-              </button>
+              <div>
+                <h3 className="font-extrabold text-lg text-slate-900">आपातकालीन स्वास्थ्य प्रोटोकॉल</h3>
+                <p className="text-xs text-slate-500">Government Emergency Helpline</p>
+              </div>
             </div>
 
-            <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-900 text-xs space-y-2 leading-relaxed">
-              <p className="font-extrabold text-rose-800 uppercase tracking-wide">
-                ⚠️ जब तुरंत आपातकालीन मदद चाहिए (Red Flag Symptoms):
-              </p>
-              <ul className="list-disc list-inside space-y-1 font-medium">
-                <li>सीने में तेज दर्द या दबाव (Severe Chest Pain)</li>
-                <li>सांस लेने में भारी तकलीफ (Acute Shortness of Breath)</li>
-                <li>अचानक बेहोशी या लकवा (Sudden Collapse / Stroke signs)</li>
-                <li>अत्यधिक रक्तस्राव (Severe Uncontrolled Bleeding)</li>
-              </ul>
-            </div>
+            <p className="text-sm text-slate-700 leading-relaxed font-medium">
+              यदि सीने में तेज दर्द, सांस लेने में अत्यधिक तकलीफ, बेहोशी या लकवे जैसे गंभीर लक्षण हों, तो तुरंत राष्ट्रीय आपातकालीन एम्बुलेंस सेवा <strong>108</strong> या <strong>112</strong> पर डायल करें।
+            </p>
 
-            <div className="space-y-2 pt-1">
+            <div className="grid grid-cols-2 gap-3 pt-2">
               <a
                 href="tel:108"
-                className="w-full flex items-center justify-center gap-2 p-3.5 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-sm shadow-lg shadow-rose-600/30 transition"
+                className="flex items-center justify-center gap-2 p-3.5 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-sm shadow-lg shadow-rose-600/30 transition active:scale-95"
               >
                 <PhoneCall className="w-4 h-4" />
-                <span>कॉल करें 108 (राष्ट्रीय एम्बुलेंस सेवा)</span>
+                <span>कॉल 108 (एम्बुलेंस)</span>
               </a>
-              <a
-                href="tel:112"
-                className="w-full flex items-center justify-center gap-2 p-3 rounded-2xl bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs transition"
+
+              <button
+                onClick={() => setShowSosModal(false)}
+                className="p-3.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-sm transition"
               >
-                <span>कॉल करें 112 (राष्ट्रीय आपातकालीन हेल्पलाइन)</span>
-              </a>
+                समझ गया (Close)
+              </button>
             </div>
           </div>
         </div>
