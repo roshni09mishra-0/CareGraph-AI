@@ -41,8 +41,10 @@ export async function POST(req: NextRequest) {
       triageData: typeof aiResult === "object" ? aiResult.triageData : null,
       outboundCallData: typeof aiResult === "object" ? aiResult.outboundCallData : null,
       escalationData: typeof aiResult === "object" ? aiResult.escalationData : null,
+      activeAgent: typeof aiResult === "object" ? (aiResult.activeAgent || "main") : "main",
+      appointmentData: typeof aiResult === "object" ? aiResult.appointmentData : null,
       timestamp: new Date().toISOString(),
-      agent: "SwasthyaSathi AI",
+      agent: typeof aiResult === "object" && aiResult.activeAgent === "clinic_specialist" ? "Clinic & Appointment Specialist" : "SwasthyaSathi AI",
     });
   } catch (error: any) {
     console.error("Chat API Route error:", error);

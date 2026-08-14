@@ -13,7 +13,10 @@ import { CallerRecord } from "@/lib/db";
 import { HealthFacility } from "@/lib/facilityData";
 import { TriageClassificationResult } from "@/lib/tools";
 import { OutboundCallRecord, OutboundScenario, CallOutcome } from "@/lib/telephony";
-import { Mic, MicOff, Send, Radio, RefreshCw, Volume2, ShieldCheck, Sparkles, VolumeX, UserCheck, AlertCircle, PhoneOff, Stethoscope, HelpCircle, Activity, Play, Volume1, CheckCircle2, Cpu, Square, KeyRound, Loader2, Hospital, MapPin, PhoneForwarded, PhoneCall, Zap } from "lucide-react";
+import SpecialistBadge from "./SpecialistBadge";
+import AppointmentCard from "./AppointmentCard";
+import { AppointmentRecord } from "@/lib/specialist";
+import { Mic, MicOff, Send, Radio, RefreshCw, Volume2, ShieldCheck, Sparkles, VolumeX, UserCheck, AlertCircle, PhoneOff, Stethoscope, HelpCircle, Activity, Play, Volume1, CheckCircle2, Cpu, Square, KeyRound, Loader2, Hospital, MapPin, PhoneForwarded, PhoneCall, Zap, Calendar } from "lucide-react";
 
 interface VoiceInterfaceProps {
   onLiveKitStatusChange?: (connected: boolean) => void;
@@ -58,6 +61,10 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
   const [activeCaller, setActiveCaller] = useState<CallerRecord | null>(null);
   const [savedCallers, setSavedCallers] = useState<CallerRecord[]>([]);
   const [isNewPatient, setIsNewPatient] = useState<boolean>(false);
+
+  // Day 9: Multi-Agent Specialist Handoff State
+  const [activeAgent, setActiveAgent] = useState<"main" | "clinic_specialist">("main");
+  const [activeAppointment, setActiveAppointment] = useState<AppointmentRecord | null>(null);
 
   // Store last AI spoken response text for fallback TTS
   const lastAiResponseTextRef = useRef<string>("");
@@ -563,6 +570,12 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
       }
       if (chatData.triageData) {
         setActiveTriage(chatData.triageData);
+      }
+      if (chatData.activeAgent) {
+        setActiveAgent(chatData.activeAgent);
+      }
+      if (chatData.appointmentData) {
+        setActiveAppointment(chatData.appointmentData);
       }
 
       if (chatData.outboundCallData || chatData.functionCalled === "trigger_outbound_call") {
@@ -1126,6 +1139,20 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
             </button>
           )}
         </div>
+
+        {/* Day 9 Multi-Agent Specialist Status Badge */}
+        <SpecialistBadge
+          activeAgent={activeAgent}
+          onSwitchAgent={(agent) => setActiveAgent(agent)}
+        />
+
+        {/* Day 9 Confirmed PHC Appointment Card */}
+        {activeAppointment && (
+          <AppointmentCard
+            appointment={activeAppointment}
+            onDismiss={() => setActiveAppointment(null)}
+          />
+        )}
 
         {/* Quick Health Questions */}
         <QuickPrompts

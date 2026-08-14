@@ -4,6 +4,7 @@ import { HealthFacility } from "./facilityData";
 import { lookupNearestFacilityTool, classifySymptomTriageTool, TriageClassificationResult } from "./tools";
 import { triggerOutboundCall, OutboundCallRecord, OutboundScenario } from "./telephony";
 import { createEscalationTicket, getEscalationTickets, EscalationTicket, EscalationReason, EscalationUrgency } from "./escalation";
+import { bookAppointmentSlot, AppointmentRecord } from "./specialist";
 
 if (process.env.NODE_ENV === "development") {
   process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
@@ -80,6 +81,8 @@ export interface HealthcareResponseResult {
   triageData?: TriageClassificationResult | null;
   outboundCallData?: OutboundCallRecord | null;
   escalationData?: EscalationTicket | null;
+  activeAgent?: "main" | "clinic_specialist";
+  appointmentData?: AppointmentRecord | null;
 }
 
 export async function generateHealthcareResponse(
@@ -289,6 +292,45 @@ export async function getSimulatedHealthcareResponse(
       caller: currentCaller,
       functionCalled: "create_escalation",
       escalationData: ticket,
+    };
+  }
+
+  // =========================================================================
+  // DAY 9: MULTI-AGENT SPECIALIST HANDOFF ("Appointment book karo", "Doctor OPD time", "PHC slot")
+  // =========================================================================
+  const isAppointmentSpecialistQuery = (
+    /\b(appointment|book appointment|opd slot|doctor time|doctor slot|clinic specialist|ayushman card|ayushman token|token number|doctor se milna|slot book|book slot|phc appointment|appointment book)\b/i.test(q) ||
+    (
+      (q.includes("appointment") || q.includes("अपॉइंटमेंट") || q.includes("स्लॉट") || q.includes("टोकन") || q.includes("ओपीडी") || q.includes("दिखाना")) &&
+      (q.includes("book") || q.includes("बुक") || q.includes("कराओ") || q.includes("चाहिए") || q.includes("टाइम") || q.includes("कल") || q.includes("सुबह"))
+    )
+  ) && !/\b(nahi|no|mat|don't)\b/i.test(q) && !q.includes("नहीं") && !q.includes("मत");
+
+  if (isAppointmentSpecialistQuery) {
+    const patientId = userId || currentCaller?.user_id || "user_ramesh";
+    const patientName = currentCaller?.name || callerName || "रमेश कुमार";
+    const phoneNumber = currentCaller?.phone_number || "+91 7991912530";
+
+    const { appointment } = bookAppointmentSlot({
+      patient_id: patientId,
+      patient_name: patientName,
+      phone_number: phoneNumber,
+      facility_name: "Shivpur Primary Health Centre (PHC)",
+      appointment_date: "कल सुबह (Tomorrow 10:00 AM)",
+      time_slot: "10:00 AM - 11:30 AM",
+      reason_for_visit: "Post-Triage Fever Evaluation & Blood Test",
+    });
+
+    const handoffAnnouncement = (userLang === "hi" || userLang === "hinglish")
+      ? `मैं आपको हमारे प्राथमिक स्वास्थ्य केंद्र एवं अपॉइंटमेंट विशेषज्ञ (Clinic & Appointment Specialist) से कनेक्ट कर रहा हूँ... नमस्ते ${patientName} जी! मैं क्लिनिक और अपॉइंटमेंट विशेषज्ञ हूँ। मैंने शिवपुर PHC में डॉ. राजेश गुप्ता के साथ आपका अपॉइंटमेंट बुक कर दिया है। आपका टोकन नंबर #${appointment.token_number} (${appointment.appointment_id}) है। स्लॉट कल सुबह 10:00 बजे का है।`
+      : `I am connecting you to our Clinic & Appointment Specialist... Hello ${patientName}! I am your PHC Appointment Specialist. I have booked your appointment with Dr. Rajesh Gupta at Shivpur PHC. Your token number is #${appointment.token_number} (${appointment.appointment_id}) for tomorrow at 10:00 AM.`;
+
+    return {
+      response: handoffAnnouncement,
+      caller: currentCaller,
+      functionCalled: "transfer_to_clinic_specialist",
+      activeAgent: "clinic_specialist",
+      appointmentData: appointment,
     };
   }
 
