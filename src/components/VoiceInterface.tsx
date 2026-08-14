@@ -47,7 +47,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
   const [isRecording, setIsRecording] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
   const [isTranscribing, setIsTranscribing] = useState(false);
-  const [isHandsFreeLive, setIsHandsFreeLive] = useState(true);
+  const [isHandsFreeLive, setIsHandsFreeLive] = useState(false);
 
   // Day 5: Active Facility & Triage Results
   const [activeFacility, setActiveFacility] = useState<HealthFacility | null>(null);
@@ -531,6 +531,9 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
 
     console.log(`[Voice] USER SPEECH DETECTED: "${cleanText}" (${userLanguageDetected})`);
     speechEndTimeRef.current = Date.now();
+    setInputText("");
+    setInterimText("");
+    setAssistantState("processing");
 
     if (!isCallStart) {
       const userMsgId = `user-${Date.now()}`;
