@@ -942,7 +942,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
               className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-gradient-to-r from-teal-700 to-emerald-700 hover:from-teal-600 hover:to-emerald-600 text-white font-extrabold shadow-md shadow-teal-700/20 transition transform active:scale-95"
             >
               <PhoneForwarded className="w-3.5 h-3.5 animate-bounce" />
-              <span>📞 {uiLanguage === "hi" ? "आउटबाउंड कॉल (Day 6)" : "Outbound Call (Day 6)"}</span>
+              <span>📞 {uiLanguage === "hi" ? "आउटबाउंड कॉल डायल" : "Outbound Phone Call"}</span>
             </button>
 
             <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-cyan-50 text-cyan-800 border border-cyan-300 shadow-sm">
@@ -1029,7 +1029,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
         <div className="space-y-2 pt-1">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-extrabold text-slate-700 uppercase tracking-wider flex items-center gap-1">
-              <Sparkles className="w-3.5 h-3.5 text-teal-700" /> Day 6 Outbound Health Actions:
+              <Sparkles className="w-3.5 h-3.5 text-teal-700" /> आउटबाउंड टेलीफोनी स्वास्थ्य सेवा (Outbound Actions):
             </span>
           </div>
 

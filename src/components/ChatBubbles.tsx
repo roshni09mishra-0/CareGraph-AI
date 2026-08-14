@@ -92,7 +92,7 @@ export default function ChatBubbles({ messages, onPlayAudio }: ChatBubblesProps)
                           <span>क्लिनिक विशेषज्ञ (Arogya Mitra)</span>
                         </span>
                         <span className="px-1.5 py-0.2 rounded-full bg-indigo-100 text-[9.5px] text-indigo-900 font-extrabold border border-indigo-300">
-                          Day 9 Specialist
+                          Specialist Agent
                         </span>
                       </>
                     ) : (

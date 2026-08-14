@@ -80,7 +80,7 @@ export default function Home() {
           <div className="flex items-center gap-2">
             <Stethoscope className="w-4 h-4 text-teal-600" />
             <span className="font-bold text-slate-800">SwasthyaSathi AI</span>
-            <span>— Indian Voice Healthcare Assistant (#VoiceForBharat Day 8)</span>
+            <span>— Indian Voice Healthcare Assistant (#VoiceForBharat)</span>
           </div>
 
           <div className="flex items-center gap-4 text-[11px] text-slate-500 font-medium">

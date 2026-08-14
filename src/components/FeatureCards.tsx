@@ -28,7 +28,7 @@ export default function FeatureCards() {
     {
       icon: <ShieldCheck className="w-6 h-6 text-teal-700" />,
       title: "Consent & Privacy Guardrail",
-      description: "Day 4 caller facts stored only with explicit patient consent. Instant 'Forget Me' data purging tool.",
+      description: "Caller facts stored only with explicit patient consent. Instant 'Forget Me' data purging tool.",
       badge: "Privacy First",
       highlights: ["Explicit User Consent", "No Sensitive Notes", "Forget Me Tool"],
     },

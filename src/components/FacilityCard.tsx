@@ -37,7 +37,7 @@ export default function FacilityCard({ facility, triage, onClose, language = "hi
       <div className="flex items-center gap-2 mb-3">
         <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-700 text-white text-[11px] font-extrabold shadow-sm">
           <Hospital className="w-3.5 h-3.5" />
-          <span>{isHindi ? "🏥 लाइव स्वास्थ्य केंद्र व अस्पताल खोज (Day 5)" : "🏥 Live Verified Health Facility (Day 5)"}</span>
+          <span>{isHindi ? "🏥 लाइव स्वास्थ्य केंद्र व अस्पताल खोज" : "🏥 Live Verified Health Facility"}</span>
         </span>
         <span className="text-[11px] font-bold text-teal-800 bg-teal-100/80 px-2.5 py-1 rounded-full border border-teal-200">
           {isHindi ? "सत्यापित: 10 अगस्त 2026" : "Verified: 10 Aug 2026"}

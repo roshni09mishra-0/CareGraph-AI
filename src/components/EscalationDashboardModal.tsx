@@ -103,8 +103,8 @@ export default function EscalationDashboardModal({
                 <h3 className="text-base sm:text-lg font-extrabold tracking-tight">
                   {isHindi ? "मानव डॉक्टर एस्केलेशन डैशबोर्ड" : "Human Doctor Escalation Dashboard"}
                 </h3>
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500 text-white font-mono font-bold">
-                  DAY 7
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500 text-white font-bold">
+                  Doctor Portal
                 </span>
               </div>
               <p className="text-xs text-teal-200/80">

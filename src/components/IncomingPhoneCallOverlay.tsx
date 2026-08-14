@@ -220,7 +220,7 @@ export default function IncomingPhoneCallOverlay({
             <div className="w-full p-3.5 rounded-2xl bg-slate-800/80 border border-teal-500/30 text-left text-xs space-y-1.5 shadow-inner">
               <div className="flex items-center gap-1 text-[10px] font-extrabold text-teal-400 uppercase tracking-wider">
                 <Sparkles className="w-3 h-3" />
-                <span>{isHindi ? "डे 6 अनिवार्य 3-भाग ओपनिंग प्रोटोकॉल:" : "Day 6 Mandatory 3-Part Opening:"}</span>
+                <span>{isHindi ? "अनिवार्य टेलीफोनी ओपनिंग प्रोटोकॉल:" : "Mandatory Telephony Opening Protocol:"}</span>
               </div>
               <p className="text-[11.5px] text-slate-200 leading-relaxed italic">
                 &ldquo;{call.opening_text}&rdquo;

@@ -13,27 +13,27 @@ export default function QuickPrompts({ onSelectPrompt, disabled = false, languag
     {
       icon: <Calendar className="w-3.5 h-3.5 text-indigo-600 animate-pulse" />,
       text: "I want to book an appointment with a doctor at Shivpur PHC for tomorrow morning",
-      tag: "🏥 Day 9 Specialist Handoff",
+      tag: "🏥 Specialist Appointment",
     },
     {
       icon: <CheckCircle2 className="w-3.5 h-3.5 text-teal-600" />,
       text: "I have a mild headache and tiredness since yesterday, what home care helps?",
-      tag: "🩺 Day 9 Main Agent Path",
+      tag: "🩺 General Symptom Care",
     },
     {
       icon: <UserCheck className="w-3.5 h-3.5 text-blue-600" />,
       text: "I need human help, please raise a ticket for a doctor",
-      tag: "🙋‍♂️ Day 7 Human Ticket",
+      tag: "🙋‍♂️ Doctor Help Ticket",
     },
     {
       icon: <AlertTriangle className="w-3.5 h-3.5 text-rose-600 animate-pulse" />,
       text: "I have severe radiating chest pain and shortness of breath",
-      tag: "🚨 Day 7 Red-Flag SOS",
+      tag: "🚨 Emergency Alert 108",
     },
     {
       icon: <PhoneCall className="w-3.5 h-3.5 text-emerald-700" />,
       text: "Call me for a health follow-up check",
-      tag: "📞 Day 6 Outbound Call",
+      tag: "📞 Phone Follow-up Call",
     },
   ];
 
@@ -41,27 +41,27 @@ export default function QuickPrompts({ onSelectPrompt, disabled = false, languag
     {
       icon: <Calendar className="w-3.5 h-3.5 text-indigo-600 animate-pulse" />,
       text: "मुझे शिवपुर PHC में कल सुबह डॉक्टर की अपॉइंटमेंट बुक करनी है",
-      tag: "🏥 Day 9 स्पेशलिस्ट हैंडऑफ",
+      tag: "🏥 PHC डॉक्टर अपॉइंटमेंट",
     },
     {
       icon: <CheckCircle2 className="w-3.5 h-3.5 text-teal-600" />,
       text: "मुझे कल से हल्का सिरदर्द और थकान है, घरेलू देखभाल बताएं",
-      tag: "🩺 Day 9 मेन एजेंट पाथ",
+      tag: "🩺 सामान्य स्वास्थ्य परामर्श",
     },
     {
       icon: <UserCheck className="w-3.5 h-3.5 text-blue-600" />,
       text: "मुझे डॉक्टर से बात करनी है, डॉक्टर सहायता के लिए टिकट बनाओ",
-      tag: "🙋‍♂️ Day 7 डॉक्टर टिकट",
+      tag: "🙋‍♂️ डॉक्टर सहायता टिकट",
     },
     {
       icon: <AlertTriangle className="w-3.5 h-3.5 text-rose-600 animate-pulse" />,
       text: "मुझे सीने में तेज दर्द हो रहा है और सांस फूल रही है",
-      tag: "🚨 Day 7 इमरजेंसी SOS",
+      tag: "🚨 इमरजेंसी एम्बुलेंस 108",
     },
     {
       icon: <PhoneCall className="w-3.5 h-3.5 text-emerald-700" />,
       text: "मुझे फॉलो-अप स्वास्थ्य कॉल लगाओ",
-      tag: "📞 Day 6 आउटबाउंड कॉल",
+      tag: "📞 फॉलो-अप फोन कॉल",
     },
   ];
 
@@ -72,7 +72,7 @@ export default function QuickPrompts({ onSelectPrompt, disabled = false, languag
       <div className="flex items-center justify-between">
         <span className="text-[11px] font-bold tracking-wider uppercase text-slate-600 flex items-center gap-1.5">
           <Sparkles className="w-3 h-3 text-teal-700" />
-          {language === "hi" ? "त्वरित स्वास्थ्य परीक्षण प्रश्न (Day 9 Specialist Handoff)" : "Quick Clinical Prompts (Day 9 Multi-Agent Handoff)"}
+          {language === "hi" ? "त्वरित स्वास्थ्य परीक्षण प्रश्न (Quick Prompts)" : "Quick Clinical Voice Prompts"}
         </span>
         <span className="text-[10px] text-indigo-700 font-bold bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-200">
           ⚡ 1-Click Fast Run

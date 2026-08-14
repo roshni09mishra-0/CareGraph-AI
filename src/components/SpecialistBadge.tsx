@@ -37,7 +37,7 @@ export default function SpecialistBadge({ activeAgent, onSwitchAgent }: Speciali
                 ? "bg-indigo-500/20 text-indigo-300 border border-indigo-500/40"
                 : "bg-teal-500/20 text-teal-300 border border-teal-500/40"
             }`}>
-              {activeAgent === "clinic_specialist" ? "Day 9 Specialist" : "Day 1-8 Main"}
+              {activeAgent === "clinic_specialist" ? "Specialist Agent" : "Main Triage Agent"}
             </span>
           </div>
 

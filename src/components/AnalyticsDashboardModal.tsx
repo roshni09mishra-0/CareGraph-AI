@@ -58,7 +58,7 @@ export default function AnalyticsDashboardModal({ isOpen, onClose }: AnalyticsDa
                   Call Analytics Summary
                 </h2>
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-teal-500/20 text-teal-300 border border-teal-500/40">
-                  Day 8
+                  Live Metrics
                 </span>
               </div>
               <p className="text-xs text-slate-400">

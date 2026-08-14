@@ -71,15 +71,15 @@ export default function Header({ onOpenSetup, onOpenEscalations, onOpenAnalytics
         {/* Live Status Indicators & Actions */}
         <div className="flex items-center gap-2">
           
-          {/* Day 8 Call Analytics Dashboard Button */}
+          {/* Call Analytics Dashboard Button */}
           <button
             onClick={onOpenAnalytics}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 text-indigo-950 border-2 border-indigo-300 shadow-sm transition active:scale-95"
-            title="Open Day 8 Call Analytics Dashboard"
+            title="Open Call Analytics Dashboard"
           >
             <BarChart3 className="w-4 h-4 text-indigo-700" />
-            <span className="hidden md:inline">एनालिटिक्स (Day 8)</span>
-            <span className="md:hidden">Day 8</span>
+            <span className="hidden md:inline">कॉल एनालिटिक्स (Analytics)</span>
+            <span className="md:hidden">एनालिटिक्स</span>
             {successRate !== null && (
               <span className="px-1.5 py-0.2 rounded-full bg-emerald-600 text-white font-mono font-extrabold text-[10px]">
                 {successRate}%
@@ -87,15 +87,15 @@ export default function Header({ onOpenSetup, onOpenEscalations, onOpenAnalytics
             )}
           </button>
 
-          {/* Day 7 Doctor Escalations Dashboard Button */}
+          {/* Doctor Escalations Dashboard Button */}
           <button
             onClick={onOpenEscalations}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-gradient-to-r from-teal-50 to-emerald-50 hover:from-teal-100 hover:to-emerald-100 text-teal-900 border-2 border-teal-400/80 shadow-sm transition active:scale-95 relative"
             title="Open Doctor Escalation Dashboard"
           >
             <ClipboardList className="w-4 h-4 text-teal-700" />
-            <span className="hidden md:inline">डॉक्टर एस्केलेशन (Day 7)</span>
-            <span className="md:hidden">Day 7</span>
+            <span className="hidden md:inline">डॉक्टर एस्केलेशन (Doctor)</span>
+            <span className="md:hidden">एस्केलेशन</span>
             {openTicketsCount > 0 && (
               <span className="px-1.5 py-0.2 rounded-full bg-rose-600 text-white font-mono font-extrabold text-[10px] animate-pulse">
                 {openTicketsCount}

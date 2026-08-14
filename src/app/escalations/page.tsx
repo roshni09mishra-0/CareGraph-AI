@@ -96,7 +96,7 @@ export default function EscalationsPage() {
                   Doctor & Nurse Escalation Command Center
                 </h1>
                 <p className="text-[11px] text-teal-400 font-medium">
-                  #VoiceForBharat Day 7 • Human Help & Triage Management
+                  #VoiceForBharat • Clinical Doctor Escalation & Triage
                 </p>
               </div>
             </div>
@@ -289,7 +289,7 @@ export default function EscalationsPage() {
 
       {/* Footer */}
       <footer className="w-full border-t border-slate-800 py-6 text-center text-xs text-slate-500">
-        SwasthyaSathi AI • Clinical Human Escalation Command Center (#VoiceForBharat Day 7)
+        SwasthyaSathi AI • Clinical Human Escalation Command Center (#VoiceForBharat)
       </footer>
 
     </div>

@@ -76,8 +76,8 @@ export default function OutboundDialerModal({
                 <h3 className="text-base sm:text-lg font-extrabold tracking-tight">
                   {isHindi ? "आउटबाउंड टेलीफोनी सेंटर" : "Outbound Telephony Dispatcher"}
                 </h3>
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500 text-white font-mono font-bold">
-                  DAY 6
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500 text-white font-bold">
+                  Telephony
                 </span>
               </div>
               <p className="text-xs text-teal-200/80">
@@ -228,7 +228,7 @@ export default function OutboundDialerModal({
           {/* Edge Cases Outcome Simulation Grid (Day 6 Requirements) */}
           <div className="space-y-2 pt-2 border-t border-slate-100">
             <span className="text-[11px] font-extrabold text-slate-600 uppercase tracking-wider block">
-              {isHindi ? "डे 6 आउटकम व एज केस सिमुलेशन (Outcome Rules):" : "Day 6 Outcome & Edge Cases Simulation:"}
+              {isHindi ? "आउटकम व एज केस सिमुलेशन (Outcome Rules):" : "Outcome & Edge Cases Simulation:"}
             </span>
 
             <div className="grid grid-cols-3 gap-2">

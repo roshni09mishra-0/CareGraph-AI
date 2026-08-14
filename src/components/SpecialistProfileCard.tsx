@@ -26,7 +26,7 @@ export default function SpecialistProfileCard({
         <div className="flex items-center gap-2">
           <span className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
             <Sparkles className="w-3.5 h-3.5 text-teal-400" />
-            <span>Multi-Agent System (#VoiceForBharat Day 9)</span>
+            <span>Multi-Agent Healthcare System (#VoiceForBharat)</span>
           </span>
         </div>
 

@@ -43,12 +43,12 @@ export default function PatientCard({
           <div>
             <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
               <span>Patient Memory & Health Profile</span>
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-teal-100 text-teal-800 border border-teal-300 font-mono font-bold">
-                DAY 4
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-teal-100 text-teal-800 border border-teal-300 font-bold">
+                Active Profile
               </span>
             </h3>
             <p className="text-[11px] text-slate-500 font-medium">
-              #VoiceForBharat Health Access Track (Consent & SQLite Memory)
+              #VoiceForBharat Health Access Track • Consent-First Memory
             </p>
           </div>
         </div>

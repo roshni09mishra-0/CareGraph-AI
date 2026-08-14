@@ -119,7 +119,7 @@ export default function CallAnalyticsDashboardPage() {
                   Call Analytics Dashboard
                 </h1>
                 <span className="text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-teal-500/20 text-teal-300 border border-teal-500/40">
-                  #VoiceForBharat Day 8
+                  #VoiceForBharat Live Analytics
                 </span>
               </div>
               <p className="text-xs text-slate-400">
