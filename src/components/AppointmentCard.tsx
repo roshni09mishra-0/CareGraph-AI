@@ -1,7 +1,7 @@
 "use client";
 
 import { Calendar, Clock, MapPin, User, Stethoscope, CheckCircle2, ShieldCheck, QrCode, Building2, PhoneCall } from "lucide-react";
-import { AppointmentRecord } from "@/lib/specialist";
+import { AppointmentRecord } from "@/lib/specialistTypes";
 
 interface AppointmentCardProps {
   appointment: AppointmentRecord;

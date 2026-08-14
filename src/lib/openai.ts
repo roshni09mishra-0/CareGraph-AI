@@ -4,7 +4,16 @@ import { HealthFacility } from "./facilityData";
 import { lookupNearestFacilityTool, classifySymptomTriageTool, TriageClassificationResult } from "./tools";
 import { triggerOutboundCall, OutboundCallRecord, OutboundScenario } from "./telephony";
 import { createEscalationTicket, getEscalationTickets, EscalationTicket, EscalationReason, EscalationUrgency } from "./escalation";
-import { bookAppointmentSlot, AppointmentRecord } from "./specialist";
+import { 
+  bookAppointmentSlot, 
+  detectRequiredSpecialist, 
+  generateSpecialistHandoffResponse, 
+  processSpecialistTurn, 
+  SPECIALIST_REGISTRY, 
+  SpecialistDomain, 
+  SpecialistProfile,
+  AppointmentRecord 
+} from "./specialist";
 
 if (process.env.NODE_ENV === "development") {
   process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
@@ -82,6 +91,9 @@ export interface HealthcareResponseResult {
   outboundCallData?: OutboundCallRecord | null;
   escalationData?: EscalationTicket | null;
   activeAgent?: "main" | "clinic_specialist";
+  activeSpecialist?: SpecialistDomain;
+  targetVoice?: string;
+  specialistProfile?: SpecialistProfile;
   appointmentData?: AppointmentRecord | null;
 }
 
@@ -90,10 +102,10 @@ export async function generateHealthcareResponse(
   conversationHistory: { role: "user" | "assistant"; content: string }[] = [],
   userId?: string,
   callerName?: string,
-  isCallStart?: boolean
+  isCallStart?: boolean,
+  currentSpecialist?: SpecialistDomain
 ): Promise<HealthcareResponseResult> {
-  // Fast-path clinical intelligence, Day 5 Tools, Day 6 Outbound, Day 7 Human Escalation & Caller Memory
-  return await getSimulatedHealthcareResponse(userPrompt, conversationHistory, userId, callerName, isCallStart);
+  return await getSimulatedHealthcareResponse(userPrompt, conversationHistory, userId, callerName, isCallStart, currentSpecialist);
 }
 
 /**
@@ -179,7 +191,8 @@ export async function getSimulatedHealthcareResponse(
   history: { role: "user" | "assistant"; content: string }[] = [],
   userId?: string,
   callerName?: string,
-  isCallStart?: boolean
+  isCallStart?: boolean,
+  currentSpecialist?: SpecialistDomain
 ): Promise<HealthcareResponseResult> {
   const q = query.toLowerCase().trim();
   const userLang = detectUserLanguage(query);
@@ -194,8 +207,9 @@ export async function getSimulatedHealthcareResponse(
     currentCaller = getCaller("user_ramesh");
   }
 
-  // Fallback to conversation history name inference
-  // Filter role-based messages for exact turn tracking
+  const patientName = currentCaller?.name || callerName || (userLang === "hi" ? "रमेश कुमार" : "Ramesh Kumar");
+  const knownNameInConvo = currentCaller?.name || callerName || "रमेश";
+
   const assistantMessages = history.filter(h => h.role === "assistant");
   const lastAssistantTurn = assistantMessages.length > 0 
     ? assistantMessages[assistantMessages.length - 1].content.toLowerCase() 
@@ -206,7 +220,96 @@ export async function getSimulatedHealthcareResponse(
     ? userMessages[userMessages.length - 1].content.toLowerCase() 
     : "";
 
-  const knownNameInConvo = currentCaller?.name || callerName || "रमेश";
+  // =========================================================================
+  // MULTI-SPECIALIST AGENT CONTINUATION TURN (If Specialist is already active)
+  // =========================================================================
+  if (currentSpecialist && currentSpecialist !== "general_physician") {
+    // Check if user is asking to switch back to primary assistant
+    const isSwitchBack = (
+      /\b(main agent|wapas|back|swasthya sathi|general doctor|khatam|dhanyawad|thanks|thank you)\b/i.test(q) ||
+      q.includes("वापस") || q.includes("मुख्य") || q.includes("धन्यवाद")
+    );
+
+    if (isSwitchBack) {
+      const returnSpeech = (userLang === "hi" || userLang === "hinglish")
+        ? `जी ${patientName} जी! अब मैं आपको हमारे मुख्य स्वास्थ्य साथी AI (SwasthyaSathi AI) पर वापस कनेक्ट कर रहा हूँ। नमस्ते! मैं आपका मुख्य स्वास्थ्य साथी हूँ। मैं आपकी और क्या सहायता कर सकता हूँ?`
+        : `Connecting you back to our primary health assistant now... Hello ${patientName}! I am your primary health assistant. How else can I help you today?`;
+
+      return {
+        response: returnSpeech,
+        caller: currentCaller,
+        functionCalled: "transfer_back_to_main",
+        activeAgent: "main",
+        activeSpecialist: "general_physician",
+        targetVoice: userLang === "hi" ? "hi-IN-shweta" : "en-IN-priya",
+        specialistProfile: SPECIALIST_REGISTRY.general_physician,
+      };
+    }
+
+    // Check if user asks about a different specialist domain
+    const newDetectedSpec = detectRequiredSpecialist(q);
+    if (newDetectedSpec && newDetectedSpec !== currentSpecialist) {
+      const handoff = generateSpecialistHandoffResponse({
+        specialistKey: newDetectedSpec,
+        userPrompt: q,
+        patientName,
+        language: userLang,
+      });
+
+      return {
+        response: handoff.response,
+        caller: currentCaller,
+        functionCalled: `transfer_to_${newDetectedSpec}`,
+        activeAgent: "clinic_specialist",
+        activeSpecialist: newDetectedSpec,
+        targetVoice: handoff.targetVoice,
+        specialistProfile: handoff.specialistProfile,
+        appointmentData: handoff.appointmentData,
+      };
+    }
+
+    // Continue conversation with current specialist
+    const turnResult = processSpecialistTurn({
+      specialistKey: currentSpecialist,
+      userPrompt: q,
+      patientName,
+      language: userLang,
+    });
+
+    return {
+      response: turnResult.response,
+      caller: currentCaller,
+      functionCalled: `consult_${currentSpecialist}`,
+      activeAgent: "clinic_specialist",
+      activeSpecialist: currentSpecialist,
+      targetVoice: turnResult.targetVoice,
+      specialistProfile: turnResult.specialistProfile,
+    };
+  }
+
+  // =========================================================================
+  // MULTI-SPECIALIST AGENT DETECTION & SMOOTH VOICE HANDOFF
+  // =========================================================================
+  const detectedSpecialist = detectRequiredSpecialist(q);
+  if (detectedSpecialist) {
+    const handoff = generateSpecialistHandoffResponse({
+      specialistKey: detectedSpecialist,
+      userPrompt: q,
+      patientName,
+      language: userLang,
+    });
+
+    return {
+      response: handoff.response,
+      caller: currentCaller,
+      functionCalled: `transfer_to_${detectedSpecialist}`,
+      activeAgent: "clinic_specialist",
+      activeSpecialist: detectedSpecialist,
+      targetVoice: handoff.targetVoice,
+      specialistProfile: handoff.specialistProfile,
+      appointmentData: handoff.appointmentData,
+    };
+  }
 
   // =========================================================================
   // DAY 6: OUTBOUND CALL VOICE TRIGGER ("Mujhe call karo", "Call lagao", "Call me", "Linphone")
@@ -235,8 +338,8 @@ export async function getSimulatedHealthcareResponse(
       const callRecord = await triggerOutboundCall(patientId, phone, scenario, userLang, "answered", "linphone");
       
       const spokenConfirm = (userLang === "hi" || userLang === "hinglish")
-        ? `नमस्ते ${knownNameInConvo} जी! मैंने आपके फोन पर Linphone ऐप (अकाउंट roshu) के लिए कॉल लगा दी है। कृपया अपने फोन में आ रही कॉल उठाएं।`
-        : `Namaste ${knownNameInConvo}! I have placed a live SIP call to your phone on Linphone (user roshu). Please answer the incoming call on your phone.`;
+        ? `नमस्ते ${patientName} जी! मैंने आपके फोन पर Linphone ऐप (अकाउंट roshu) के लिए कॉल लगा दी है। कृपया अपने फोन में आ रही कॉल उठाएं।`
+        : `Namaste ${patientName}! I have placed a live SIP call to your phone on Linphone (user roshu). Please answer the incoming call on your phone.`;
 
       return {
         response: spokenConfirm,

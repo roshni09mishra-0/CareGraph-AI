@@ -1,5 +1,33 @@
 [
   {
+    "session_id": "CALL-2026-2223",
+    "caller_id": "user_ramesh",
+    "caller_name": "रमेश कुमार",
+    "masked_phone": "+9179919 •••••",
+    "channel": "browser_webrtc",
+    "duration_seconds": 30,
+    "latency_ms": 6430,
+    "outcome": "success",
+    "clinical_action": "General Consultation: Safe home care guidance provided",
+    "triage_level": 3,
+    "language": "hi",
+    "timestamp": "2026-08-14T06:14:55.105Z"
+  },
+  {
+    "session_id": "CALL-2026-9931",
+    "caller_id": "user_ramesh",
+    "caller_name": "रमेश कुमार",
+    "masked_phone": "+9179919 •••••",
+    "channel": "browser_webrtc",
+    "duration_seconds": 25,
+    "latency_ms": 380,
+    "outcome": "success",
+    "clinical_action": "General Consultation: Safe home care guidance provided",
+    "triage_level": 3,
+    "language": "hi",
+    "timestamp": "2026-08-14T06:14:19.619Z"
+  },
+  {
     "session_id": "CALL-2026-5714",
     "caller_id": "user_ramesh",
     "caller_name": "रमेश कुमार",

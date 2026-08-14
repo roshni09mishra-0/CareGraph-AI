@@ -1,6 +1,6 @@
 "use client";
 
-import { Sparkles, Thermometer, Calendar, Salad, Bandage, Moon, HelpCircle, PhoneCall, Activity, Hospital, AlertTriangle, Stethoscope, CheckCircle2, UserCheck, ArrowRightLeft } from "lucide-react";
+import { Sparkles, HeartPulse, Brain, Calendar, Stethoscope, AlertTriangle, PhoneCall, CheckCircle2, UserCheck, Flame, Baby, Heart } from "lucide-react";
 
 interface QuickPromptsProps {
   onSelectPrompt: (promptText: string) => void;
@@ -11,57 +11,77 @@ interface QuickPromptsProps {
 export default function QuickPrompts({ onSelectPrompt, disabled = false, language = "en" }: QuickPromptsProps) {
   const englishPrompts = [
     {
-      icon: <Calendar className="w-3.5 h-3.5 text-indigo-600 animate-pulse" />,
+      icon: <HeartPulse className="w-3.5 h-3.5 text-rose-600 animate-pulse" />,
+      text: "I have severe chest pain radiating to my left arm and shortness of breath",
+      tag: "🫀 Cardiologist (Dr. Aryan)",
+    },
+    {
+      icon: <Brain className="w-3.5 h-3.5 text-purple-600" />,
+      text: "I am feeling extreme stress, panic and cannot sleep at night",
+      tag: "💆 Mental Health (Dr. Kabir)",
+    },
+    {
+      icon: <Sparkles className="w-3.5 h-3.5 text-pink-600" />,
+      text: "I have red itchy rashes and burning sensation on my skin",
+      tag: "🩺 Dermatologist (Dr. Rohan)",
+    },
+    {
+      icon: <Flame className="w-3.5 h-3.5 text-amber-600" />,
+      text: "I have severe stomach burning, acid reflux and nausea after eating",
+      tag: "🧪 Gastroenterologist (Dr. Amit)",
+    },
+    {
+      icon: <Baby className="w-3.5 h-3.5 text-cyan-600" />,
+      text: "My 2-year-old child has high fever, cough and not drinking milk",
+      tag: "👶 Pediatrician (Dr. Vikram)",
+    },
+    {
+      icon: <Calendar className="w-3.5 h-3.5 text-indigo-600" />,
       text: "I want to book an appointment with a doctor at Shivpur PHC for tomorrow morning",
-      tag: "🏥 Specialist Appointment",
+      tag: "🏥 PHC OPD Booking",
     },
     {
       icon: <CheckCircle2 className="w-3.5 h-3.5 text-teal-600" />,
       text: "I have a mild headache and tiredness since yesterday, what home care helps?",
-      tag: "🩺 General Symptom Care",
-    },
-    {
-      icon: <UserCheck className="w-3.5 h-3.5 text-blue-600" />,
-      text: "I need human help, please raise a ticket for a doctor",
-      tag: "🙋‍♂️ Doctor Help Ticket",
-    },
-    {
-      icon: <AlertTriangle className="w-3.5 h-3.5 text-rose-600 animate-pulse" />,
-      text: "I have severe radiating chest pain and shortness of breath",
-      tag: "🚨 Emergency Alert 108",
-    },
-    {
-      icon: <PhoneCall className="w-3.5 h-3.5 text-emerald-700" />,
-      text: "Call me for a health follow-up check",
-      tag: "📞 Phone Follow-up Call",
+      tag: "🩺 Primary Assistant (Main)",
     },
   ];
 
   const hindiPrompts = [
     {
-      icon: <Calendar className="w-3.5 h-3.5 text-indigo-600 animate-pulse" />,
+      icon: <HeartPulse className="w-3.5 h-3.5 text-rose-600 animate-pulse" />,
+      text: "मुझे सुबह से सीने में दर्द और दिल की धड़कन तेज लग रही है",
+      tag: "🫀 हृदय रोग विशेषज्ञ (डॉ. आर्यन)",
+    },
+    {
+      icon: <Brain className="w-3.5 h-3.5 text-purple-600" />,
+      text: "मुझे पिछले कुछ दिनों से बहुत ज्यादा तनाव, घबराहट और नींद न आने की समस्या है",
+      tag: "💆 मानसिक स्वास्थ्य (डॉ. कबीर)",
+    },
+    {
+      icon: <Sparkles className="w-3.5 h-3.5 text-pink-600" />,
+      text: "मेरी त्वचा पर लाल चकत्ते, खुजली और दाने हो रहे हैं",
+      tag: "🩺 त्वचा रोग विशेषज्ञ (डॉ. रोहन)",
+    },
+    {
+      icon: <Flame className="w-3.5 h-3.5 text-amber-600" />,
+      text: "मुझे पेट में तेज जलन, गैस, बदहजमी और उल्टी जैसा महसूस हो रहा है",
+      tag: "🧪 पेट रोग विशेषज्ञ (डॉ. अमित)",
+    },
+    {
+      icon: <Baby className="w-3.5 h-3.5 text-cyan-600" />,
+      text: "मेरे 2 साल के बच्चे को कल से तेज बुखार और खांसी है, क्या करें?",
+      tag: "👶 बाल रोग विशेषज्ञ (डॉ. विक्रम)",
+    },
+    {
+      icon: <Calendar className="w-3.5 h-3.5 text-indigo-600" />,
       text: "मुझे शिवपुर PHC में कल सुबह डॉक्टर की अपॉइंटमेंट बुक करनी है",
-      tag: "🏥 PHC डॉक्टर अपॉइंटमेंट",
+      tag: "🏥 क्लिनिक अपॉइंटमेंट टोकन",
     },
     {
       icon: <CheckCircle2 className="w-3.5 h-3.5 text-teal-600" />,
       text: "मुझे कल से हल्का सिरदर्द और थकान है, घरेलू देखभाल बताएं",
-      tag: "🩺 सामान्य स्वास्थ्य परामर्श",
-    },
-    {
-      icon: <UserCheck className="w-3.5 h-3.5 text-blue-600" />,
-      text: "मुझे डॉक्टर से बात करनी है, डॉक्टर सहायता के लिए टिकट बनाओ",
-      tag: "🙋‍♂️ डॉक्टर सहायता टिकट",
-    },
-    {
-      icon: <AlertTriangle className="w-3.5 h-3.5 text-rose-600 animate-pulse" />,
-      text: "मुझे सीने में तेज दर्द हो रहा है और सांस फूल रही है",
-      tag: "🚨 इमरजेंसी एम्बुलेंस 108",
-    },
-    {
-      icon: <PhoneCall className="w-3.5 h-3.5 text-emerald-700" />,
-      text: "मुझे फॉलो-अप स्वास्थ्य कॉल लगाओ",
-      tag: "📞 फॉलो-अप फोन कॉल",
+      tag: "🩺 मुख्य स्वास्थ्य साथी (Main)",
     },
   ];
 
@@ -72,10 +92,10 @@ export default function QuickPrompts({ onSelectPrompt, disabled = false, languag
       <div className="flex items-center justify-between">
         <span className="text-[11px] font-bold tracking-wider uppercase text-slate-600 flex items-center gap-1.5">
           <Sparkles className="w-3 h-3 text-teal-700" />
-          {language === "hi" ? "त्वरित स्वास्थ्य परीक्षण प्रश्न (Quick Prompts)" : "Quick Clinical Voice Prompts"}
+          {language === "hi" ? "मल्टी-स्पेशलिस्ट वॉइस टेस्ट प्रश्न (1-Click Multi-Specialist Voice Handoff):" : "Multi-Specialist Voice Handoff Prompts:"}
         </span>
         <span className="text-[10px] text-indigo-700 font-bold bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-200">
-          ⚡ 1-Click Fast Run
+          ⚡ Instant Voice Switch
         </span>
       </div>
 

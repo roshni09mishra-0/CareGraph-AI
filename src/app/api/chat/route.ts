@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { prompt, history, userId, callerName, isCallStart } = body;
+    const { prompt, history, userId, callerName, isCallStart, activeSpecialist } = body;
 
     if (!prompt || typeof prompt !== "string") {
       return NextResponse.json({ error: "Prompt string is required" }, { status: 400 });
@@ -19,7 +19,8 @@ export async function POST(req: NextRequest) {
       history || [], 
       userId, 
       callerName, 
-      isCallStart
+      isCallStart,
+      activeSpecialist
     );
 
     // Multi-Device Sync: If an outbound call was triggered, broadcast it
@@ -33,6 +34,14 @@ export async function POST(req: NextRequest) {
       } catch (e) {}
     }
 
+    const responseAgentName = typeof aiResult === "object" && aiResult.specialistProfile
+      ? aiResult.specialistProfile.nameHi
+      : "SwasthyaSathi AI";
+
+    const computedVoice = typeof aiResult === "object" && aiResult.targetVoice
+      ? aiResult.targetVoice
+      : "hi-IN-shweta";
+
     return NextResponse.json({
       response: typeof aiResult === "string" ? aiResult : aiResult.response,
       caller: typeof aiResult === "object" ? aiResult.caller : null,
@@ -42,9 +51,12 @@ export async function POST(req: NextRequest) {
       outboundCallData: typeof aiResult === "object" ? aiResult.outboundCallData : null,
       escalationData: typeof aiResult === "object" ? aiResult.escalationData : null,
       activeAgent: typeof aiResult === "object" ? (aiResult.activeAgent || "main") : "main",
+      activeSpecialist: typeof aiResult === "object" ? (aiResult.activeSpecialist || "general_physician") : "general_physician",
+      targetVoice: computedVoice,
+      specialistProfile: typeof aiResult === "object" ? aiResult.specialistProfile : null,
       appointmentData: typeof aiResult === "object" ? aiResult.appointmentData : null,
       timestamp: new Date().toISOString(),
-      agent: typeof aiResult === "object" && aiResult.activeAgent === "clinic_specialist" ? "Clinic & Appointment Specialist" : "SwasthyaSathi AI",
+      agent: responseAgentName,
     });
   } catch (error: any) {
     console.error("Chat API Route error:", error);

@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { User, Bot, Volume2, Copy, Check, Sparkles, HeartPulse, Stethoscope, Calendar, Building2 } from "lucide-react";
+import { User, Bot, Volume2, Copy, Check, Sparkles, HeartPulse, Stethoscope, Calendar, Building2, Brain } from "lucide-react";
+import { SpecialistDomain } from "@/lib/specialistTypes";
 
 export interface Message {
   id: string;
@@ -11,6 +12,9 @@ export interface Message {
   audioUrl?: string;
   isFallbackVoice?: boolean;
   agentType?: "main" | "clinic_specialist";
+  specialistId?: SpecialistDomain;
+  specialistName?: string;
+  targetVoice?: string;
 }
 
 interface ChatBubblesProps {
@@ -45,7 +49,7 @@ export default function ChatBubbles({ messages, onPlayAudio }: ChatBubblesProps)
     <div className="space-y-4 max-h-[460px] overflow-y-auto pr-2 my-4 scroll-smooth">
       {messages.map((msg) => {
         const isUser = msg.sender === "user";
-        const isSpecialist = msg.agentType === "clinic_specialist";
+        const isSpecialist = (msg.specialistId && msg.specialistId !== "general_physician") || msg.agentType === "clinic_specialist";
 
         return (
           <div
@@ -64,8 +68,12 @@ export default function ChatBubbles({ messages, onPlayAudio }: ChatBubblesProps)
             >
               {isUser ? (
                 <User className="w-4 h-4" />
+              ) : msg.specialistId === "cardiologist" ? (
+                <HeartPulse className="w-4 h-4 text-rose-200" />
+              ) : msg.specialistId === "mental_health" ? (
+                <Brain className="w-4 h-4 text-purple-200" />
               ) : isSpecialist ? (
-                <Calendar className="w-4 h-4" />
+                <Calendar className="w-4 h-4 text-amber-200" />
               ) : (
                 <Stethoscope className="w-4 h-4" />
               )}
@@ -84,22 +92,22 @@ export default function ChatBubbles({ messages, onPlayAudio }: ChatBubblesProps)
               {/* Header Info for Assistant */}
               {!isUser && (
                 <div className="flex items-center justify-between gap-2 pb-2 mb-2 border-b border-slate-200/80 text-[11px]">
-                  <div className="flex items-center gap-1.5 font-bold">
+                  <div className="flex items-center gap-1.5 font-bold flex-wrap">
                     {isSpecialist ? (
                       <>
-                        <span className="text-indigo-900 font-extrabold flex items-center gap-1">
+                        <span className="text-indigo-950 font-extrabold flex items-center gap-1">
                           <Building2 className="w-3.5 h-3.5 text-indigo-600" />
-                          <span>क्लिनिक विशेषज्ञ (Arogya Mitra)</span>
+                          <span>{msg.specialistName || "क्लिनिक विशेषज्ञ (Specialist Doctor)"}</span>
                         </span>
                         <span className="px-1.5 py-0.2 rounded-full bg-indigo-100 text-[9.5px] text-indigo-900 font-extrabold border border-indigo-300">
-                          Specialist Agent
+                          🎤 Murf Kabir (Male)
                         </span>
                       </>
                     ) : (
                       <>
-                        <span className="text-teal-800 font-bold">SwasthyaSathi AI</span>
+                        <span className="text-teal-800 font-bold">SwasthyaSathi AI (Primary)</span>
                         <span className="px-1.5 py-0.2 rounded bg-teal-50 text-[10px] text-teal-800 font-semibold border border-teal-200">
-                          Murf Falcon Voice
+                          🎤 Murf Shweta (Female)
                         </span>
                       </>
                     )}
@@ -125,6 +133,7 @@ export default function ChatBubbles({ messages, onPlayAudio }: ChatBubblesProps)
                   
                   {/* Replay Murf Speech Button */}
                   <button
+                    type="button"
                     onClick={() => onPlayAudio && onPlayAudio(msg.text, msg.audioUrl)}
                     className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg transition text-[11px] font-bold ${
                       isSpecialist
@@ -139,6 +148,7 @@ export default function ChatBubbles({ messages, onPlayAudio }: ChatBubblesProps)
 
                   {/* Copy Button */}
                   <button
+                    type="button"
                     onClick={() => handleCopy(msg.id, msg.text)}
                     className="p-1 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
                     title="Copy message"

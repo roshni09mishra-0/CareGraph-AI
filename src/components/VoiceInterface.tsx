@@ -9,14 +9,14 @@ import FacilityCard from "./FacilityCard";
 import OutboundDialerModal from "./OutboundDialerModal";
 import IncomingPhoneCallOverlay from "./IncomingPhoneCallOverlay";
 import AudioWaveformCanvas from "./AudioWaveformCanvas";
-import { CallerRecord } from "@/lib/db";
-import { HealthFacility } from "@/lib/facilityData";
-import { TriageClassificationResult } from "@/lib/tools";
-import { OutboundCallRecord, OutboundScenario, CallOutcome } from "@/lib/telephony";
+import type { CallerRecord } from "@/lib/db";
+import type { HealthFacility } from "@/lib/facilityData";
+import type { TriageClassificationResult } from "@/lib/tools";
+import type { OutboundCallRecord, OutboundScenario, CallOutcome } from "@/lib/telephony";
 import SpecialistBadge from "./SpecialistBadge";
 import SpecialistProfileCard from "./SpecialistProfileCard";
 import AppointmentCard from "./AppointmentCard";
-import { AppointmentRecord } from "@/lib/specialist";
+import { AppointmentRecord, SpecialistDomain, SPECIALIST_REGISTRY } from "@/lib/specialistTypes";
 import { Mic, MicOff, Send, Radio, RefreshCw, Volume2, ShieldCheck, Sparkles, VolumeX, UserCheck, AlertCircle, PhoneOff, Stethoscope, HelpCircle, Activity, Play, Volume1, CheckCircle2, Cpu, Square, KeyRound, Loader2, Hospital, MapPin, PhoneForwarded, PhoneCall, Zap, Calendar } from "lucide-react";
 
 interface VoiceInterfaceProps {
@@ -63,8 +63,9 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
   const [savedCallers, setSavedCallers] = useState<CallerRecord[]>([]);
   const [isNewPatient, setIsNewPatient] = useState<boolean>(false);
 
-  // Day 9: Multi-Agent Specialist Handoff State
+  // Multi-Agent Specialist Handoff State
   const [activeAgent, setActiveAgent] = useState<"main" | "clinic_specialist">("main");
+  const [activeSpecialist, setActiveSpecialist] = useState<SpecialistDomain>("general_physician");
   const [activeAppointment, setActiveAppointment] = useState<AppointmentRecord | null>(null);
 
   // Store last AI spoken response text for fallback TTS
@@ -558,6 +559,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
           userId: activeCaller?.user_id,
           callerName: activeCaller?.name,
           isCallStart: isCallStart,
+          activeSpecialist: activeSpecialist,
         }),
       });
 
@@ -574,6 +576,9 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
       }
       if (chatData.activeAgent) {
         setActiveAgent(chatData.activeAgent);
+      }
+      if (chatData.activeSpecialist) {
+        setActiveSpecialist(chatData.activeSpecialist);
       }
       if (chatData.appointmentData) {
         setActiveAppointment(chatData.appointmentData);
@@ -607,9 +612,11 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
 
       const isAiHindiResponse = /[\u0900-\u097F]/.test(aiResponseText) || userLanguageDetected === "Hindi" || userLanguageDetected === "Hinglish";
       
-      const targetTtsVoice = isAiHindiResponse 
-        ? (selectedVoice.startsWith("hi-IN") ? selectedVoice : "hi-IN-shweta")
-        : (selectedVoice.startsWith("en-IN") ? selectedVoice : "en-IN-priya");
+      const targetTtsVoice = chatData.targetVoice || (
+        isAiHindiResponse 
+          ? (selectedVoice.startsWith("hi-IN") ? selectedVoice : "hi-IN-shweta")
+          : (selectedVoice.startsWith("en-IN") ? selectedVoice : "en-IN-priya")
+      );
 
       setAssistantState("speaking");
 
@@ -626,7 +633,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
 
       const ttsData = await ttsRes.json();
 
-      const isSpecTurn = chatData.activeAgent === "clinic_specialist" || (activeAgent === "clinic_specialist" && chatData.functionCalled !== "transfer_back_to_main_agent");
+      const isSpecTurn = (chatData.activeSpecialist && chatData.activeSpecialist !== "general_physician") || chatData.activeAgent === "clinic_specialist";
       const aiMsgId = `ai-${Date.now()}`;
       const aiMsg: Message = {
         id: aiMsgId,
@@ -636,6 +643,9 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
         audioUrl: ttsData.audioUrl,
         isFallbackVoice: ttsData.isFallback,
         agentType: isSpecTurn ? "clinic_specialist" : "main",
+        specialistId: chatData.activeSpecialist,
+        specialistName: chatData.specialistProfile?.nameHi || chatData.agent,
+        targetVoice: targetTtsVoice,
       };
 
       setMessages((prev) => [...prev, aiMsg]);
@@ -1143,11 +1153,17 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
           )}
         </div>
 
-        {/* Day 9 Multi-Agent Specialist Profile & Switcher */}
+        {/* Multi-Specialist Profile & Switcher */}
         <SpecialistProfileCard
-          activeAgent={activeAgent}
-          onSwitchToMain={() => setActiveAgent("main")}
-          onSwitchToSpecialist={() => setActiveAgent("clinic_specialist")}
+          activeSpecialist={activeSpecialist}
+          onSelectSpecialist={(dom) => {
+            setActiveSpecialist(dom);
+            handleSendUserMessage(`मुझे ${SPECIALIST_REGISTRY[dom]?.roleHi || "विशेषज्ञ"} से परामर्श करना है`);
+          }}
+          onSwitchToMain={() => {
+            setActiveSpecialist("general_physician");
+            handleSendUserMessage("मुझे मुख्य स्वास्थ्य साथी पर वापस जाना है");
+          }}
         />
 
         {/* Day 9 Confirmed PHC Appointment Card */}
