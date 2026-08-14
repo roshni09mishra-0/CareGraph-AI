@@ -14,6 +14,7 @@ import { HealthFacility } from "@/lib/facilityData";
 import { TriageClassificationResult } from "@/lib/tools";
 import { OutboundCallRecord, OutboundScenario, CallOutcome } from "@/lib/telephony";
 import SpecialistBadge from "./SpecialistBadge";
+import SpecialistProfileCard from "./SpecialistProfileCard";
 import AppointmentCard from "./AppointmentCard";
 import { AppointmentRecord } from "@/lib/specialist";
 import { Mic, MicOff, Send, Radio, RefreshCw, Volume2, ShieldCheck, Sparkles, VolumeX, UserCheck, AlertCircle, PhoneOff, Stethoscope, HelpCircle, Activity, Play, Volume1, CheckCircle2, Cpu, Square, KeyRound, Loader2, Hospital, MapPin, PhoneForwarded, PhoneCall, Zap, Calendar } from "lucide-react";
@@ -625,6 +626,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
 
       const ttsData = await ttsRes.json();
 
+      const isSpecTurn = chatData.activeAgent === "clinic_specialist" || (activeAgent === "clinic_specialist" && chatData.functionCalled !== "transfer_back_to_main_agent");
       const aiMsgId = `ai-${Date.now()}`;
       const aiMsg: Message = {
         id: aiMsgId,
@@ -633,6 +635,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         audioUrl: ttsData.audioUrl,
         isFallbackVoice: ttsData.isFallback,
+        agentType: isSpecTurn ? "clinic_specialist" : "main",
       };
 
       setMessages((prev) => [...prev, aiMsg]);
@@ -1140,10 +1143,11 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
           )}
         </div>
 
-        {/* Day 9 Multi-Agent Specialist Status Badge */}
-        <SpecialistBadge
+        {/* Day 9 Multi-Agent Specialist Profile & Switcher */}
+        <SpecialistProfileCard
           activeAgent={activeAgent}
-          onSwitchAgent={(agent) => setActiveAgent(agent)}
+          onSwitchToMain={() => setActiveAgent("main")}
+          onSwitchToSpecialist={() => setActiveAgent("clinic_specialist")}
         />
 
         {/* Day 9 Confirmed PHC Appointment Card */}
