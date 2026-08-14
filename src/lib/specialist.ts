@@ -10,7 +10,8 @@ import {
   SpecialistDomain, 
   SpecialistProfile, 
   SPECIALIST_REGISTRY, 
-  AppointmentRecord 
+  AppointmentRecord,
+  AudioSegment
 } from "./specialistTypes";
 
 export * from "./specialistTypes";
@@ -196,7 +197,8 @@ export function detectRequiredSpecialist(query: string): SpecialistDomain | null
 
 /**
  * 2. Generate Smooth Voice Handoff Response
- * Primary assistant announces handoff -> Specialist introduces itself and addresses symptoms
+ * Primary assistant (Female Voice: hi-IN-shweta) announces handoff
+ * -> Specialist (Male Voice: hi-IN-kabir) introduces himself and addresses symptoms
  */
 export function generateSpecialistHandoffResponse(params: {
   specialistKey: SpecialistDomain;
@@ -208,39 +210,59 @@ export function generateSpecialistHandoffResponse(params: {
   targetVoice: string;
   specialistProfile: SpecialistProfile;
   appointmentData?: AppointmentRecord;
+  audioSegments: AudioSegment[];
 } {
   const spec = SPECIALIST_REGISTRY[params.specialistKey];
   const lang = params.language || "hi";
   const isHindi = lang === "hi" || lang === "hinglish";
   const pName = params.patientName || (isHindi ? "रमेश कुमार" : "Ramesh Kumar");
 
-  let handoffSpeech = "";
+  let primaryAnnouncement = "";
+  let specialistIntro = "";
   let appointmentData: AppointmentRecord | undefined = undefined;
 
   if (params.specialistKey === "cardiologist") {
-    handoffSpeech = isHindi
-      ? `ज़रूर, मैं आपको हमारे हृदय रोग विशेषज्ञ (Cardiologist) डॉ. आर्यन से कनेक्ट कर रही हूँ... नमस्ते ${pName} जी! मैं आपका एआई हृदय रोग विशेषज्ञ डॉ. आर्यन हूँ। मुझे जानकारी मिली है कि आपको सीने में परेशानी हो रही है। कृपया बताएं कि क्या यह दर्द बायीं तरफ है, और क्या आपको सांस फूलने या पसीना आने जैसा महसूस हो रहा है?`
-      : `Sure, I am connecting you to our Cardiology specialist Dr. Aryan now... Hello ${pName}, I am Dr. Aryan, your AI cardiology specialist. I understand you are experiencing chest pain. Can you tell me where exactly the pain is and if it radiates to your arm or jaw?`;
+    primaryAnnouncement = isHindi
+      ? `ज़रूर, मैं आपको हमारे हृदय रोग विशेषज्ञ (Cardiologist) डॉ. आर्यन से कनेक्ट कर रही हूँ...`
+      : `Sure, I am connecting you to our Cardiology specialist Dr. Aryan now...`;
+    specialistIntro = isHindi
+      ? `नमस्ते ${pName} जी! मैं आपका एआई हृदय रोग विशेषज्ञ डॉ. आर्यन हूँ। मुझे जानकारी मिली है कि आपको सीने में परेशानी हो रही है। कृपया बताएं कि क्या यह दर्द बायीं तरफ है, और क्या आपको सांस फूलने या पसीना आने जैसा महसूस हो रहा है?`
+      : `Hello ${pName}, I am Dr. Aryan, your AI cardiology specialist. I understand you are experiencing chest pain. Can you tell me where exactly the pain is and if it radiates to your arm or jaw?`;
   } else if (params.specialistKey === "dermatologist") {
-    handoffSpeech = isHindi
-      ? `ज़रूर, मैं आपको हमारे त्वचा एवं चर्म रोग विशेषज्ञ (Dermatologist) डॉ. रोहन से कनेक्ट कर रही हूँ... नमस्ते ${pName} जी! मैं आपका एआई त्वचा रोग विशेषज्ञ डॉ. रोहन हूँ। मुझे पता चला है कि आपकी त्वचा पर चकत्ते या खुजली हो रही है। क्या यह समस्या धूप से बढ़ी है या किसी नई क्रीम अथवा साबुन के इस्तेमाल के बाद शुरू हुई है?`
-      : `Sure, I am connecting you to our Dermatology specialist Dr. Rohan now... Hello ${pName}, I am Dr. Rohan, your AI dermatology specialist. I understand you are experiencing skin rashes and itching. Did this flare up recently, and is there any burning sensation or swelling?`;
+    primaryAnnouncement = isHindi
+      ? `ज़रूर, मैं आपको हमारे त्वचा एवं चर्म रोग विशेषज्ञ (Dermatologist) डॉ. रोहन से कनेक्ट कर रही हूँ...`
+      : `Sure, I am connecting you to our Dermatology specialist Dr. Rohan now...`;
+    specialistIntro = isHindi
+      ? `नमस्ते ${pName} जी! मैं आपका एआई त्वचा रोग विशेषज्ञ डॉ. रोहन हूँ। मुझे पता चला है कि आपकी त्वचा पर चकत्ते या खुजली हो रही है। क्या यह समस्या धूप से बढ़ी है या किसी नई क्रीम अथवा साबुन के इस्तेमाल के बाद शुरू हुई है?`
+      : `Hello ${pName}, I am Dr. Rohan, your AI dermatology specialist. I understand you are experiencing skin rashes and itching. Did this flare up recently, and is there any burning sensation or swelling?`;
   } else if (params.specialistKey === "mental_health") {
-    handoffSpeech = isHindi
-      ? `ज़रूर, मैं आपको हमारे मानसिक स्वास्थ्य एवं तनाव विशेषज्ञ (Mental Health Specialist) डॉ. कबीर से कनेक्ट कर रही हूँ... नमस्ते ${pName} जी, मैं डॉ. कबीर हूँ। मैं पूरी तरह आपकी बात सुनने के लिए उपस्थित हूँ। आपने बताया कि आप तनाव और घबराहट महसूस कर रहे हैं। आप बिल्कुल सुरक्षित हैं, गहरी सांस लें और बताएं कि क्या किसी विशेष बात को लेकर चिंता हो रही है?`
-      : `Sure, I am connecting you with our Mental Health specialist Dr. Kabir now... Hello ${pName}, I am Dr. Kabir, your mental health specialist. I understand you have been experiencing high stress and anxiety. Take a slow, deep breath. Please tell me what has been overwhelming you recently.`;
+    primaryAnnouncement = isHindi
+      ? `ज़रूर, मैं आपको हमारे मानसिक स्वास्थ्य एवं तनाव विशेषज्ञ (Mental Health Specialist) डॉ. कबीर से कनेक्ट कर रही हूँ...`
+      : `Sure, I am connecting you with our Mental Health specialist Dr. Kabir now...`;
+    specialistIntro = isHindi
+      ? `नमस्ते ${pName} जी, मैं डॉ. कबीर हूँ। मैं पूरी तरह आपकी बात सुनने के लिए उपस्थित हूँ। आपने बताया कि आप तनाव और घबराहट महसूस कर रहे हैं। आप बिल्कुल सुरक्षित हैं, गहरी सांस लें और बताएं कि क्या किसी विशेष बात को लेकर चिंता हो रही है?`
+      : `Hello ${pName}, I am Dr. Kabir, your mental health specialist. I understand you have been experiencing high stress and anxiety. Take a slow, deep breath. Please tell me what has been overwhelming you recently.`;
   } else if (params.specialistKey === "gastroenterologist") {
-    handoffSpeech = isHindi
-      ? `ज़रूर, मैं आपको हमारे पेट एवं पाचन रोग विशेषज्ञ (Gastroenterologist) डॉ. अमित से कनेक्ट कर रही हूँ... नमस्ते ${pName} जी! मैं आपका एआई पेट एवं पाचन रोग विशेषज्ञ डॉ. अमित हूँ। मुझे पता चला है कि आपको पेट में जलन और बदहजमी है। क्या यह दर्द खाली पेट ज्यादा होता है या खाना खाने के बाद?`
-      : `Sure, I am connecting you to our Gastroenterologist Dr. Amit now... Hello ${pName}, I am Dr. Amit, your AI gastroenterology specialist. I see you are dealing with stomach pain and acidity. Does the burning increase on an empty stomach or right after meals?`;
+    primaryAnnouncement = isHindi
+      ? `ज़रूर, मैं आपको हमारे पेट एवं पाचन रोग विशेषज्ञ (Gastroenterologist) डॉ. अमित से कनेक्ट कर रही हूँ...`
+      : `Sure, I am connecting you to our Gastroenterologist Dr. Amit now...`;
+    specialistIntro = isHindi
+      ? `नमस्ते ${pName} जी! मैं आपका एआई पेट एवं पाचन रोग विशेषज्ञ डॉ. अमित हूँ। मुझे पता चला है कि आपको पेट में जलन और बदहजमी है। क्या यह दर्द खाली पेट ज्यादा होता है या खाना खाने के बाद?`
+      : `Hello ${pName}, I am Dr. Amit, your AI gastroenterology specialist. I see you are dealing with stomach pain and acidity. Does the burning increase on an empty stomach or right after meals?`;
   } else if (params.specialistKey === "pediatrician") {
-    handoffSpeech = isHindi
-      ? `ज़रूर, मैं आपको हमारे बाल रोग विशेषज्ञ (Pediatrician) डॉ. विक्रम से कनेक्ट कर रही हूँ... नमस्ते ${pName} जी! मैं बाल रोग विशेषज्ञ डॉ. विक्रम हूँ। मुझे पता चला है कि आपके बच्चे को बुखार और खांसी है। कृपया बताएं कि बच्चे का तापमान कितना है और क्या वह सामान्य रूप से दूध व पानी पी रहा है?`
-      : `Sure, I am connecting you to our Pediatric specialist Dr. Vikram now... Hello ${pName}, I am Dr. Vikram, your AI pediatrician. I understand your child is having a fever and cough. How high is the temperature and is the child staying well hydrated?`;
+    primaryAnnouncement = isHindi
+      ? `ज़रूर, मैं आपको हमारे बाल रोग विशेषज्ञ (Pediatrician) डॉ. विक्रम से कनेक्ट कर रही हूँ...`
+      : `Sure, I am connecting you to our Pediatric specialist Dr. Vikram now...`;
+    specialistIntro = isHindi
+      ? `नमस्ते ${pName} जी! मैं बाल रोग विशेषज्ञ डॉ. विक्रम हूँ। मुझे पता चला है कि आपके बच्चे को बुखार और खांसी है। कृपया बताएं कि बच्चे का तापमान कितना है और क्या वह सामान्य रूप से दूध व पानी पी रहा है?`
+      : `Hello ${pName}, I am Dr. Vikram, your AI pediatrician. I understand your child is having a fever and cough. How high is the temperature and is the child staying well hydrated?`;
   } else if (params.specialistKey === "gynecologist") {
-    handoffSpeech = isHindi
-      ? `ज़रूर, मैं आपको हमारे महिला स्वास्थ्य विशेषज्ञ (Gynecologist) डॉ. सुनीता से कनेक्ट कर रही हूँ... नमस्ते ${pName} जी! मैं महिला स्वास्थ्य विशेषज्ञ डॉ. सुनीता हूँ। मुझे आपकी समस्या की जानकारी मिली है। कृपया बताएं कि क्या यह दर्द आपको हर माह होता है और क्या आपको अत्यधिक कमजोरी या चक्कर भी आ रहे हैं?`
-      : `Sure, I am connecting you with our Gynecology specialist Dr. Sunita now... Hello ${pName}, I am Dr. Sunita, your women's health specialist. I understand you are experiencing severe menstrual cramps and fatigue. How long have you had this discomfort during your cycle?`;
+    primaryAnnouncement = isHindi
+      ? `ज़रूर, मैं आपको हमारे महिला स्वास्थ्य विशेषज्ञ (Gynecologist) डॉ. सुनीता से कनेक्ट कर रही हूँ...`
+      : `Sure, I am connecting you with our Gynecology specialist Dr. Sunita now...`;
+    specialistIntro = isHindi
+      ? `नमस्ते ${pName} जी! मैं महिला स्वास्थ्य विशेषज्ञ डॉ. सुनीता हूँ। मुझे आपकी समस्या की जानकारी मिली है। कृपया बताएं कि क्या यह दर्द आपको हर माह होता है और क्या आपको अत्यधिक कमजोरी या चक्कर भी आ रहे हैं?`
+      : `Hello ${pName}, I am Dr. Sunita, your women's health specialist. I understand you are experiencing severe menstrual cramps and fatigue. How long have you had this discomfort during your cycle?`;
   } else if (params.specialistKey === "clinic_appointment") {
     const booking = bookAppointmentSlot({
       patient_name: pName,
@@ -248,27 +270,49 @@ export function generateSpecialistHandoffResponse(params: {
     });
     appointmentData = booking.appointment;
 
-    handoffSpeech = isHindi
-      ? `ज़रूर, मैं आपको हमारे प्राथमिक स्वास्थ्य केंद्र एवं अपॉइंटमेंट विशेषज्ञ (Arogya Mitra) से कनेक्ट कर रही हूँ... नमस्ते ${pName} जी! मैं क्लिनिक और अपॉइंटमेंट विशेषज्ञ हूँ। मैंने शिवपुर PHC में डॉ. राजेश गुप्ता के साथ आपका अपॉइंटमेंट बुक कर दिया है। आपका टोकन नंबर #${appointmentData.token_number} (${appointmentData.appointment_id}) है। स्लॉट कल सुबह 10:00 बजे का है।`
-      : `Sure, I am connecting you to our PHC Clinic & Appointment Specialist now... Hello ${pName}! I am your PHC Appointment Coordinator. I have booked your appointment at Shivpur PHC. Your token number is #${appointmentData.token_number} (${appointmentData.appointment_id}) for tomorrow at 10:00 AM.`;
+    primaryAnnouncement = isHindi
+      ? `ज़रूर, मैं आपको हमारे प्राथमिक स्वास्थ्य केंद्र एवं अपॉइंटमेंट विशेषज्ञ (Arogya Mitra) से कनेक्ट कर रही हूँ...`
+      : `Sure, I am connecting you to our PHC Clinic & Appointment Specialist now...`;
+    specialistIntro = isHindi
+      ? `नमस्ते ${pName} जी! मैं क्लिनिक और अपॉइंटमेंट विशेषज्ञ हूँ। मैंने शिवपुर PHC में डॉ. राजेश गुप्ता के साथ आपका अपॉइंटमेंट बुक कर दिया है। आपका टोकन नंबर #${appointmentData.token_number} (${appointmentData.appointment_id}) है। स्लॉट कल सुबह 10:00 बजे का है।`
+      : `Hello ${pName}! I am your PHC Appointment Coordinator. I have booked your appointment at Shivpur PHC. Your token number is #${appointmentData.token_number} (${appointmentData.appointment_id}) for tomorrow at 10:00 AM.`;
   } else {
-    handoffSpeech = isHindi
+    primaryAnnouncement = isHindi
       ? `नमस्ते ${pName} जी! मैं आपका मुख्य स्वास्थ्य साथी हूँ। कृपया अपनी स्वास्थ्य समस्या विस्तार से बताएं।`
       : `Hello ${pName}! I am your primary health assistant. How can I help you with your health today?`;
+    specialistIntro = "";
   }
 
+  const audioSegments: AudioSegment[] = [
+    {
+      text: primaryAnnouncement,
+      voiceId: isHindi ? "hi-IN-shweta" : "en-IN-priya", // Primary Assistant: FEMALE voice (Shweta / Priya)
+      speaker: "SwasthyaSathi AI (Female)",
+    },
+  ];
+
+  if (specialistIntro) {
+    audioSegments.push({
+      text: specialistIntro,
+      voiceId: isHindi ? spec.voiceIdHindi : spec.voiceIdEnglish, // Specialist: MALE voice (Kabir / Aarav)
+      speaker: `${spec.nameHi} (Male Doctor)`,
+    });
+  }
+
+  const fullResponse = specialistIntro ? `${primaryAnnouncement} ${specialistIntro}` : primaryAnnouncement;
   const targetVoice = isHindi ? spec.voiceIdHindi : spec.voiceIdEnglish;
 
   return {
-    response: handoffSpeech,
+    response: fullResponse,
     targetVoice,
     specialistProfile: spec,
     appointmentData,
+    audioSegments,
   };
 }
 
 /**
- * 3. Handle Continuation Turns with the Active Specialist
+ * 3. Handle Continuation Turns with the Active Specialist (Male Voice)
  */
 export function processSpecialistTurn(params: {
   specialistKey: SpecialistDomain;
@@ -326,6 +370,7 @@ export function processSpecialistTurn(params: {
       : `Please stay well hydrated, rest adequately, and monitor your symptoms. Consult a physician if discomfort increases.`;
   }
 
+  // Specialist always speaks in MALE Voice (hi-IN-kabir / en-IN-aarav)
   const targetVoice = isHindi ? spec.voiceIdHindi : spec.voiceIdEnglish;
 
   return {

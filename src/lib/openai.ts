@@ -12,7 +12,8 @@ import {
   SPECIALIST_REGISTRY, 
   SpecialistDomain, 
   SpecialistProfile,
-  AppointmentRecord 
+  AppointmentRecord,
+  AudioSegment
 } from "./specialist";
 
 if (process.env.NODE_ENV === "development") {
@@ -95,6 +96,7 @@ export interface HealthcareResponseResult {
   targetVoice?: string;
   specialistProfile?: SpecialistProfile;
   appointmentData?: AppointmentRecord | null;
+  audioSegments?: AudioSegment[];
 }
 
 export async function generateHealthcareResponse(
@@ -308,6 +310,7 @@ export async function getSimulatedHealthcareResponse(
       targetVoice: handoff.targetVoice,
       specialistProfile: handoff.specialistProfile,
       appointmentData: handoff.appointmentData,
+      audioSegments: handoff.audioSegments,
     };
   }
 

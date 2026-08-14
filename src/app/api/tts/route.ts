@@ -7,7 +7,35 @@ export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
   try {
-    const { text, voiceId, language, userLanguage } = await req.json();
+    const { text, voiceId, language, userLanguage, segments } = await req.json();
+
+    // Multi-Speaker Voice Switching Support (Dual Voice playback for handoffs)
+    if (segments && Array.isArray(segments) && segments.length > 0) {
+      const segmentResults = [];
+      for (const seg of segments) {
+        if (!seg.text || typeof seg.text !== "string") continue;
+        const segRes = await generateMurfFalconSpeech({
+          text: seg.text,
+          voiceId: seg.voiceId || "hi-IN-shweta",
+          style: "Conversational",
+        });
+        segmentResults.push({
+          audioUrl: segRes.audioUrl,
+          encodedAudio: segRes.encodedAudio,
+          voiceId: seg.voiceId || "hi-IN-shweta",
+          text: seg.text,
+          speaker: seg.speaker || "Assistant",
+        });
+      }
+
+      return NextResponse.json({
+        segments: segmentResults,
+        audioUrl: segmentResults[0]?.audioUrl,
+        voice: segmentResults[0]?.voiceId,
+        language: "hi-IN",
+        responseLanguage: "Hindi",
+      });
+    }
 
     if (!text || typeof text !== "string") {
       return NextResponse.json({ error: "Text string is required" }, { status: 400 });
@@ -20,13 +48,13 @@ export async function POST(req: NextRequest) {
     // 2. Select authentic Indian Hindi or Indian English voice
     let effectiveVoiceId = voiceId;
     if (isHindiOrHinglish) {
-      // If voiceId is missing or is an English voice, automatically route to authentic Hindi voice Shweta
-      if (!effectiveVoiceId || !effectiveVoiceId.startsWith("hi-IN")) {
+      // If voiceId is missing or is an English voice, default to authentic Hindi voice
+      if (!effectiveVoiceId || (!effectiveVoiceId.startsWith("hi-IN") && !effectiveVoiceId.includes("kabir") && !effectiveVoiceId.includes("shweta"))) {
         effectiveVoiceId = "hi-IN-shweta";
       }
     } else {
-      // English text -> route to authentic Indian English voice Priya
-      if (!effectiveVoiceId || !effectiveVoiceId.startsWith("en-IN")) {
+      // English text -> route to authentic Indian English voice
+      if (!effectiveVoiceId || (!effectiveVoiceId.startsWith("en-IN") && !effectiveVoiceId.includes("aarav") && !effectiveVoiceId.includes("priya"))) {
         effectiveVoiceId = "en-IN-priya";
       }
     }

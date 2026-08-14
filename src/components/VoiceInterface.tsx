@@ -635,6 +635,7 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
           voiceId: targetTtsVoice,
           language: isAiHindiResponse ? "hi" : "en",
           userLanguage: userLanguageDetected,
+          segments: chatData.audioSegments || undefined,
         }),
       });
 
@@ -690,7 +691,9 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
 
       // Play Audio with Murf Falcon or WebSpeech fallback
       if (!audioMuted) {
-        if (ttsData.audioUrl) {
+        if (ttsData.segments && Array.isArray(ttsData.segments) && ttsData.segments.length > 0) {
+          playAudioSegmentsQueue(ttsData.segments);
+        } else if (ttsData.audioUrl) {
           playAudioUrl(ttsData.audioUrl, aiResponseText, isAiHindiResponse);
         } else {
           speakBrowserTTS(aiResponseText, isAiHindiResponse);
@@ -776,9 +779,55 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
     }
   };
 
+  const audioQueueRef = useRef<{ url: string; fallbackText?: string; voiceId?: string }[]>([]);
+
+  const playAudioSegmentsQueue = (segments: { audioUrl?: string; encodedAudio?: string; text?: string; voiceId?: string }[]) => {
+    stopAllAssistantAudio();
+    audioQueueRef.current = segments.map(s => ({
+      url: s.audioUrl || "",
+      fallbackText: s.text,
+      voiceId: s.voiceId,
+    }));
+    playNextAudioInQueue();
+  };
+
+  const playNextAudioInQueue = () => {
+    if (!audioQueueRef.current || audioQueueRef.current.length === 0) {
+      returnToListeningMode();
+      return;
+    }
+    const currentItem = audioQueueRef.current.shift();
+    if (!currentItem || !currentItem.url) {
+      if (currentItem?.fallbackText) speakBrowserTTS(currentItem.fallbackText, true);
+      else returnToListeningMode();
+      return;
+    }
+
+    if (audioPlaybackSafetyTimerRef.current) clearTimeout(audioPlaybackSafetyTimerRef.current);
+    audioPlaybackSafetyTimerRef.current = setTimeout(() => {
+      console.warn("[Voice Safety Watchdog] Audio segment playback timeout reached.");
+      playNextAudioInQueue();
+    }, 14000);
+
+    if (audioRef.current) {
+      audioRef.current.src = currentItem.url;
+      audioRef.current.play().then(() => {
+        setAssistantState("speaking");
+      }).catch(e => {
+        console.warn("[Audio Queue Play Catch]", e);
+        if (currentItem.fallbackText) {
+          speakBrowserTTS(currentItem.fallbackText, true);
+        } else {
+          playNextAudioInQueue();
+        }
+      });
+    }
+  };
+
   // Play Murf Audio MP3 via HTML5 Audio with Automatic WebSpeech Fallback
   const playAudioUrl = (url: string, fallbackText?: string, isHindiFallback?: boolean) => {
     stopAllAssistantAudio();
+    audioQueueRef.current = [];
 
     if (audioPlaybackSafetyTimerRef.current) clearTimeout(audioPlaybackSafetyTimerRef.current);
     audioPlaybackSafetyTimerRef.current = setTimeout(() => {
@@ -834,10 +883,18 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
         setAssistantState("speaking");
       };
       utterance.onend = () => {
-        returnToListeningMode();
+        if (audioQueueRef.current && audioQueueRef.current.length > 0) {
+          playNextAudioInQueue();
+        } else {
+          returnToListeningMode();
+        }
       };
       utterance.onerror = () => {
-        returnToListeningMode();
+        if (audioQueueRef.current && audioQueueRef.current.length > 0) {
+          playNextAudioInQueue();
+        } else {
+          returnToListeningMode();
+        }
       };
 
       window.speechSynthesis.speak(utterance);
@@ -847,8 +904,13 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
   };
 
   const handleAudioEnded = () => {
-    console.log("[Voice] TTS FINISHED (Murf Falcon playback complete)");
-    returnToListeningMode();
+    if (audioQueueRef.current && audioQueueRef.current.length > 0) {
+      console.log("[Voice] Audio segment finished, playing next speaker in queue...");
+      playNextAudioInQueue();
+    } else {
+      console.log("[Voice] TTS FINISHED (Murf Falcon playback complete)");
+      returnToListeningMode();
+    }
   };
 
   return (

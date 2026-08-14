@@ -13,6 +13,12 @@ export type SpecialistDomain =
   | "clinic_appointment"
   | "general_physician";
 
+export interface AudioSegment {
+  text: string;
+  voiceId: string;
+  speaker: string;
+}
+
 export interface SpecialistProfile {
   id: SpecialistDomain;
   nameEn: string;

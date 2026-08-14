@@ -55,6 +55,7 @@ export async function POST(req: NextRequest) {
       targetVoice: computedVoice,
       specialistProfile: typeof aiResult === "object" ? aiResult.specialistProfile : null,
       appointmentData: typeof aiResult === "object" ? aiResult.appointmentData : null,
+      audioSegments: typeof aiResult === "object" ? aiResult.audioSegments : null,
       timestamp: new Date().toISOString(),
       agent: responseAgentName,
     });
