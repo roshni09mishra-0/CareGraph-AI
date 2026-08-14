@@ -11,6 +11,7 @@ interface AudioWaveformCanvasProps {
 export default function AudioWaveformCanvas({ analyser, isActive, state }: AudioWaveformCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const animationFrameRef = useRef<number | null>(null);
+  const lastDrawTimeRef = useRef<number>(0);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -57,7 +58,14 @@ export default function AudioWaveformCanvas({ analyser, isActive, state }: Audio
       return;
     }
 
-    const draw = () => {
+    const draw = (currentTime: number) => {
+      // Throttle rendering to ~30 FPS to save CPU and ensure buttery-smooth UI
+      if (currentTime - lastDrawTimeRef.current < 33) {
+        animationFrameRef.current = requestAnimationFrame(draw);
+        return;
+      }
+      lastDrawTimeRef.current = currentTime;
+
       const width = canvas.width;
       const height = canvas.height;
       ctx.clearRect(0, 0, width, height);
@@ -97,12 +105,12 @@ export default function AudioWaveformCanvas({ analyser, isActive, state }: Audio
         ctx.stroke();
         animationFrameRef.current = requestAnimationFrame(draw);
       } else if (state === "speaking") {
-        phase += 0.12;
+        phase += 0.15;
         ctx.lineWidth = 2.5;
         ctx.strokeStyle = "#059669";
         ctx.beginPath();
 
-        for (let x = 0; x < width; x += 4) {
+        for (let x = 0; x < width; x += 6) {
           const envelope = Math.sin((x / width) * Math.PI);
           const y = height / 2 + Math.sin(x * 0.05 + phase) * 8 * envelope;
           if (x === 0) ctx.moveTo(x, y);
@@ -113,7 +121,7 @@ export default function AudioWaveformCanvas({ analyser, isActive, state }: Audio
       }
     };
 
-    draw();
+    animationFrameRef.current = requestAnimationFrame(draw);
 
     return () => {
       if (animationFrameRef.current) {
@@ -129,7 +137,8 @@ export default function AudioWaveformCanvas({ analyser, isActive, state }: Audio
         ref={canvasRef}
         width={600}
         height={64}
-        className="w-full h-full block"
+        className="w-full h-full block transform-gpu"
+        style={{ willChange: "transform" }}
       />
       <div className="absolute top-2 right-3 flex items-center gap-1.5 text-[10.5px] font-bold text-teal-800 uppercase tracking-wider bg-white/90 px-2 py-0.5 rounded-full border border-teal-200 shadow-sm">
         <span className={`w-2 h-2 rounded-full ${state === "speaking" ? "bg-emerald-500 animate-pulse" : state === "listening" ? "bg-rose-500 animate-pulse" : "bg-teal-400"}`} />

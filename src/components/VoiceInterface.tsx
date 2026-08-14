@@ -348,9 +348,13 @@ export default function VoiceInterface({ onLiveKitStatusChange }: VoiceInterface
 
       recognition.onend = () => {
         if (isHandsFreeActiveRef.current && assistantStateRef.current !== "speaking") {
-          try {
-            recognition.start();
-          } catch (e) {}
+          setTimeout(() => {
+            if (isHandsFreeActiveRef.current && assistantStateRef.current !== "speaking") {
+              try {
+                recognition.start();
+              } catch (e) {}
+            }
+          }, 300);
         }
       };
 
