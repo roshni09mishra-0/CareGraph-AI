@@ -9,6 +9,7 @@ import {
   detectRequiredSpecialist, 
   generateSpecialistHandoffResponse, 
   processSpecialistTurn, 
+  isQueryInSpecialistDomain,
   SPECIALIST_REGISTRY, 
   SpecialistDomain, 
   SpecialistProfile,
@@ -267,26 +268,30 @@ export async function getSimulatedHealthcareResponse(
         targetVoice: handoff.targetVoice,
         specialistProfile: handoff.specialistProfile,
         appointmentData: handoff.appointmentData,
+        audioSegments: handoff.audioSegments,
       };
     }
 
-    // Continue conversation with current specialist
-    const turnResult = processSpecialistTurn({
-      specialistKey: currentSpecialist,
-      userPrompt: q,
-      patientName,
-      language: userLang,
-    });
+    // If the query is related to the current specialist's domain, continue with specialist in Male Voice
+    if (isQueryInSpecialistDomain(currentSpecialist, q)) {
+      const turnResult = processSpecialistTurn({
+        specialistKey: currentSpecialist,
+        userPrompt: q,
+        patientName,
+        language: userLang,
+      });
 
-    return {
-      response: turnResult.response,
-      caller: currentCaller,
-      functionCalled: `consult_${currentSpecialist}`,
-      activeAgent: "clinic_specialist",
-      activeSpecialist: currentSpecialist,
-      targetVoice: turnResult.targetVoice,
-      specialistProfile: turnResult.specialistProfile,
-    };
+      return {
+        response: turnResult.response,
+        caller: currentCaller,
+        functionCalled: `consult_${currentSpecialist}`,
+        activeAgent: "clinic_specialist",
+        activeSpecialist: currentSpecialist,
+        targetVoice: turnResult.targetVoice,
+        specialistProfile: turnResult.specialistProfile,
+      };
+    }
+    // Otherwise, the user is asking a general health question -> Automatically switch to SwasthyaSathi AI in Female Voice (hi-IN-shweta)
   }
 
   // =========================================================================

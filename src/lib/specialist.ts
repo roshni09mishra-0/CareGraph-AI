@@ -196,6 +196,42 @@ export function detectRequiredSpecialist(query: string): SpecialistDomain | null
 }
 
 /**
+ * Helper to check if a query belongs to a specific specialist's active domain
+ */
+export function isQueryInSpecialistDomain(domain: SpecialistDomain, query: string): boolean {
+  const q = query.toLowerCase().trim();
+  if (domain === "cardiologist") {
+    return /\b(chest|heart|cardio|blood pressure|bp|left side|left arm|palpitation|breath|sans|dhadkan|sine|chhati|ecg|pain)\b/i.test(q) ||
+      q.includes("सीने") || q.includes("छाती") || q.includes("हार्ट") || q.includes("धड़कन") || q.includes("सांस") || q.includes("बाएं") || q.includes("बायीं");
+  }
+  if (domain === "dermatologist") {
+    return /\b(skin|rash|itching|allergy|eczema|acne|cream|pimple|khujli|twacha|daane|chakatte)\b/i.test(q) ||
+      q.includes("त्वचा") || q.includes("खुजली") || q.includes("चकत्ते") || q.includes("दाने");
+  }
+  if (domain === "mental_health") {
+    return /\b(stress|anxiety|depression|panic|sleep|insomnia|mental|worry|tanav|chinta|ghabrahat|neend)\b/i.test(q) ||
+      q.includes("तनाव") || q.includes("चिंता") || q.includes("घबराहट") || q.includes("नींद");
+  }
+  if (domain === "gastroenterologist") {
+    return /\b(stomach|digestion|acidity|gas|vomit|nausea|diarrhea|food|meal|pet|jalan|badhazmi|ulti|dast|khana|khati)\b/i.test(q) ||
+      q.includes("पेट") || q.includes("एसिडिटी") || q.includes("बदहजमी") || q.includes("गैस") || q.includes("जलन") || q.includes("खाना") || q.includes("उल्टी");
+  }
+  if (domain === "pediatrician") {
+    return /\b(child|baby|infant|toddler|pediatric|bacche|shishu|tika)\b/i.test(q) ||
+      q.includes("बच्चे") || q.includes("शिशु") || q.includes("टीका");
+  }
+  if (domain === "gynecologist") {
+    return /\b(period|menstrual|cramp|pregnancy|pregnant|pcos|mahila)\b/i.test(q) ||
+      q.includes("पीरियड्स") || q.includes("मासिक") || q.includes("गर्भावस्था");
+  }
+  if (domain === "clinic_appointment") {
+    return /\b(appointment|slot|token|phc|doctor time|booking|time)\b/i.test(q) ||
+      q.includes("अपॉइंटमेंट") || q.includes("स्लॉट") || q.includes("टोकन");
+  }
+  return false;
+}
+
+/**
  * 2. Generate Smooth Voice Handoff Response
  * Primary assistant (Female Voice: hi-IN-shweta) announces handoff
  * -> Specialist (Male Voice: hi-IN-kabir) introduces himself and addresses symptoms
