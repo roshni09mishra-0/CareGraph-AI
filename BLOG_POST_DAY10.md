@@ -140,7 +140,7 @@ Monolithic AI assistants cannot be experts at everything. SwasthyaSathi routes c
 
 | Screenshot 1: Patient Memory & LiveKit Voice Interface | Screenshot 2: Doctor Escalation Command Center |
 |---|---|
-| ![Patient Memory & Voice Interface](/public/images/patient-memory-voice-interface.png) | ![Doctor Escalation Command Center](/public/images/doctor-escalation-dashboard.png) |
+| ![SwasthyaSathi Voice Assistant Interface showing LiveKit WebRTC connection and patient memory profile for Ramesh Kumar](https://dev-to-uploads.s3.us-east-2.amazonaws.com/uploads/articles/yjk55akjyebv7kirx316.png) | ![Human Doctor Escalation Command Center at Shivpur PHC showing emergency triage ticket and clinical summary](https://dev-to-uploads.s3.us-east-2.amazonaws.com/uploads/articles/2mgd5i4qx81ov4kpkgoz.png) |
 | *Live voice interface with persistent patient profile (Ramesh Kumar), Murf Falcon 2 Indian voice selector, and real-time WebRTC.* | *Shivpur PHC Duty Doctor & Nurse Command Center with emergency triage summary, red-flag alert, and PII masking (+91 79919 •••••).* |
 
 ---
