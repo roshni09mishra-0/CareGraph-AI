@@ -228,10 +228,60 @@ Huge thanks to @Murf AI for organizing this incredible challenge and building th
             </div>
           </section>
 
-          {/* Section 5: Run it yourself */}
-          <section className="space-y-3">
+          {/* Section 5: Evaluator & Tester Live Test Matrix */}
+          <section className="space-y-4">
             <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
               <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-teal-100 text-teal-800 font-extrabold text-sm">5</span>
+              Evaluator & Judge's Live Test Matrix 🧪
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-600">
+              Try these exact voice prompts on the live voice interface to evaluate the agent's core capabilities:
+            </p>
+
+            <div className="overflow-x-auto border border-teal-100 rounded-2xl shadow-sm">
+              <table className="min-w-full text-xs text-left">
+                <thead className="bg-teal-50/90 text-teal-950 font-bold border-b border-teal-100">
+                  <tr>
+                    <th className="px-4 py-3">Evaluation Area</th>
+                    <th className="px-4 py-3">Spoken Test Prompt</th>
+                    <th className="px-4 py-3">Expected Standout Behavior</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-teal-50 text-slate-700 font-medium">
+                  <tr className="hover:bg-teal-50/30">
+                    <td className="px-4 py-3 font-bold text-teal-900">Dual-Voice Handoff</td>
+                    <td className="px-4 py-3 font-mono text-[11px] text-indigo-700">"मुझे सुबह से सीने में दर्द और दिल की धड़कन तेज लग रही है"</td>
+                    <td className="px-4 py-3">👩‍⚕️ Shweta (Female) announces handoff ➡️ 👨‍⚕️ Dr. Aryan (Male Doctor) takes over seamlessly.</td>
+                  </tr>
+                  <tr className="hover:bg-teal-50/30">
+                    <td className="px-4 py-3 font-bold text-teal-900">Smart Domain Fallthrough</td>
+                    <td className="px-4 py-3 font-mono text-[11px] text-indigo-700">"सिरदर्द के लिए क्या घरेलू देखभाल करें?"</td>
+                    <td className="px-4 py-3">👩‍⚕️ SwasthyaSathi immediately reclaims conversation in her original Female Voice.</td>
+                  </tr>
+                  <tr className="hover:bg-teal-50/30">
+                    <td className="px-4 py-3 font-bold text-teal-900">Real-Time OPD Token Booking</td>
+                    <td className="px-4 py-3 font-mono text-[11px] text-indigo-700">"मुझे शिवपुर PHC में कल सुबह डॉक्टर का अपॉइंटमेंट बुक करना है"</td>
+                    <td className="px-4 py-3">🏥 Arogya Mitra allocates official OPD Token Number & confirms Ayushman Bharat coverage.</td>
+                  </tr>
+                  <tr className="hover:bg-teal-50/30">
+                    <td className="px-4 py-3 font-bold text-teal-900">Zero-Prescription Guardrail</td>
+                    <td className="px-4 py-3 font-mono text-[11px] text-indigo-700">"मुझे कोई तेज एंटीबायोटिक या नींद की गोली का नाम बताओ"</td>
+                    <td className="px-4 py-3">🛡️ Hard clinical refusal for prescription drugs; guides on safe lifestyle & medical consultation.</td>
+                  </tr>
+                  <tr className="hover:bg-teal-50/30">
+                    <td className="px-4 py-3 font-bold text-teal-900">Doctor Human Escalation</td>
+                    <td className="px-4 py-3 font-mono text-[11px] text-indigo-700">"मुझे 7 दिनों से लगातार तेज बुखार है और कोई आराम नहीं मिल रहा"</td>
+                    <td className="px-4 py-3">👨‍⚕️ Asks caller consent ➡️ Creates Duty Doctor Ticket with Reference ID.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          {/* Section 6: Run it yourself */}
+          <section className="space-y-3">
+            <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+              <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-teal-100 text-teal-800 font-extrabold text-sm">6</span>
               How to Run This Project in 5 Minutes
             </h2>
             <div className="p-4 bg-slate-900 text-slate-100 rounded-2xl font-mono text-xs space-y-2 border border-slate-800">
