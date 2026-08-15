@@ -200,6 +200,41 @@ Huge thanks to @Murf AI for organizing this incredible challenge and building th
                 </p>
               </div>
             </div>
+
+            {/* Real-time Project Screenshots Showcase */}
+            <div className="space-y-6 pt-2">
+              <div className="bg-slate-900/90 rounded-2xl p-4 border border-slate-800 shadow-md space-y-2">
+                <div className="flex items-center justify-between text-xs text-slate-300 font-semibold px-1">
+                  <span>📸 Screenshot 1: Patient Memory Profile & LiveKit Voice Interface</span>
+                  <span className="text-teal-400 font-mono text-[11px]">380ms Latency | Murf Falcon</span>
+                </div>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img 
+                  src="/images/patient-memory-voice-interface.png" 
+                  alt="SwasthyaSathi Voice Interface & Patient Memory Profile" 
+                  className="w-full rounded-xl border border-slate-700/80 shadow-lg object-contain bg-slate-950"
+                />
+                <p className="text-[11px] text-slate-400 text-center italic">
+                  Live voice interface with persistent patient profile (Ramesh Kumar, Shivpur), Murf Falcon Indian voice selector, and WebRTC streaming.
+                </p>
+              </div>
+
+              <div className="bg-slate-900/90 rounded-2xl p-4 border border-slate-800 shadow-md space-y-2">
+                <div className="flex items-center justify-between text-xs text-slate-300 font-semibold px-1">
+                  <span>📸 Screenshot 2: Human Doctor Escalation Command Center</span>
+                  <span className="text-rose-400 font-mono text-[11px]">Emergency 108 Alert | Ticket ESC-2026-1042</span>
+                </div>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img 
+                  src="/images/doctor-escalation-dashboard.png" 
+                  alt="Human Doctor Escalation Dashboard" 
+                  className="w-full rounded-xl border border-slate-700/80 shadow-lg object-contain bg-slate-950"
+                />
+                <p className="text-[11px] text-slate-400 text-center italic">
+                  Duty Doctor & Nurse Command Center at Shivpur PHC with clinical triage summary, red-flag alert, PII-masked phone (+91 79919 •••••), and consent confirmation.
+                </p>
+              </div>
+            </div>
           </section>
 
           {/* Section 4: Difficult Challenges */}

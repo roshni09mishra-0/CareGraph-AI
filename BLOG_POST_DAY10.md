@@ -136,6 +136,15 @@ Monolithic AI assistants cannot be experts at everything. SwasthyaSathi routes c
 
 ---
 
+### 📸 Real-Time Application Screenshots Showcase
+
+| Screenshot 1: Patient Memory & LiveKit Voice Interface | Screenshot 2: Doctor Escalation Command Center |
+|---|---|
+| ![Patient Memory & Voice Interface](/public/images/patient-memory-voice-interface.png) | ![Doctor Escalation Command Center](/public/images/doctor-escalation-dashboard.png) |
+| *Live voice interface with persistent patient profile (Ramesh Kumar), Murf Falcon 2 Indian voice selector, and real-time WebRTC.* | *Shivpur PHC Duty Doctor & Nurse Command Center with emergency triage summary, red-flag alert, and PII masking (+91 79919 •••••).* |
+
+---
+
 ## 4. Challenges Faced & Lessons Learned
 
 Real-world engineering is full of hurdles. Here are three major technical challenges I tackled during the build:
