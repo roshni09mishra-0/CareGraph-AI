@@ -14,6 +14,7 @@ import { RoomServiceClient, AccessToken } from "livekit-server-sdk";
 import { generateHealthcareResponse } from "@/lib/openai";
 import { generateMurfFalconSpeech } from "@/lib/murf";
 import { createEscalationTicket, scrubSensitiveData } from "@/lib/escalation";
+import { SpecialistDomain } from "@/lib/specialistTypes";
 
 export interface SipWorkerSession {
   roomName: string;
@@ -22,6 +23,7 @@ export interface SipWorkerSession {
   language: "hi" | "en" | "hinglish";
   conversationHistory: { role: "user" | "assistant"; content: string }[];
   isSpeaking: boolean;
+  activeSpecialist?: SpecialistDomain;
   activeTtsAbortController?: AbortController;
 }
 
@@ -141,20 +143,26 @@ export class LiveKitSipVoiceWorker {
 
     session.conversationHistory.push({ role: "user", content: transcript });
 
-    // 2. Generate Healthcare Clinical Intelligence & Day 7 Escalations
+    // 2. Generate Healthcare Clinical Intelligence & Multi-Specialist Handoff
     const aiResult = await generateHealthcareResponse(
       transcript,
       session.conversationHistory,
       "user_ramesh",
       session.callerName,
-      false
+      false,
+      session.activeSpecialist
     );
 
     const replyText = typeof aiResult === "string" ? aiResult : aiResult.response;
+    if (typeof aiResult === "object" && aiResult.activeSpecialist) {
+      session.activeSpecialist = aiResult.activeSpecialist;
+    }
     session.conversationHistory.push({ role: "assistant", content: replyText });
 
-    // 3. Synthesize Murf Falcon 2 Speech
-    const voiceId = /[\u0900-\u097F]/.test(replyText) ? "hi-IN-shweta" : "en-IN-priya";
+    // 3. Synthesize Murf Falcon 2 Speech with dynamic specialist voice switching
+    const voiceId = (typeof aiResult === "object" && aiResult.targetVoice) 
+      ? aiResult.targetVoice 
+      : (/[\u0900-\u097F]/.test(replyText) ? "hi-IN-shweta" : "en-IN-priya");
     let audioUrl: string | undefined = undefined;
 
     session.isSpeaking = true;

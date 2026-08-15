@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Activity, ShieldAlert, Settings, Radio, Sparkles, PhoneCall, HeartPulse, Stethoscope, ClipboardList, BarChart3 } from "lucide-react";
+import { Activity, ShieldAlert, Settings, Radio, Sparkles, PhoneCall, HeartPulse, Stethoscope, ClipboardList, BarChart3, BookOpen } from "lucide-react";
 import Link from "next/link";
 
 interface HeaderProps {
@@ -86,6 +86,17 @@ export default function Header({ onOpenSetup, onOpenEscalations, onOpenAnalytics
               </span>
             )}
           </button>
+
+          {/* Day 10 Journey Blog Link */}
+          <Link
+            href="/blog"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border border-indigo-200 shadow-sm transition active:scale-95"
+            title="Read Day 10 Journey Blog & Submission"
+          >
+            <BookOpen className="w-4 h-4 text-indigo-700" />
+            <span className="hidden sm:inline">Journey Blog</span>
+            <span className="sm:hidden">Blog</span>
+          </Link>
 
           {/* Doctor Escalations Dashboard Button */}
           <button
