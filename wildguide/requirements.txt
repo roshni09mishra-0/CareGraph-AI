@@ -1,0 +1,7 @@
+streamlit
+pillow
+requests
+folium
+streamlit-folium
+geopy
+pyttsx3

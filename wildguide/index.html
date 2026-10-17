@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WildGuide — Explore the wild. Smarter.</title>
+  <meta name="description" content="WildGuide is an offline AI nature companion — identify plants, birds, mushrooms, and insects anywhere, even without signal." />
+  <meta name="theme-color" content="#173f35" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ░░ Animated mosaic tile background ░░ -->
+  <div class="animal-tile-bg" aria-hidden="true">
+    <div class="mosaic-grid" id="mosaicGrid"></div>
+  </div>
+
+  <!-- ═══════════════ NAV ═══════════════ -->
+  <nav class="main-nav" id="mainNav">
+    <div class="nav-inner container">
+      <div class="logo">🌿 WildGuide</div>
+      <div class="nav-links">
+        <a href="#features">Features</a>
+        <a href="#for-who">Who It's For</a>
+        <a href="#open-ai">Open AI</a>
+        <a href="#contact">Contact</a>
+      </div>
+      <div class="nav-actions">
+        <div class="nav-badge">
+          <span class="offline-dot"></span> Runs Offline
+        </div>
+        <a href="http://localhost:8501" class="btn btn-primary btn-sm" target="_blank">Open App →</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ═══════════════ HERO ═══════════════ -->
+  <header class="hero-section">
+    <div class="hero-bg-layer"></div>
+    <div class="hero-gradient"></div>
+
+    <div class="hero-content container">
+      <div class="hero-eyebrow">
+        <span class="eyebrow-tag">Open-Weight AI · Zero Internet · Zero Cost</span>
+      </div>
+      <h1>Explore the wild.<br /><em>Smarter.</em></h1>
+      <p class="subheadline">
+        WildGuide is your offline AI nature companion — identify plants, birds,
+        mushrooms &amp; insects from trail photos. All on your own device.
+        No signal needed. No API fees. Ever.
+      </p>
+      <div class="cta-group">
+        <a href="http://localhost:8501" class="btn btn-primary" target="_blank">→ Open WildGuide App</a>
+        <a href="#features" class="btn btn-outline">→ Explore Features</a>
+      </div>
+      <p class="hero-footnote">
+        Powered by <strong>Ollama</strong> + <strong>LLaVA</strong> — open-weight AI that goes where you go.
+      </p>
+    </div>
+
+    <!-- Floating nature tags -->
+    <div class="hero-tags" aria-hidden="true">
+      <span class="htag" style="--x:12%;--y:65%;--d:0s">🌿 Plants</span>
+      <span class="htag" style="--x:78%;--y:72%;--d:0.5s">🐦 Birds</span>
+      <span class="htag" style="--x:88%;--y:30%;--d:1s">🍄 Mushrooms</span>
+      <span class="htag" style="--x:5%;--y:35%;--d:1.5s">🦋 Insects</span>
+      <span class="htag" style="--x:55%;--y:80%;--d:2s">📡 Offline</span>
+    </div>
+
+    <div class="scroll-cue" aria-hidden="true"><span></span></div>
+  </header>
+
+  <!-- ═══════════════ STATS STRIP ═══════════════ -->
+  <div class="stats-strip">
+    <div class="container">
+      <div class="stats-grid">
+        <div class="stat-item">
+          <div class="stat-num">100%</div>
+          <div class="stat-label">Offline capable</div>
+        </div>
+        <div class="stat-sep"></div>
+        <div class="stat-item">
+          <div class="stat-num">4</div>
+          <div class="stat-label">Species categories</div>
+        </div>
+        <div class="stat-sep"></div>
+        <div class="stat-item">
+          <div class="stat-num">$0</div>
+          <div class="stat-label">API cost forever</div>
+        </div>
+        <div class="stat-sep"></div>
+        <div class="stat-item">
+          <div class="stat-num">0</div>
+          <div class="stat-label">Photos sent to servers</div>
+        </div>
+        <div class="stat-sep"></div>
+        <div class="stat-item">
+          <div class="stat-num">MIT</div>
+          <div class="stat-label">Open source license</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ FEATURES ═══════════════ -->
+  <section id="features" class="section-features">
+    <div class="container">
+      <div class="section-header reveal">
+        <div class="section-eyebrow">What It Does</div>
+        <h2>Discover nature, anywhere.</h2>
+        <p>Field-ready identification, a personal sightings log, and a garden planner — all running locally on your machine.</p>
+      </div>
+
+      <div class="features-carousel reveal">
+        <button class="carousel-btn carousel-prev" aria-label="Previous">‹</button>
+        <div class="carousel-track-container">
+          <div class="carousel-track">
+            <div class="feature-item">
+              <div class="icon">🔍</div>
+              <h3>Species Identifier</h3>
+              <p>Upload any trail photo. LLaVA — an open-weight vision model running locally — delivers a full field guide profile: common name, scientific name, edibility, habitat, and safety notes.</p>
+            </div>
+            <div class="feature-item">
+              <div class="icon">📡</div>
+              <h3>True Offline Mode</h3>
+              <p>Zero signal? No problem. The AI runs entirely on your laptop's CPU or GPU. Five miles deep in the backcountry with no bars — WildGuide still works.</p>
+            </div>
+            <div class="feature-item">
+              <div class="icon">🗺️</div>
+              <h3>Sightings Map</h3>
+              <p>Log GPS-tagged sightings and visualize them on an interactive Folium map. Export your nature journal as JSON — it's yours forever, stored only on your device.</p>
+            </div>
+            <div class="feature-item">
+              <div class="icon">🌱</div>
+              <h3>Garden Planner</h3>
+              <p>Select your USDA hardiness zone and get a week-by-week AI-generated planting calendar tuned to your exact local frost dates. What to plant this week, not last month.</p>
+            </div>
+            <div class="feature-item">
+              <div class="icon">🔒</div>
+              <h3>Total Privacy</h3>
+              <p>Your photos never leave your device. No API key. No cloud upload. No data harvested by a corporation. Your rare species sightings are yours and yours alone.</p>
+            </div>
+          </div>
+        </div>
+        <button class="carousel-btn carousel-next" aria-label="Next">›</button>
+      </div>
+      <div class="carousel-dots"></div>
+    </div>
+  </section>
+
+  <!-- ═══════════════ SERVICES ICON GRID ═══════════════ -->
+  <section class="section-services">
+    <div class="container">
+      <div class="section-header reveal">
+        <div class="section-eyebrow">All Features</div>
+        <h2>Everything you need on the trail.</h2>
+      </div>
+      <div class="services-grid">
+        <div class="service-card reveal">
+          <div class="service-icon">🌿</div>
+          <h3>Plant ID</h3>
+          <p>Edibility, toxicity, look-alikes, habitat, and field marks. Safety-first design for foragers.</p>
+        </div>
+        <div class="service-card reveal">
+          <div class="service-icon">🐦</div>
+          <h3>Bird ID</h3>
+          <p>Species, range, migration status, song description, and key field marks from a single photo.</p>
+        </div>
+        <div class="service-card reveal">
+          <div class="service-icon">🍄</div>
+          <h3>Mushroom ID</h3>
+          <p>Extreme caution design: deadly look-alikes always flagged. Never eat based on AI alone.</p>
+        </div>
+        <div class="service-card reveal">
+          <div class="service-icon">🦋</div>
+          <h3>Insect ID</h3>
+          <p>Species, ecological role, sting risk, diet, and season. Know what's sharing your trail.</p>
+        </div>
+        <div class="service-card reveal">
+          <div class="service-icon">🗺️</div>
+          <h3>Trail Map</h3>
+          <p>Interactive Folium map of your sightings with GPS pins. Your personal biodiversity record.</p>
+        </div>
+        <div class="service-card reveal">
+          <div class="service-icon">🌱</div>
+          <h3>Garden AI</h3>
+          <p>USDA zone-aware planting calendar. Week-by-week tasks, pest alerts, watering schedules.</p>
+        </div>
+        <div class="service-card reveal">
+          <div class="service-icon">📓</div>
+          <h3>Nature Journal</h3>
+          <p>Log, filter, and export sightings as JSON. Your data, your device, your archive.</p>
+        </div>
+        <div class="service-card reveal">
+          <div class="service-icon">🔧</div>
+          <h3>Swap Models</h3>
+          <p>One dropdown — switch from LLaVA to llava-llama3, bakllava, or moondream instantly.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════ SHOWCASE / APP SCREEN ═══════════════ -->
+  <section class="section-showcase">
+    <div class="container">
+      <div class="showcase-content">
+        <div class="showcase-text reveal">
+          <div class="section-eyebrow">In Action</div>
+          <h2>Immersive species guides.</h2>
+          <p>
+            One trail photo → full field guide profile. From edibility warnings
+            to conservation status, WildGuide gives you expert context before
+            you take another step.
+          </p>
+          <ul class="showcase-list">
+            <li><span>🌿</span><span>Plants — edibility, safety, key ID features</span></li>
+            <li><span>🐦</span><span>Birds — song, range, field marks, migration</span></li>
+            <li><span>🍄</span><span>Mushrooms — deadly look-alikes always flagged</span></li>
+            <li><span>🦋</span><span>Insects — ecological role, sting risk, season</span></li>
+          </ul>
+          <a href="http://localhost:8501" class="btn btn-primary" target="_blank" style="margin-top:2rem">→ Try It Yourself</a>
+        </div>
+        <div class="showcase-visual reveal">
+          <div class="app-screen-mockup">
+            <div class="mockup-header">
+              <span class="dot red"></span>
+              <span class="dot yellow"></span>
+              <span class="dot green-dot"></span>
+              <span class="mockup-title">🔍 Nature Identifier — WildGuide</span>
+            </div>
+            <div class="mockup-sidebar">
+              <div class="sidebar-item active">🔍 Identify</div>
+              <div class="sidebar-item">🌱 Garden</div>
+              <div class="sidebar-item">📓 Journal</div>
+              <div class="sidebar-item">🗺️ Map</div>
+              <div class="sidebar-status">
+                <span class="status-dot"></span>
+                Ollama running
+              </div>
+            </div>
+            <div class="mockup-body">
+              <div class="mockup-upload">📸 mushroom-trail.jpg uploaded</div>
+              <div class="mockup-result">
+                <div class="result-line"><strong>🍄 Common Name:</strong> Hen of the Woods</div>
+                <div class="result-line"><strong>🔬 Scientific:</strong> <em>Grifola frondosa</em></div>
+                <div class="result-line edible"><strong>🍽️ Edibility:</strong> ✅ Choice edible</div>
+                <div class="result-line"><strong>📍 Habitat:</strong> Base of oak trees, late summer–fall</div>
+                <div class="result-line warning"><strong>⚠️ Look-alike:</strong> Berkeley's polypore — avoid</div>
+                <div class="result-line"><strong>💡 Fact:</strong> Can grow up to 100 lbs per cluster!</div>
+              </div>
+              <div class="mockup-save">💾 Save to Journal →</div>
+            </div>
+          </div>
+          <div class="mockup-glow" aria-hidden="true"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════ WHO IT'S FOR ═══════════════ -->
+  <section id="for-who" class="section-who">
+    <div class="container">
+      <div class="section-header reveal">
+        <div class="section-eyebrow">Who It's For</div>
+        <h2>Built for people who go outside.</h2>
+        <p>Whether you hike, garden, bird, forage, or just walk the dog — WildGuide makes every outing richer.</p>
+      </div>
+      <div class="groups-grid">
+        <div class="group-card reveal">
+          <div class="card-icon">🥾</div>
+          <h3>Hikers &amp; Backpackers</h3>
+          <p>Identify trail plants and wildlife on the spot — even deep in the backcountry with no cell signal. The AI is on the trail with you.</p>
+        </div>
+        <div class="group-card reveal">
+          <div class="card-icon">🌱</div>
+          <h3>Gardeners</h3>
+          <p>Get a personalized planting calendar based on your USDA zone and local frost dates — what to plant this exact week, no guessing.</p>
+        </div>
+        <div class="group-card reveal">
+          <div class="card-icon">🐦</div>
+          <h3>Birders</h3>
+          <p>Photo-ID any bird you spot. Get its range, migration status, song description, and field marks — all offline, instantly.</p>
+        </div>
+        <div class="group-card reveal">
+          <div class="card-icon">🍄</div>
+          <h3>Foragers</h3>
+          <p>Mushroom and plant ID with safety-first design. Extreme caution warnings, deadly look-alikes flagged. Always verify with an expert.</p>
+        </div>
+        <div class="group-card reveal">
+          <div class="card-icon">🔬</div>
+          <h3>Citizen Scientists</h3>
+          <p>Log GPS-tagged sightings, export your journal as JSON, and build your personal biodiversity record — privately, on your own terms.</p>
+        </div>
+        <div class="group-card reveal">
+          <div class="card-icon">🏕️</div>
+          <h3>Guides &amp; Educators</h3>
+          <p>Swap open-weight models freely. Fine-tune on regional species. Customize prompts. Run it free at every session — open source means you're in control.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════ OPEN AI SECTION ═══════════════ -->
+  <section id="open-ai" class="section-why">
+    <div class="container">
+      <div class="narrative-content">
+        <div class="section-eyebrow reveal">Why Open-Source AI</div>
+        <h2 class="reveal">Technology that improves time in nature.</h2>
+        <div class="narrative-text reveal">
+          <p>
+            WildGuide is built entirely on open-weight AI running locally via Ollama.
+            That openness is the whole point: a hiker 5 miles deep identifying a mushroom
+            before dinner <em>needs</em> this to work without signal. Closed APIs
+            fundamentally cannot do that.
+          </p>
+          <p>
+            When you photograph rare species or forage for food, your data is sensitive.
+            It shouldn't be uploaded to a server you don't control or harvested for a
+            company's training data. Open-source AI keeps it exactly where it belongs —
+            on your device.
+          </p>
+          <blockquote class="highlight-quote">
+            When people understand nature better, they help protect it.
+          </blockquote>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════ COMPARE TABLE ═══════════════ -->
+  <section class="section-compare">
+    <div class="container">
+      <div class="section-header reveal">
+        <div class="section-eyebrow">Open vs Closed</div>
+        <h2>Practical technology. Open by design.</h2>
+      </div>
+      <div class="compare-grid reveal">
+        <div class="compare-card closed">
+          <h3>❌ Closed API Approach</h3>
+          <ul>
+            <li>Photos sent to corporate servers</li>
+            <li>Requires internet connection</li>
+            <li>Pay per query — costs add up fast</li>
+            <li>Locked to one provider's model</li>
+            <li>No fine-tuning on local species</li>
+            <li>Your sighting data = their training data</li>
+          </ul>
+        </div>
+        <div class="compare-card open">
+          <h3>✅ WildGuide (Open Source)</h3>
+          <ul>
+            <li>Photos never leave your device</li>
+            <li>Works 100% offline on the trail</li>
+            <li>Free forever after one model pull</li>
+            <li>Swap models with a single click</li>
+            <li>Fine-tune on your regional species</li>
+            <li>Your data, your journal, your privacy</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════ TECH STACK MARQUEE ═══════════════ -->
+  <div class="tech-marquee" aria-label="Open source technology stack">
+    <div class="marquee-track">
+      <span>🦙 Ollama (MIT)</span>
+      <span>·</span>
+      <span>👁️ LLaVA Open Weights</span>
+      <span>·</span>
+      <span>🐍 Python 3.11</span>
+      <span>·</span>
+      <span>🎈 Streamlit (Apache 2.0)</span>
+      <span>·</span>
+      <span>🗺️ Folium (MIT)</span>
+      <span>·</span>
+      <span>🦙 llava-llama3</span>
+      <span>·</span>
+      <span>🌙 Moondream</span>
+      <span>·</span>
+      <span>🍞 Bakllava</span>
+      <span>·</span>
+      <span>🔒 100% Local</span>
+      <span>·</span>
+      <!-- Duplicate for seamless loop -->
+      <span>🦙 Ollama (MIT)</span>
+      <span>·</span>
+      <span>👁️ LLaVA Open Weights</span>
+      <span>·</span>
+      <span>🐍 Python 3.11</span>
+      <span>·</span>
+      <span>🎈 Streamlit (Apache 2.0)</span>
+      <span>·</span>
+      <span>🗺️ Folium (MIT)</span>
+      <span>·</span>
+      <span>🦙 llava-llama3</span>
+      <span>·</span>
+      <span>🌙 Moondream</span>
+      <span>·</span>
+      <span>🍞 Bakllava</span>
+      <span>·</span>
+      <span>🔒 100% Local</span>
+      <span>·</span>
+    </div>
+  </div>
+
+  <!-- ═══════════════ GET STARTED ═══════════════ -->
+  <section id="start" class="section-download">
+    <div class="container">
+      <div class="section-header reveal">
+        <div class="section-eyebrow">Quick Start</div>
+        <h2>Start exploring in 4 steps.</h2>
+        <p>WildGuide runs on your laptop. No cloud account needed.</p>
+      </div>
+      <div class="install-steps reveal">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-text">
+            <strong>Install Ollama</strong>
+            <code>ollama.com/download</code>
+          </div>
+        </div>
+        <div class="step-arrow">→</div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-text">
+            <strong>Pull Vision Model</strong>
+            <code>ollama pull llava</code>
+          </div>
+        </div>
+        <div class="step-arrow">→</div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-text">
+            <strong>Install Dependencies</strong>
+            <code>pip install -r requirements.txt</code>
+          </div>
+        </div>
+        <div class="step-arrow">→</div>
+        <div class="step">
+          <div class="step-num">4</div>
+          <div class="step-text">
+            <strong>Launch WildGuide</strong>
+            <code>streamlit run app.py</code>
+          </div>
+        </div>
+      </div>
+      <div class="cta-grid reveal">
+        <div class="cta-card glass-panel">
+          <a href="http://localhost:8501" class="btn btn-primary" target="_blank">→ Open the App</a>
+          <p class="cta-desc">Running at localhost:8501 — identify your first species.</p>
+        </div>
+        <div class="cta-card glass-panel">
+          <a href="#contact" class="btn btn-outline">→ Get in Touch</a>
+          <p class="cta-desc">Ideas? Contributions? Want a regional or custom version?</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════ JOIN / MISSION ═══════════════ -->
+  <section class="section-join">
+    <div class="container">
+      <h2 class="reveal">WildGuide is more than an app.<br />It is open AI in service of the wild.</h2>
+      <p class="section-intro reveal">
+        We believe the best technology for nature should be free, private, and
+        available to everyone — from a lone hiker to a conservation researcher.
+        Every open-weight model run is a step toward AI that serves the field,
+        not the cloud.
+      </p>
+      <div class="cta-group reveal" style="justify-content:center; margin-top:2.5rem">
+        <a href="http://localhost:8501" class="btn btn-primary" target="_blank">→ Open WildGuide</a>
+        <a href="https://github.com" class="btn btn-outline" target="_blank">→ View on GitHub</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════ CONTACT ═══════════════ -->
+  <section id="contact" class="section-contact">
+    <div class="container">
+      <div class="contact-inner">
+        <div class="contact-text reveal">
+          <div class="section-eyebrow">Get In Touch</div>
+          <h2>Help shape the future of WildGuide</h2>
+          <p>Feedback, ideas for new features, or want a version for your region or national park? We'd love to hear from you.</p>
+          <div class="contact-details">
+            <div class="contact-item">
+              <span class="ci-icon">📧</span>
+              <span>wildguide.app@gmail.com</span>
+            </div>
+            <div class="contact-item">
+              <span class="ci-icon">🌍</span>
+              <span>Open to global partnerships</span>
+            </div>
+            <div class="contact-item">
+              <span class="ci-icon">🔓</span>
+              <span>100% open source · MIT License</span>
+            </div>
+          </div>
+        </div>
+        <div class="contact-form-wrap reveal">
+          <form class="contact-form" id="contactForm">
+            <div class="form-row">
+              <div class="form-group">
+                <label for="name">Name</label>
+                <input type="text" id="name" name="name" placeholder="Your name" required />
+              </div>
+              <div class="form-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" name="email" placeholder="you@example.com" required />
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="usage">How do you use WildGuide?</label>
+              <textarea id="usage" name="usage" rows="2" placeholder="Hiking, birding, gardening, foraging, research..."></textarea>
+            </div>
+            <div class="form-group">
+              <label for="feedback">Your idea or feedback</label>
+              <textarea id="feedback" name="feedback" rows="4" placeholder="What would make WildGuide more useful for you?"></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary">→ Send Message</button>
+            <p class="form-success" id="formNote">✅ Thanks! We'll be in touch.</p>
+          </form>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════ FOOTER ═══════════════ -->
+  <footer>
+    <div class="container">
+      <div class="footer-top">
+        <div class="footer-brand">
+          <div class="footer-logo">🌿 WildGuide</div>
+          <p>When people understand nature better, they help protect it.</p>
+        </div>
+        <div class="footer-links">
+          <div class="footer-col">
+            <h4>Features</h4>
+            <a href="#features">Species Identifier</a>
+            <a href="#features">Garden Planner</a>
+            <a href="#features">Sightings Map</a>
+            <a href="#features">Nature Journal</a>
+          </div>
+          <div class="footer-col">
+            <h4>Open Source</h4>
+            <a href="https://ollama.com" target="_blank">Ollama</a>
+            <a href="https://llava-vl.github.io" target="_blank">LLaVA</a>
+            <a href="https://streamlit.io" target="_blank">Streamlit</a>
+            <a href="https://github.com" target="_blank">GitHub</a>
+          </div>
+          <div class="footer-col">
+            <h4>App</h4>
+            <a href="http://localhost:8501" target="_blank">Open App</a>
+            <a href="#start">Quick Start</a>
+            <a href="#contact">Contact</a>
+          </div>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <p>© WildGuide 2026 · Built for the Touch Grass Hackathon</p>
+        <div class="footer-stack">
+          <span>Ollama MIT</span>
+          <span>·</span>
+          <span>LLaVA Open Weights</span>
+          <span>·</span>
+          <span>Streamlit Apache 2.0</span>
+          <span>·</span>
+          <span>Folium MIT</span>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="main.js"></script>
+</body>
+</html>

@@ -1,0 +1,1476 @@
+{
+  "nodes": [
+    {
+      "id": "pat-rajesh",
+      "labels": [
+        "Patient"
+      ],
+      "properties": {
+        "id": "pat-rajesh",
+        "name": "Rajesh Kumar",
+        "age": 52,
+        "phone": "+91 98101 23456",
+        "blood_group": "B+"
+      }
+    },
+    {
+      "id": "pat-sunita",
+      "labels": [
+        "Patient"
+      ],
+      "properties": {
+        "id": "pat-sunita",
+        "name": "Sunita Devi",
+        "age": 64,
+        "phone": "+91 94150 88219",
+        "blood_group": "O+"
+      }
+    },
+    {
+      "id": "pat-amit",
+      "labels": [
+        "Patient"
+      ],
+      "properties": {
+        "id": "pat-amit",
+        "name": "Amit Patel",
+        "age": 45,
+        "phone": "+91 99090 12833",
+        "blood_group": "AB+"
+      }
+    },
+    {
+      "id": "pat-priya",
+      "labels": [
+        "Patient"
+      ],
+      "properties": {
+        "id": "pat-priya",
+        "name": "Priya Sharma",
+        "age": 29,
+        "phone": "+91 98230 44102",
+        "blood_group": "A+"
+      }
+    },
+    {
+      "id": "symp-chest-pain",
+      "labels": [
+        "Symptom"
+      ],
+      "properties": {
+        "id": "symp-chest-pain",
+        "name": "Crushing Chest Pain",
+        "severity": "Severe",
+        "name_hi": "सीने में तेज दर्द"
+      }
+    },
+    {
+      "id": "symp-radiating-arm",
+      "labels": [
+        "Symptom"
+      ],
+      "properties": {
+        "id": "symp-radiating-arm",
+        "name": "Radiating Left Arm Pain",
+        "severity": "Critical",
+        "name_hi": "बाएँ हाथ में खिंचाव"
+      }
+    },
+    {
+      "id": "symp-sweating",
+      "labels": [
+        "Symptom"
+      ],
+      "properties": {
+        "id": "symp-sweating",
+        "name": "Cold Diaphoresis / Sweating",
+        "severity": "Severe",
+        "name_hi": "ठंडा पसीना आना"
+      }
+    },
+    {
+      "id": "symp-breathlessness",
+      "labels": [
+        "Symptom"
+      ],
+      "properties": {
+        "id": "symp-breathlessness",
+        "name": "Severe Breathlessness",
+        "severity": "Critical",
+        "name_hi": "साँस लेने में गंभीर तकलीफ़"
+      }
+    },
+    {
+      "id": "symp-hypoxia",
+      "labels": [
+        "Symptom"
+      ],
+      "properties": {
+        "id": "symp-hypoxia",
+        "name": "Hypoxia (SpO2 < 88%)",
+        "severity": "Critical",
+        "name_hi": "ऑक्सीजन स्तर में भारी गिरावट"
+      }
+    },
+    {
+      "id": "symp-high-fever",
+      "labels": [
+        "Symptom"
+      ],
+      "properties": {
+        "id": "symp-high-fever",
+        "name": "High Grade Fever (103°F)",
+        "severity": "Severe",
+        "name_hi": "तेज बुखार"
+      }
+    },
+    {
+      "id": "symp-cough",
+      "labels": [
+        "Symptom"
+      ],
+      "properties": {
+        "id": "symp-cough",
+        "name": "Productive Purulent Cough",
+        "severity": "Moderate",
+        "name_hi": "बलगम वाली खांसी"
+      }
+    },
+    {
+      "id": "symp-facial-droop",
+      "labels": [
+        "Symptom"
+      ],
+      "properties": {
+        "id": "symp-facial-droop",
+        "name": "Acute Facial Droop",
+        "severity": "Critical",
+        "name_hi": "चेहरे का एक तरफ झुकना"
+      }
+    },
+    {
+      "id": "symp-slurred-speech",
+      "labels": [
+        "Symptom"
+      ],
+      "properties": {
+        "id": "symp-slurred-speech",
+        "name": "Slurred Speech / Aphasia",
+        "severity": "Critical",
+        "name_hi": "बोली लड़खड़ाना"
+      }
+    },
+    {
+      "id": "symp-wheezing",
+      "labels": [
+        "Symptom"
+      ],
+      "properties": {
+        "id": "symp-wheezing",
+        "name": "Bilateral Expiratory Wheeze",
+        "severity": "Moderate",
+        "name_hi": "साँस से सीटी जैसी आवाज़"
+      }
+    },
+    {
+      "id": "symp-runny-nose",
+      "labels": [
+        "Symptom"
+      ],
+      "properties": {
+        "id": "symp-runny-nose",
+        "name": "Mild Rhinorrhea / Sneezing",
+        "severity": "Mild",
+        "name_hi": "नाक बहना और छींकें"
+      }
+    },
+    {
+      "id": "symp-headache",
+      "labels": [
+        "Symptom"
+      ],
+      "properties": {
+        "id": "symp-headache",
+        "name": "Tension Headache",
+        "severity": "Mild",
+        "name_hi": "हल्का सिरदर्द"
+      }
+    },
+    {
+      "id": "cond-stemi",
+      "labels": [
+        "Condition"
+      ],
+      "properties": {
+        "id": "cond-stemi",
+        "name": "Acute Coronary Syndrome (STEMI)",
+        "risk_level": "Critical",
+        "required_specialty": "Cardiology"
+      }
+    },
+    {
+      "id": "cond-pneumonia",
+      "labels": [
+        "Condition"
+      ],
+      "properties": {
+        "id": "cond-pneumonia",
+        "name": "Severe Acute Pneumonia / ARDS",
+        "risk_level": "Critical",
+        "required_specialty": "Pulmonology"
+      }
+    },
+    {
+      "id": "cond-stroke",
+      "labels": [
+        "Condition"
+      ],
+      "properties": {
+        "id": "cond-stroke",
+        "name": "Acute Ischemic Cerebrovascular Stroke",
+        "risk_level": "Critical",
+        "required_specialty": "Neurology"
+      }
+    },
+    {
+      "id": "cond-asthma",
+      "labels": [
+        "Condition"
+      ],
+      "properties": {
+        "id": "cond-asthma",
+        "name": "Severe Acute Asthma Exacerbation",
+        "risk_level": "High",
+        "required_specialty": "Pulmonology"
+      }
+    },
+    {
+      "id": "cond-rhinitis",
+      "labels": [
+        "Condition"
+      ],
+      "properties": {
+        "id": "cond-rhinitis",
+        "name": "Mild Seasonal Allergic Rhinitis",
+        "risk_level": "Low",
+        "required_specialty": "General Medicine"
+      }
+    },
+    {
+      "id": "drug-penicillin",
+      "labels": [
+        "Drug"
+      ],
+      "properties": {
+        "id": "drug-penicillin",
+        "name": "Penicillin"
+      }
+    },
+    {
+      "id": "drug-aspirin",
+      "labels": [
+        "Drug"
+      ],
+      "properties": {
+        "id": "drug-aspirin",
+        "name": "Aspirin"
+      }
+    },
+    {
+      "id": "drug-ceftriaxone",
+      "labels": [
+        "Drug"
+      ],
+      "properties": {
+        "id": "drug-ceftriaxone",
+        "name": "Ceftriaxone"
+      }
+    },
+    {
+      "id": "drug-clopidogrel",
+      "labels": [
+        "Drug"
+      ],
+      "properties": {
+        "id": "drug-clopidogrel",
+        "name": "Clopidogrel"
+      }
+    },
+    {
+      "id": "drug-heparin",
+      "labels": [
+        "Drug"
+      ],
+      "properties": {
+        "id": "drug-heparin",
+        "name": "Heparin"
+      }
+    },
+    {
+      "id": "drug-nitroglycerin",
+      "labels": [
+        "Drug"
+      ],
+      "properties": {
+        "id": "drug-nitroglycerin",
+        "name": "Nitroglycerin"
+      }
+    },
+    {
+      "id": "drug-salbutamol",
+      "labels": [
+        "Drug"
+      ],
+      "properties": {
+        "id": "drug-salbutamol",
+        "name": "Salbutamol"
+      }
+    },
+    {
+      "id": "drug-sulfa",
+      "labels": [
+        "Drug"
+      ],
+      "properties": {
+        "id": "drug-sulfa",
+        "name": "Sulfamethoxazole"
+      }
+    },
+    {
+      "id": "hosp-aiims",
+      "labels": [
+        "Hospital"
+      ],
+      "properties": {
+        "id": "hosp-aiims",
+        "name": "AIIMS New Delhi",
+        "phone": "+91 11 2658 8500",
+        "lat": 28.5672,
+        "long": 77.21,
+        "city": "New Delhi"
+      }
+    },
+    {
+      "id": "hosp-apollo",
+      "labels": [
+        "Hospital"
+      ],
+      "properties": {
+        "id": "hosp-apollo",
+        "name": "Apollo Hospital Chennai",
+        "phone": "+91 44 2829 0200",
+        "lat": 13.0604,
+        "long": 80.2496,
+        "city": "Chennai"
+      }
+    },
+    {
+      "id": "hosp-fortis",
+      "labels": [
+        "Hospital"
+      ],
+      "properties": {
+        "id": "hosp-fortis",
+        "name": "Fortis Memorial Research Institute",
+        "phone": "+91 124 492 1021",
+        "lat": 28.4595,
+        "long": 77.0725,
+        "city": "Gurgaon"
+      }
+    },
+    {
+      "id": "hosp-kem",
+      "labels": [
+        "Hospital"
+      ],
+      "properties": {
+        "id": "hosp-kem",
+        "name": "KEM Hospital Mumbai",
+        "phone": "+91 22 2410 7000",
+        "lat": 18.9986,
+        "long": 72.8422,
+        "city": "Mumbai"
+      }
+    },
+    {
+      "id": "doc-ananya",
+      "labels": [
+        "Doctor"
+      ],
+      "properties": {
+        "id": "doc-ananya",
+        "name": "Dr. Ananya Sharma",
+        "specialty": "Cardiology",
+        "available": true,
+        "hospital_id": "hosp-aiims"
+      }
+    },
+    {
+      "id": "doc-farhan",
+      "labels": [
+        "Doctor"
+      ],
+      "properties": {
+        "id": "doc-farhan",
+        "name": "Dr. Farhan Akhtar",
+        "specialty": "Pulmonology",
+        "available": true,
+        "hospital_id": "hosp-aiims"
+      }
+    },
+    {
+      "id": "doc-rajesh-v",
+      "labels": [
+        "Doctor"
+      ],
+      "properties": {
+        "id": "doc-rajesh-v",
+        "name": "Dr. Rajesh Varma",
+        "specialty": "Pulmonology",
+        "available": true,
+        "hospital_id": "hosp-apollo"
+      }
+    },
+    {
+      "id": "doc-meenakshi",
+      "labels": [
+        "Doctor"
+      ],
+      "properties": {
+        "id": "doc-meenakshi",
+        "name": "Dr. Meenakshi Sundaram",
+        "specialty": "Cardiology",
+        "available": true,
+        "hospital_id": "hosp-apollo"
+      }
+    },
+    {
+      "id": "doc-vikram",
+      "labels": [
+        "Doctor"
+      ],
+      "properties": {
+        "id": "doc-vikram",
+        "name": "Dr. Vikramaditya Rao",
+        "specialty": "Neurology",
+        "available": true,
+        "hospital_id": "hosp-fortis"
+      }
+    },
+    {
+      "id": "doc-neha",
+      "labels": [
+        "Doctor"
+      ],
+      "properties": {
+        "id": "doc-neha",
+        "name": "Dr. Neha Kulkarni",
+        "specialty": "Cardiology",
+        "available": true,
+        "hospital_id": "hosp-fortis"
+      }
+    },
+    {
+      "id": "doc-sunita-k",
+      "labels": [
+        "Doctor"
+      ],
+      "properties": {
+        "id": "doc-sunita-k",
+        "name": "Dr. Sunita Kulkarni",
+        "specialty": "Cardiology",
+        "available": false,
+        "hospital_id": "hosp-kem"
+      }
+    },
+    {
+      "id": "doc-arjun",
+      "labels": [
+        "Doctor"
+      ],
+      "properties": {
+        "id": "doc-arjun",
+        "name": "Dr. Arjun Tendulkar",
+        "specialty": "General Medicine",
+        "available": true,
+        "hospital_id": "hosp-kem"
+      }
+    },
+    {
+      "id": "bed-aiims-icu-01",
+      "labels": [
+        "Bed"
+      ],
+      "properties": {
+        "id": "bed-aiims-icu-01",
+        "type": "ICU_Oxygen",
+        "is_available": false,
+        "hospital_id": "hosp-aiims",
+        "reserved_for_patient_id": "pat-rajesh"
+      }
+    },
+    {
+      "id": "bed-aiims-icu-02",
+      "labels": [
+        "Bed"
+      ],
+      "properties": {
+        "id": "bed-aiims-icu-02",
+        "type": "ICU_Oxygen",
+        "is_available": false,
+        "hospital_id": "hosp-aiims",
+        "reserved_for_patient_id": "pat-rajesh"
+      }
+    },
+    {
+      "id": "bed-aiims-icu-03",
+      "labels": [
+        "Bed"
+      ],
+      "properties": {
+        "id": "bed-aiims-icu-03",
+        "type": "ICU_Oxygen",
+        "is_available": false,
+        "hospital_id": "hosp-aiims"
+      }
+    },
+    {
+      "id": "bed-aiims-ccu-01",
+      "labels": [
+        "Bed"
+      ],
+      "properties": {
+        "id": "bed-aiims-ccu-01",
+        "type": "CCU",
+        "is_available": true,
+        "hospital_id": "hosp-aiims"
+      }
+    },
+    {
+      "id": "bed-aiims-gen-01",
+      "labels": [
+        "Bed"
+      ],
+      "properties": {
+        "id": "bed-aiims-gen-01",
+        "type": "General",
+        "is_available": true,
+        "hospital_id": "hosp-aiims"
+      }
+    },
+    {
+      "id": "bed-apollo-icu-01",
+      "labels": [
+        "Bed"
+      ],
+      "properties": {
+        "id": "bed-apollo-icu-01",
+        "type": "ICU_Oxygen",
+        "is_available": false,
+        "hospital_id": "hosp-apollo",
+        "reserved_for_patient_id": "pat-rajesh"
+      }
+    },
+    {
+      "id": "bed-apollo-icu-02",
+      "labels": [
+        "Bed"
+      ],
+      "properties": {
+        "id": "bed-apollo-icu-02",
+        "type": "ICU_Oxygen",
+        "is_available": false,
+        "hospital_id": "hosp-apollo",
+        "reserved_for_patient_id": "pat-rajesh"
+      }
+    },
+    {
+      "id": "bed-apollo-icu-03",
+      "labels": [
+        "Bed"
+      ],
+      "properties": {
+        "id": "bed-apollo-icu-03",
+        "type": "ICU_Oxygen",
+        "is_available": false,
+        "hospital_id": "hosp-apollo",
+        "reserved_for_patient_id": "pat-rajesh"
+      }
+    },
+    {
+      "id": "bed-apollo-gen-01",
+      "labels": [
+        "Bed"
+      ],
+      "properties": {
+        "id": "bed-apollo-gen-01",
+        "type": "General",
+        "is_available": true,
+        "hospital_id": "hosp-apollo"
+      }
+    },
+    {
+      "id": "bed-fortis-icu-01",
+      "labels": [
+        "Bed"
+      ],
+      "properties": {
+        "id": "bed-fortis-icu-01",
+        "type": "ICU_Oxygen",
+        "is_available": true,
+        "hospital_id": "hosp-fortis"
+      }
+    },
+    {
+      "id": "bed-fortis-icu-02",
+      "labels": [
+        "Bed"
+      ],
+      "properties": {
+        "id": "bed-fortis-icu-02",
+        "type": "ICU_Oxygen",
+        "is_available": false,
+        "hospital_id": "hosp-fortis"
+      }
+    },
+    {
+      "id": "bed-fortis-trauma-01",
+      "labels": [
+        "Bed"
+      ],
+      "properties": {
+        "id": "bed-fortis-trauma-01",
+        "type": "Emergency_Trauma",
+        "is_available": true,
+        "hospital_id": "hosp-fortis"
+      }
+    },
+    {
+      "id": "bed-kem-icu-01",
+      "labels": [
+        "Bed"
+      ],
+      "properties": {
+        "id": "bed-kem-icu-01",
+        "type": "ICU_Oxygen",
+        "is_available": false,
+        "hospital_id": "hosp-kem"
+      }
+    },
+    {
+      "id": "bed-kem-icu-02",
+      "labels": [
+        "Bed"
+      ],
+      "properties": {
+        "id": "bed-kem-icu-02",
+        "type": "ICU_Oxygen",
+        "is_available": false,
+        "hospital_id": "hosp-kem"
+      }
+    },
+    {
+      "id": "bed-kem-gen-01",
+      "labels": [
+        "Bed"
+      ],
+      "properties": {
+        "id": "bed-kem-gen-01",
+        "type": "General",
+        "is_available": true,
+        "hospital_id": "hosp-kem"
+      }
+    },
+    {
+      "id": "sess-hist-sunita-01",
+      "labels": [
+        "AgentSession"
+      ],
+      "properties": {
+        "id": "sess-hist-sunita-01",
+        "timestamp": 1792129468,
+        "created_at_iso": "2026-10-16T05:44:28.000Z",
+        "agent_type": "triage",
+        "status": "ESCALATED",
+        "followup_status": "COMPLETED",
+        "recovery_status": "RECOVERING",
+        "followup_notes": "Completed automated 24h follow-up check-in. Patient reported symptomatic improvement with no adverse drug reactions.",
+        "last_followup_call": "2026-10-17T08:12:18.729Z"
+      }
+    },
+    {
+      "id": "sess-hist-amit-01",
+      "labels": [
+        "AgentSession"
+      ],
+      "properties": {
+        "id": "sess-hist-amit-01",
+        "timestamp": 1792215868,
+        "created_at_iso": "2026-10-17T05:44:28.000Z",
+        "agent_type": "triage",
+        "status": "COMPLETED"
+      }
+    },
+    {
+      "id": "sess-1792224258725-1dkq",
+      "labels": [
+        "AgentSession"
+      ],
+      "properties": {
+        "id": "sess-1792224258725-1dkq",
+        "timestamp": 1792224258,
+        "created_at_iso": "2026-10-17T08:04:18.000Z",
+        "agent_type": "triage",
+        "status": "ACTIVE"
+      }
+    },
+    {
+      "id": "sess-1792224323030-mw0c",
+      "labels": [
+        "AgentSession"
+      ],
+      "properties": {
+        "id": "sess-1792224323030-mw0c",
+        "timestamp": 1792224323,
+        "created_at_iso": "2026-10-17T08:05:23.000Z",
+        "agent_type": "triage",
+        "status": "ACTIVE"
+      }
+    },
+    {
+      "id": "sess-1792224361624-puor",
+      "labels": [
+        "AgentSession"
+      ],
+      "properties": {
+        "id": "sess-1792224361624-puor",
+        "timestamp": 1792224361,
+        "created_at_iso": "2026-10-17T08:06:01.000Z",
+        "agent_type": "triage",
+        "status": "ACTIVE"
+      }
+    },
+    {
+      "id": "sess-1792224466556-booe",
+      "labels": [
+        "AgentSession"
+      ],
+      "properties": {
+        "id": "sess-1792224466556-booe",
+        "timestamp": 1792224466,
+        "created_at_iso": "2026-10-17T08:07:46.000Z",
+        "agent_type": "triage",
+        "status": "ACTIVE"
+      }
+    },
+    {
+      "id": "sess-1792224719864-ngz5",
+      "labels": [
+        "AgentSession"
+      ],
+      "properties": {
+        "id": "sess-1792224719864-ngz5",
+        "timestamp": 1792224719,
+        "created_at_iso": "2026-10-17T08:11:59.000Z",
+        "agent_type": "triage",
+        "status": "ACTIVE"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge-pat-rajesh-ALLERGIC_TO-drug-penicillin",
+      "source": "pat-rajesh",
+      "target": "drug-penicillin",
+      "type": "ALLERGIC_TO",
+      "properties": {
+        "severity": "Severe Anaphylaxis"
+      }
+    },
+    {
+      "id": "edge-pat-rajesh-ALLERGIC_TO-drug-aspirin",
+      "source": "pat-rajesh",
+      "target": "drug-aspirin",
+      "type": "ALLERGIC_TO",
+      "properties": {
+        "severity": "Asthmatic bronchospasm"
+      }
+    },
+    {
+      "id": "edge-pat-sunita-ALLERGIC_TO-drug-ceftriaxone",
+      "source": "pat-sunita",
+      "target": "drug-ceftriaxone",
+      "type": "ALLERGIC_TO",
+      "properties": {
+        "severity": "Cutaneous eruption"
+      }
+    },
+    {
+      "id": "edge-pat-priya-ALLERGIC_TO-drug-sulfa",
+      "source": "pat-priya",
+      "target": "drug-sulfa",
+      "type": "ALLERGIC_TO",
+      "properties": {
+        "severity": "Urticaria"
+      }
+    },
+    {
+      "id": "edge-cond-stemi-CONTRAINDICATES-drug-penicillin",
+      "source": "cond-stemi",
+      "target": "drug-penicillin",
+      "type": "CONTRAINDICATES",
+      "properties": {
+        "reason": "High anaphylactic risk during emergency coronary angioplasty"
+      }
+    },
+    {
+      "id": "edge-cond-stemi-CONTRAINDICATES-drug-ceftriaxone",
+      "source": "cond-stemi",
+      "target": "drug-ceftriaxone",
+      "type": "CONTRAINDICATES",
+      "properties": {
+        "reason": "Incompatible with calcium-containing diluents in acute cardiac protocol"
+      }
+    },
+    {
+      "id": "edge-cond-pneumonia-CONTRAINDICATES-drug-ceftriaxone",
+      "source": "cond-pneumonia",
+      "target": "drug-ceftriaxone",
+      "type": "CONTRAINDICATES",
+      "properties": {
+        "reason": "Patient specific beta-lactam hypersensitivity flag"
+      }
+    },
+    {
+      "id": "edge-symp-chest-pain-INDICATES-cond-stemi",
+      "source": "symp-chest-pain",
+      "target": "cond-stemi",
+      "type": "INDICATES",
+      "properties": {
+        "probability": 0.94
+      }
+    },
+    {
+      "id": "edge-symp-radiating-arm-INDICATES-cond-stemi",
+      "source": "symp-radiating-arm",
+      "target": "cond-stemi",
+      "type": "INDICATES",
+      "properties": {
+        "probability": 0.98
+      }
+    },
+    {
+      "id": "edge-symp-sweating-INDICATES-cond-stemi",
+      "source": "symp-sweating",
+      "target": "cond-stemi",
+      "type": "INDICATES",
+      "properties": {
+        "probability": 0.88
+      }
+    },
+    {
+      "id": "edge-symp-breathlessness-INDICATES-cond-pneumonia",
+      "source": "symp-breathlessness",
+      "target": "cond-pneumonia",
+      "type": "INDICATES",
+      "properties": {
+        "probability": 0.91
+      }
+    },
+    {
+      "id": "edge-symp-hypoxia-INDICATES-cond-pneumonia",
+      "source": "symp-hypoxia",
+      "target": "cond-pneumonia",
+      "type": "INDICATES",
+      "properties": {
+        "probability": 0.97
+      }
+    },
+    {
+      "id": "edge-symp-high-fever-INDICATES-cond-pneumonia",
+      "source": "symp-high-fever",
+      "target": "cond-pneumonia",
+      "type": "INDICATES",
+      "properties": {
+        "probability": 0.89
+      }
+    },
+    {
+      "id": "edge-symp-cough-INDICATES-cond-pneumonia",
+      "source": "symp-cough",
+      "target": "cond-pneumonia",
+      "type": "INDICATES",
+      "properties": {
+        "probability": 0.82
+      }
+    },
+    {
+      "id": "edge-symp-facial-droop-INDICATES-cond-stroke",
+      "source": "symp-facial-droop",
+      "target": "cond-stroke",
+      "type": "INDICATES",
+      "properties": {
+        "probability": 0.99
+      }
+    },
+    {
+      "id": "edge-symp-slurred-speech-INDICATES-cond-stroke",
+      "source": "symp-slurred-speech",
+      "target": "cond-stroke",
+      "type": "INDICATES",
+      "properties": {
+        "probability": 0.96
+      }
+    },
+    {
+      "id": "edge-symp-breathlessness-INDICATES-cond-asthma",
+      "source": "symp-breathlessness",
+      "target": "cond-asthma",
+      "type": "INDICATES",
+      "properties": {
+        "probability": 0.78
+      }
+    },
+    {
+      "id": "edge-symp-wheezing-INDICATES-cond-asthma",
+      "source": "symp-wheezing",
+      "target": "cond-asthma",
+      "type": "INDICATES",
+      "properties": {
+        "probability": 0.92
+      }
+    },
+    {
+      "id": "edge-symp-runny-nose-INDICATES-cond-rhinitis",
+      "source": "symp-runny-nose",
+      "target": "cond-rhinitis",
+      "type": "INDICATES",
+      "properties": {
+        "probability": 0.95
+      }
+    },
+    {
+      "id": "edge-symp-headache-INDICATES-cond-rhinitis",
+      "source": "symp-headache",
+      "target": "cond-rhinitis",
+      "type": "INDICATES",
+      "properties": {
+        "probability": 0.6
+      }
+    },
+    {
+      "id": "edge-hosp-aiims-EMPLOYS-doc-ananya",
+      "source": "hosp-aiims",
+      "target": "doc-ananya",
+      "type": "EMPLOYS",
+      "properties": {
+        "department": "Cardiology"
+      }
+    },
+    {
+      "id": "edge-hosp-aiims-EMPLOYS-doc-farhan",
+      "source": "hosp-aiims",
+      "target": "doc-farhan",
+      "type": "EMPLOYS",
+      "properties": {
+        "department": "Pulmonology"
+      }
+    },
+    {
+      "id": "edge-hosp-apollo-EMPLOYS-doc-rajesh-v",
+      "source": "hosp-apollo",
+      "target": "doc-rajesh-v",
+      "type": "EMPLOYS",
+      "properties": {
+        "department": "Pulmonology"
+      }
+    },
+    {
+      "id": "edge-hosp-apollo-EMPLOYS-doc-meenakshi",
+      "source": "hosp-apollo",
+      "target": "doc-meenakshi",
+      "type": "EMPLOYS",
+      "properties": {
+        "department": "Cardiology"
+      }
+    },
+    {
+      "id": "edge-hosp-fortis-EMPLOYS-doc-vikram",
+      "source": "hosp-fortis",
+      "target": "doc-vikram",
+      "type": "EMPLOYS",
+      "properties": {
+        "department": "Neurology"
+      }
+    },
+    {
+      "id": "edge-hosp-fortis-EMPLOYS-doc-neha",
+      "source": "hosp-fortis",
+      "target": "doc-neha",
+      "type": "EMPLOYS",
+      "properties": {
+        "department": "Cardiology"
+      }
+    },
+    {
+      "id": "edge-hosp-kem-EMPLOYS-doc-sunita-k",
+      "source": "hosp-kem",
+      "target": "doc-sunita-k",
+      "type": "EMPLOYS",
+      "properties": {
+        "department": "Cardiology"
+      }
+    },
+    {
+      "id": "edge-hosp-kem-EMPLOYS-doc-arjun",
+      "source": "hosp-kem",
+      "target": "doc-arjun",
+      "type": "EMPLOYS",
+      "properties": {
+        "department": "General Medicine"
+      }
+    },
+    {
+      "id": "edge-hosp-aiims-HAS_BED-bed-aiims-icu-01",
+      "source": "hosp-aiims",
+      "target": "bed-aiims-icu-01",
+      "type": "HAS_BED",
+      "properties": {
+        "type": "ICU_Oxygen",
+        "is_available": true
+      }
+    },
+    {
+      "id": "edge-hosp-aiims-HAS_BED-bed-aiims-icu-02",
+      "source": "hosp-aiims",
+      "target": "bed-aiims-icu-02",
+      "type": "HAS_BED",
+      "properties": {
+        "type": "ICU_Oxygen",
+        "is_available": true
+      }
+    },
+    {
+      "id": "edge-hosp-aiims-HAS_BED-bed-aiims-icu-03",
+      "source": "hosp-aiims",
+      "target": "bed-aiims-icu-03",
+      "type": "HAS_BED",
+      "properties": {
+        "type": "ICU_Oxygen",
+        "is_available": false
+      }
+    },
+    {
+      "id": "edge-hosp-aiims-HAS_BED-bed-aiims-ccu-01",
+      "source": "hosp-aiims",
+      "target": "bed-aiims-ccu-01",
+      "type": "HAS_BED",
+      "properties": {
+        "type": "CCU",
+        "is_available": true
+      }
+    },
+    {
+      "id": "edge-hosp-aiims-HAS_BED-bed-aiims-gen-01",
+      "source": "hosp-aiims",
+      "target": "bed-aiims-gen-01",
+      "type": "HAS_BED",
+      "properties": {
+        "type": "General",
+        "is_available": true
+      }
+    },
+    {
+      "id": "edge-hosp-apollo-HAS_BED-bed-apollo-icu-01",
+      "source": "hosp-apollo",
+      "target": "bed-apollo-icu-01",
+      "type": "HAS_BED",
+      "properties": {
+        "type": "ICU_Oxygen",
+        "is_available": true
+      }
+    },
+    {
+      "id": "edge-hosp-apollo-HAS_BED-bed-apollo-icu-02",
+      "source": "hosp-apollo",
+      "target": "bed-apollo-icu-02",
+      "type": "HAS_BED",
+      "properties": {
+        "type": "ICU_Oxygen",
+        "is_available": true
+      }
+    },
+    {
+      "id": "edge-hosp-apollo-HAS_BED-bed-apollo-icu-03",
+      "source": "hosp-apollo",
+      "target": "bed-apollo-icu-03",
+      "type": "HAS_BED",
+      "properties": {
+        "type": "ICU_Oxygen",
+        "is_available": true
+      }
+    },
+    {
+      "id": "edge-hosp-apollo-HAS_BED-bed-apollo-gen-01",
+      "source": "hosp-apollo",
+      "target": "bed-apollo-gen-01",
+      "type": "HAS_BED",
+      "properties": {
+        "type": "General",
+        "is_available": true
+      }
+    },
+    {
+      "id": "edge-hosp-fortis-HAS_BED-bed-fortis-icu-01",
+      "source": "hosp-fortis",
+      "target": "bed-fortis-icu-01",
+      "type": "HAS_BED",
+      "properties": {
+        "type": "ICU_Oxygen",
+        "is_available": true
+      }
+    },
+    {
+      "id": "edge-hosp-fortis-HAS_BED-bed-fortis-icu-02",
+      "source": "hosp-fortis",
+      "target": "bed-fortis-icu-02",
+      "type": "HAS_BED",
+      "properties": {
+        "type": "ICU_Oxygen",
+        "is_available": false
+      }
+    },
+    {
+      "id": "edge-hosp-fortis-HAS_BED-bed-fortis-trauma-01",
+      "source": "hosp-fortis",
+      "target": "bed-fortis-trauma-01",
+      "type": "HAS_BED",
+      "properties": {
+        "type": "Emergency_Trauma",
+        "is_available": true
+      }
+    },
+    {
+      "id": "edge-hosp-kem-HAS_BED-bed-kem-icu-01",
+      "source": "hosp-kem",
+      "target": "bed-kem-icu-01",
+      "type": "HAS_BED",
+      "properties": {
+        "type": "ICU_Oxygen",
+        "is_available": false
+      }
+    },
+    {
+      "id": "edge-hosp-kem-HAS_BED-bed-kem-icu-02",
+      "source": "hosp-kem",
+      "target": "bed-kem-icu-02",
+      "type": "HAS_BED",
+      "properties": {
+        "type": "ICU_Oxygen",
+        "is_available": false
+      }
+    },
+    {
+      "id": "edge-hosp-kem-HAS_BED-bed-kem-gen-01",
+      "source": "hosp-kem",
+      "target": "bed-kem-gen-01",
+      "type": "HAS_BED",
+      "properties": {
+        "type": "General",
+        "is_available": true
+      }
+    },
+    {
+      "id": "edge-pat-sunita-HAD_SESSION-sess-hist-sunita-01",
+      "source": "pat-sunita",
+      "target": "sess-hist-sunita-01",
+      "type": "HAD_SESSION",
+      "properties": {
+        "channel": "voice_triage"
+      }
+    },
+    {
+      "id": "edge-sess-hist-sunita-01-DETECTED-symp-breathlessness",
+      "source": "sess-hist-sunita-01",
+      "target": "symp-breathlessness",
+      "type": "DETECTED",
+      "properties": {
+        "confidence": 0.95
+      }
+    },
+    {
+      "id": "edge-sess-hist-sunita-01-DETECTED-symp-high-fever",
+      "source": "sess-hist-sunita-01",
+      "target": "symp-high-fever",
+      "type": "DETECTED",
+      "properties": {
+        "confidence": 0.92
+      }
+    },
+    {
+      "id": "edge-pat-sunita-EXHIBITS-symp-breathlessness",
+      "source": "pat-sunita",
+      "target": "symp-breathlessness",
+      "type": "EXHIBITS",
+      "properties": {
+        "since_days": 2
+      }
+    },
+    {
+      "id": "edge-pat-sunita-EXHIBITS-symp-high-fever",
+      "source": "pat-sunita",
+      "target": "symp-high-fever",
+      "type": "EXHIBITS",
+      "properties": {
+        "since_days": 2
+      }
+    },
+    {
+      "id": "edge-pat-amit-HAD_SESSION-sess-hist-amit-01",
+      "source": "pat-amit",
+      "target": "sess-hist-amit-01",
+      "type": "HAD_SESSION",
+      "properties": {
+        "channel": "voice_triage"
+      }
+    },
+    {
+      "id": "edge-sess-hist-amit-01-DETECTED-symp-headache",
+      "source": "sess-hist-amit-01",
+      "target": "symp-headache",
+      "type": "DETECTED",
+      "properties": {
+        "confidence": 0.88
+      }
+    },
+    {
+      "id": "edge-pat-amit-EXHIBITS-symp-headache",
+      "source": "pat-amit",
+      "target": "symp-headache",
+      "type": "EXHIBITS",
+      "properties": {
+        "since_days": 1
+      }
+    },
+    {
+      "id": "edge-pat-rajesh-HAD_SESSION-sess-1792224258725-1dkq",
+      "source": "pat-rajesh",
+      "target": "sess-1792224258725-1dkq",
+      "type": "HAD_SESSION",
+      "properties": {
+        "channel": "livekit_murf_voice",
+        "timestamp": 1792224258
+      }
+    },
+    {
+      "id": "edge-sess-1792224258725-1dkq-DETECTED-symp-chest-pain",
+      "source": "sess-1792224258725-1dkq",
+      "target": "symp-chest-pain",
+      "type": "DETECTED",
+      "properties": {
+        "confidence": 0.98,
+        "live_intake": true
+      }
+    },
+    {
+      "id": "edge-pat-rajesh-EXHIBITS-symp-chest-pain",
+      "source": "pat-rajesh",
+      "target": "symp-chest-pain",
+      "type": "EXHIBITS",
+      "properties": {
+        "since_days": 1,
+        "reported_via_session": "sess-1792224258725-1dkq"
+      }
+    },
+    {
+      "id": "edge-sess-1792224258725-1dkq-DETECTED-symp-radiating-arm",
+      "source": "sess-1792224258725-1dkq",
+      "target": "symp-radiating-arm",
+      "type": "DETECTED",
+      "properties": {
+        "confidence": 0.98,
+        "live_intake": true
+      }
+    },
+    {
+      "id": "edge-pat-rajesh-EXHIBITS-symp-radiating-arm",
+      "source": "pat-rajesh",
+      "target": "symp-radiating-arm",
+      "type": "EXHIBITS",
+      "properties": {
+        "since_days": 1,
+        "reported_via_session": "sess-1792224258725-1dkq"
+      }
+    },
+    {
+      "id": "edge-bed-apollo-icu-01-RESERVED_FOR-pat-rajesh",
+      "source": "bed-apollo-icu-01",
+      "target": "pat-rajesh",
+      "type": "RESERVED_FOR",
+      "properties": {
+        "reserved_at": "2026-10-17T08:04:27.147Z",
+        "dispatched_by": "Agent_2_Emergency_Dispatcher"
+      }
+    },
+    {
+      "id": "edge-pat-rajesh-HAD_SESSION-sess-1792224323030-mw0c",
+      "source": "pat-rajesh",
+      "target": "sess-1792224323030-mw0c",
+      "type": "HAD_SESSION",
+      "properties": {
+        "channel": "livekit_murf_voice",
+        "timestamp": 1792224323
+      }
+    },
+    {
+      "id": "edge-sess-1792224323030-mw0c-DETECTED-symp-chest-pain",
+      "source": "sess-1792224323030-mw0c",
+      "target": "symp-chest-pain",
+      "type": "DETECTED",
+      "properties": {
+        "confidence": 0.98,
+        "live_intake": true
+      }
+    },
+    {
+      "id": "edge-sess-1792224323030-mw0c-DETECTED-symp-radiating-arm",
+      "source": "sess-1792224323030-mw0c",
+      "target": "symp-radiating-arm",
+      "type": "DETECTED",
+      "properties": {
+        "confidence": 0.98,
+        "live_intake": true
+      }
+    },
+    {
+      "id": "edge-bed-aiims-icu-01-RESERVED_FOR-pat-rajesh",
+      "source": "bed-aiims-icu-01",
+      "target": "pat-rajesh",
+      "type": "RESERVED_FOR",
+      "properties": {
+        "reserved_at": "2026-10-17T08:05:30.341Z",
+        "dispatched_by": "Agent_2_Emergency_Dispatcher"
+      }
+    },
+    {
+      "id": "edge-pat-rajesh-HAD_SESSION-sess-1792224361624-puor",
+      "source": "pat-rajesh",
+      "target": "sess-1792224361624-puor",
+      "type": "HAD_SESSION",
+      "properties": {
+        "channel": "livekit_murf_voice",
+        "timestamp": 1792224361
+      }
+    },
+    {
+      "id": "edge-sess-1792224361624-puor-DETECTED-symp-chest-pain",
+      "source": "sess-1792224361624-puor",
+      "target": "symp-chest-pain",
+      "type": "DETECTED",
+      "properties": {
+        "confidence": 0.98,
+        "live_intake": true
+      }
+    },
+    {
+      "id": "edge-sess-1792224361624-puor-DETECTED-symp-radiating-arm",
+      "source": "sess-1792224361624-puor",
+      "target": "symp-radiating-arm",
+      "type": "DETECTED",
+      "properties": {
+        "confidence": 0.98,
+        "live_intake": true
+      }
+    },
+    {
+      "id": "edge-bed-apollo-icu-02-RESERVED_FOR-pat-rajesh",
+      "source": "bed-apollo-icu-02",
+      "target": "pat-rajesh",
+      "type": "RESERVED_FOR",
+      "properties": {
+        "reserved_at": "2026-10-17T08:06:09.436Z",
+        "dispatched_by": "Agent_2_Emergency_Dispatcher"
+      }
+    },
+    {
+      "id": "edge-pat-rajesh-HAD_SESSION-sess-1792224466556-booe",
+      "source": "pat-rajesh",
+      "target": "sess-1792224466556-booe",
+      "type": "HAD_SESSION",
+      "properties": {
+        "channel": "livekit_murf_voice",
+        "timestamp": 1792224466
+      }
+    },
+    {
+      "id": "edge-sess-1792224466556-booe-DETECTED-symp-chest-pain",
+      "source": "sess-1792224466556-booe",
+      "target": "symp-chest-pain",
+      "type": "DETECTED",
+      "properties": {
+        "confidence": 0.98,
+        "live_intake": true
+      }
+    },
+    {
+      "id": "edge-sess-1792224466556-booe-DETECTED-symp-radiating-arm",
+      "source": "sess-1792224466556-booe",
+      "target": "symp-radiating-arm",
+      "type": "DETECTED",
+      "properties": {
+        "confidence": 0.98,
+        "live_intake": true
+      }
+    },
+    {
+      "id": "edge-bed-aiims-icu-02-RESERVED_FOR-pat-rajesh",
+      "source": "bed-aiims-icu-02",
+      "target": "pat-rajesh",
+      "type": "RESERVED_FOR",
+      "properties": {
+        "reserved_at": "2026-10-17T08:07:53.939Z",
+        "dispatched_by": "Agent_2_Emergency_Dispatcher"
+      }
+    },
+    {
+      "id": "edge-pat-rajesh-HAD_SESSION-sess-1792224719864-ngz5",
+      "source": "pat-rajesh",
+      "target": "sess-1792224719864-ngz5",
+      "type": "HAD_SESSION",
+      "properties": {
+        "channel": "livekit_murf_voice",
+        "timestamp": 1792224719
+      }
+    },
+    {
+      "id": "edge-sess-1792224719864-ngz5-DETECTED-symp-chest-pain",
+      "source": "sess-1792224719864-ngz5",
+      "target": "symp-chest-pain",
+      "type": "DETECTED",
+      "properties": {
+        "confidence": 0.98,
+        "live_intake": true
+      }
+    },
+    {
+      "id": "edge-sess-1792224719864-ngz5-DETECTED-symp-radiating-arm",
+      "source": "sess-1792224719864-ngz5",
+      "target": "symp-radiating-arm",
+      "type": "DETECTED",
+      "properties": {
+        "confidence": 0.98,
+        "live_intake": true
+      }
+    },
+    {
+      "id": "edge-bed-apollo-icu-03-RESERVED_FOR-pat-rajesh",
+      "source": "bed-apollo-icu-03",
+      "target": "pat-rajesh",
+      "type": "RESERVED_FOR",
+      "properties": {
+        "reserved_at": "2026-10-17T08:12:08.246Z",
+        "dispatched_by": "Agent_2_Emergency_Dispatcher"
+      }
+    }
+  ]
+}

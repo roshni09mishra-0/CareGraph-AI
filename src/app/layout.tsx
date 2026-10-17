@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "SwasthyaSathi AI - Indian Voice Healthcare Assistant",
-  description: "Experience 24/7 AI-powered medical voice assistance with natural Indian English Murf Falcon text-to-speech and LiveKit WebRTC real-time connectivity.",
-  keywords: ["Healthcare AI", "SwasthyaSathi AI", "Voice Assistant", "Murf Falcon Voice", "Indian English TTS", "LiveKit WebRTC", "OpenAI Health"],
+  title: "CAREGRAPH AI - Indian Voice & Knowledge Graph Healthcare Triage",
+  description: "Autonomous Multilingual Indian Voice & Knowledge Graph Healthcare Triage System powered by FalkorDB, LiveKit, and Murf Falcon.",
+  keywords: ["Healthcare AI", "CAREGRAPH AI", "Voice Assistant", "Murf Falcon", "FalkorDB", "Cypher", "LiveKit", "Indian Healthcare"],
 };
 
 export default function RootLayout({
