@@ -18,6 +18,7 @@ export interface TriageTurnInput {
 export interface TriageTurnOutput {
   sessionId: string;
   recognizedSymptoms: { id: string; name: string; severity: string; name_hi?: string }[];
+  detectedSymptoms?: { id: string; name: string; severity: string; name_hi?: string }[];
   agentResponseText: string;
   agentAudioUrl?: string;
   riskLevel: RiskLevel;
