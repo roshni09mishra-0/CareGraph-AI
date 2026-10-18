@@ -3,19 +3,21 @@ FROM node:20-alpine AS runner
 
 WORKDIR /app
 
-ENV NODE_ENV=production
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-# Copy package manifests and install all dependencies (including TypeScript for @/* path aliases)
+# Copy package manifests and install all dependencies (including devDependencies like TypeScript for @/* path aliases)
 COPY package*.json ./
-RUN npm install
+RUN npm install --include=dev
 
-# Copy application files
+# Copy application source code
 COPY . .
 
 # Build Next.js application
 RUN npx next build
+
+# Switch to production mode after build
+ENV NODE_ENV=production
 
 EXPOSE 3000
 
