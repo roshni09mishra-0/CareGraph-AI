@@ -34,6 +34,7 @@ import FollowUpQueue from "./FollowUpQueue";
 import DispatchCadCenter from "./DispatchCadCenter";
 import NodeInspectorDrawer from "./NodeInspectorDrawer";
 import DispatchModal from "./DispatchModal";
+import ClinicalHeroBanner from "./ClinicalHeroBanner";
 import { GraphData, GraphNode, CypherFiveHopResult, DispatchRecord } from "@/lib/falkordb/types";
 import { INITIAL_HOSPITALS, INITIAL_BEDS } from "@/lib/falkordb/seed";
 
@@ -98,8 +99,24 @@ export default function CareGraphDashboard() {
   const [activeModalRecord, setActiveModalRecord] = useState<DispatchRecord | null>(null);
   const [isDispatching, setIsDispatching] = useState(false);
   const [activeTab, setActiveTab] = useState<"triage" | "graph" | "dispatch" | "followup" | "cypher">("triage");
+  const [symptomQuery, setSymptomQuery] = useState("");
 
   const triageSectionRef = useRef<HTMLDivElement | null>(null);
+
+  const handleHeroSymptomSelect = (query: string) => {
+    setSymptomQuery(query);
+    setActiveTab("triage");
+    scrollToTriage();
+  };
+
+  const handleHeroHospitalSelect = (hospitalId: string) => {
+    setActiveTab("graph");
+    scrollToTriage();
+    const hospNode = graphData.nodes.find((n) => n.id === hospitalId);
+    if (hospNode) {
+      setSelectedNode(hospNode);
+    }
+  };
 
   const refreshGraph = async () => {
     try {
@@ -182,59 +199,59 @@ export default function CareGraphDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-white text-slate-800 font-sans selection:bg-teal-700 selection:text-white">
-      {/* MAIN HEADER (Clean White Healthcare Navigation) */}
-      <header className="border-b border-slate-200 bg-white sticky top-0 z-30 shadow-sm">
+    <div className="min-h-screen bg-slate-50 text-slate-800 font-sans selection:bg-teal-700 selection:text-white">
+      {/* MAIN HEADER (Modern Healthcare Navigation inspired by NHS & Maven Clinic) */}
+      <header className="border-b border-teal-900/40 bg-slate-950/90 backdrop-blur-md sticky top-0 z-30 shadow-md text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-20 flex items-center justify-between">
           {/* Logo & Brand */}
           <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-xl bg-teal-700 flex items-center justify-center text-white shadow-sm">
-              <HeartPulse className="w-6 h-6 text-white" />
+            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-teal-500 to-emerald-600 flex items-center justify-center text-white shadow-lg shadow-teal-950/50">
+              <HeartPulse className="w-6 h-6 text-white animate-pulse" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-xl font-black tracking-tight text-slate-900">
-                  CAREGRAPH <span className="text-teal-700">AI</span>
+                <span className="text-xl font-black tracking-tight text-white">
+                  CAREGRAPH <span className="text-teal-400">AI</span>
                 </span>
-                <span className="text-[10px] font-bold font-mono px-2 py-0.5 rounded bg-teal-50 text-teal-800 border border-teal-200 uppercase tracking-wide">
-                  TELE-TRIAGE
+                <span className="text-[10px] font-bold font-mono px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 uppercase tracking-wide">
+                  FalkorDB
                 </span>
               </div>
-              <p className="text-xs text-slate-500 font-normal hidden sm:block">
-                Indian Voice & Knowledge Graph Healthcare Dispatch
+              <p className="text-xs text-teal-100/70 font-normal hidden sm:block">
+                Autonomous Multilingual Voice &amp; Knowledge Graph Healthcare Dispatch
               </p>
             </div>
           </div>
 
-          {/* Navigation Links (Practo/Apollo clean tabs) */}
-          <nav className="hidden lg:flex items-center gap-6 text-sm font-semibold text-slate-700">
+          {/* Navigation Links */}
+          <nav className="hidden lg:flex items-center gap-6 text-sm font-semibold text-teal-100/80">
             <button
               onClick={() => { setActiveTab("triage"); scrollToTriage(); }}
-              className={`hover:text-teal-700 transition ${activeTab === "triage" ? "text-teal-700 font-bold" : ""}`}
+              className={`hover:text-emerald-300 transition ${activeTab === "triage" ? "text-emerald-300 font-bold border-b-2 border-emerald-400 pb-1" : ""}`}
             >
               Voice Consultation
             </button>
             <button
               onClick={() => { setActiveTab("graph"); scrollToTriage(); }}
-              className={`hover:text-teal-700 transition ${activeTab === "graph" ? "text-teal-700 font-bold" : ""}`}
+              className={`hover:text-emerald-300 transition ${activeTab === "graph" ? "text-emerald-300 font-bold border-b-2 border-emerald-400 pb-1" : ""}`}
             >
               Clinical Graph
             </button>
             <button
               onClick={() => { setActiveTab("dispatch"); scrollToTriage(); }}
-              className={`hover:text-teal-700 transition ${activeTab === "dispatch" ? "text-teal-700 font-bold" : ""}`}
+              className={`hover:text-emerald-300 transition ${activeTab === "dispatch" ? "text-emerald-300 font-bold border-b-2 border-emerald-400 pb-1" : ""}`}
             >
-              Hospital ICU Dispatch
+              Hospital CAD Dispatch
             </button>
             <button
               onClick={() => { setActiveTab("followup"); scrollToTriage(); }}
-              className={`hover:text-teal-700 transition ${activeTab === "followup" ? "text-teal-700 font-bold" : ""}`}
+              className={`hover:text-emerald-300 transition ${activeTab === "followup" ? "text-emerald-300 font-bold border-b-2 border-emerald-400 pb-1" : ""}`}
             >
               24h Follow-up
             </button>
             <button
               onClick={() => { setActiveTab("cypher"); scrollToTriage(); }}
-              className={`hover:text-teal-700 transition ${activeTab === "cypher" ? "text-teal-700 font-bold" : ""}`}
+              className={`hover:text-emerald-300 transition ${activeTab === "cypher" ? "text-emerald-300 font-bold border-b-2 border-emerald-400 pb-1" : ""}`}
             >
               Cypher Logic
             </button>
@@ -242,8 +259,8 @@ export default function CareGraphDashboard() {
 
           {/* Patient Selector & Consult Button */}
           <div className="flex items-center gap-3">
-            <div className="hidden sm:flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs">
-              <User className="w-4 h-4 text-slate-500" />
+            <div className="hidden sm:flex items-center gap-2 bg-white/10 border border-white/15 rounded-lg px-3 py-1.5 text-xs text-white">
+              <User className="w-4 h-4 text-emerald-300" />
               <select
                 value={activePatient.id}
                 onChange={(e) => {
@@ -255,10 +272,10 @@ export default function CareGraphDashboard() {
                     setActivePathEdgeIds([]);
                   }
                 }}
-                className="bg-transparent font-bold text-slate-800 focus:outline-none cursor-pointer"
+                className="bg-transparent font-bold text-white focus:outline-none cursor-pointer"
               >
                 {PATIENTS_LIST.map((p) => (
-                  <option key={p.id} value={p.id}>
+                  <option key={p.id} value={p.id} className="text-slate-900 bg-white">
                     {p.name} ({p.blood})
                   </option>
                 ))}
@@ -267,7 +284,7 @@ export default function CareGraphDashboard() {
 
             <button
               onClick={scrollToTriage}
-              className="px-4 py-2 rounded-lg bg-teal-700 hover:bg-teal-800 text-white font-bold text-xs flex items-center gap-2 shadow-sm transition active:scale-95"
+              className="px-4 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs flex items-center gap-2 shadow-md transition active:scale-95"
             >
               <PhoneCall className="w-4 h-4" />
               <span>Voice Consultation</span>
@@ -276,115 +293,18 @@ export default function CareGraphDashboard() {
         </div>
       </header>
 
-      {/* 3. HERO SECTION (Practo / Apollo 24|7 style trustworthy healthcare hero) */}
-      <section className="bg-slate-50 border-b border-slate-200 py-12 md:py-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
-            {/* Left Content Column */}
-            <div className="lg:col-span-7 space-y-6">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-50 text-teal-800 text-xs font-bold border border-teal-200">
-                <ShieldCheck className="w-3.5 h-3.5 text-teal-700" />
-                Verified Indian Clinical Decision Support Platform
-              </div>
-
-              <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-slate-900 tracking-tight leading-tight">
-                Instant Doctor Triage. <br />
-                <span className="text-teal-700">Connected ICU Beds.</span> <br />
-                Real-Time Voice in Hindi & English.
-              </h1>
-
-              <p className="text-base sm:text-lg text-slate-600 leading-relaxed max-w-2xl">
-                Speak your emergency symptoms naturally in <strong>Hindi or English</strong>. Instant triage connects you to live ICU beds across AIIMS, Apollo, Fortis &amp; KEM with on-duty specialist doctors.
-              </p>
-
-              <div className="flex flex-wrap items-center gap-4 pt-2">
-                <button
-                  onClick={scrollToTriage}
-                  className="px-6 py-3.5 rounded-xl bg-teal-700 hover:bg-teal-800 text-white font-bold text-sm shadow-sm transition active:scale-95 flex items-center gap-2"
-                >
-                  <PhoneCall className="w-4 h-4" />
-                  Start Consultation (हिंदी / English)
-                </button>
-
-                <button
-                  onClick={() => { setActiveTab("graph"); scrollToTriage(); }}
-                  className="px-6 py-3.5 rounded-xl border border-slate-300 hover:border-teal-700 text-slate-700 hover:text-teal-700 font-bold text-sm transition flex items-center gap-2 bg-white shadow-sm"
-                >
-                  <Layers className="w-4 h-4" />
-                  View Clinical Decision Graph
-                </button>
-              </div>
-
-              {/* Verified Trust Badges */}
-              <div className="pt-4 grid grid-cols-3 gap-4 border-t border-slate-200 text-xs text-slate-600">
-                <div>
-                  <strong className="block text-base font-bold text-slate-900">4 Top Hospitals</strong>
-                  AIIMS, Apollo, Fortis, KEM
-                </div>
-                <div>
-                  <strong className="block text-base font-bold text-slate-900">&lt; 250 ms</strong>
-                  Voice Response Latency
-                </div>
-                <div>
-                  <strong className="block text-base font-bold text-slate-900">100% Graph-Based</strong>
-                  Zero Medical Hallucination
-                </div>
-              </div>
-            </div>
-
-            {/* Right Hero Image Card (Authentic Clinical Consultation Photo) */}
-            <div className="lg:col-span-5">
-              <div className="bg-white rounded-2xl border border-slate-200 shadow-lg overflow-hidden group">
-                <div className="relative h-64 sm:h-72 w-full overflow-hidden bg-slate-100">
-                  <img
-                    src="/images/doctor-patient-hero.jpg"
-                    alt="Doctor examining senior patient in clinical emergency consultation"
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
-                  <div className="absolute top-3 right-3 bg-teal-700 text-white text-[11px] font-bold px-3 py-1 rounded-full uppercase shadow">
-                    Active Tele-Consultation
-                  </div>
-                  <div className="absolute bottom-3 left-3 right-3 text-white">
-                    <span className="text-[11px] font-mono text-teal-200 uppercase block">Live Doctor Rotation</span>
-                    <h4 className="font-bold text-base">Dr. Ananya Sharma (Cardiology, AIIMS)</h4>
-                  </div>
-                </div>
-
-                <div className="p-5 space-y-3 text-xs bg-white">
-                  <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-9 h-9 rounded-lg bg-teal-50 border border-teal-200 flex items-center justify-center font-bold text-teal-800 text-xs">
-                        {activePatient.blood}
-                      </div>
-                      <div>
-                        <strong className="text-slate-900 text-sm block">{activePatient.name}</strong>
-                        <span className="text-slate-500">{activePatient.gender}, {activePatient.age} yrs • {activePatient.phone}</span>
-                      </div>
-                    </div>
-                    <span className="badge-verified">
-                      Verified Patient
-                    </span>
-                  </div>
-
-                  <div className="flex items-center justify-between text-xs text-slate-600">
-                    <span>Known Allergies:</span>
-                    <strong className="text-red-600 font-bold">{activePatient.allergies.join(", ")}</strong>
-                  </div>
-
-                  <button
-                    onClick={scrollToTriage}
-                    className="w-full py-2.5 rounded-lg bg-teal-700 hover:bg-teal-800 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition"
-                  >
-                    <span>Consult with Dr. Ananya in Hindi/English</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+      {/* 3. CLINICAL HERO BANNER (Fusing NHS Barts Health Cyan Wash + Maven Clinic Emerald Warmth & 5 Hospital Hubs) */}
+      <ClinicalHeroBanner
+        onStartConsultation={scrollToTriage}
+        onViewGraph={() => {
+          setActiveTab("graph");
+          scrollToTriage();
+        }}
+        onSelectSymptomQuery={handleHeroSymptomSelect}
+        onSelectHospital={handleHeroHospitalSelect}
+        activePatientName={activePatient.name}
+        activePatientBlood={activePatient.blood}
+      />
 
       {/* 4. CLINICAL SYMPTOMS & WARNING SIGNS (Real Editorial Photos, Practo/Apollo Style) */}
       <section className="py-14 bg-white border-b border-slate-200">
@@ -425,7 +345,7 @@ export default function CareGraphDashboard() {
                   </p>
                 </div>
                 <button
-                  onClick={() => { setActiveTab("triage"); scrollToTriage(); }}
+                  onClick={() => handleHeroSymptomSelect("सीने में बहुत तेज असहनीय दर्द हो रहा है और दबाव महसूस हो रहा है")}
                   className="pt-2 text-xs font-bold text-teal-700 hover:underline flex items-center gap-1 border-t border-slate-100"
                 >
                   <span>Evaluate in Consultation</span>
@@ -456,7 +376,7 @@ export default function CareGraphDashboard() {
                   </p>
                 </div>
                 <button
-                  onClick={() => { setActiveTab("triage"); scrollToTriage(); }}
+                  onClick={() => handleHeroSymptomSelect("बाएँ हाथ में खिंचाव और कंधे व जबड़े तक दर्द फैल रहा है")}
                   className="pt-2 text-xs font-bold text-teal-700 hover:underline flex items-center gap-1 border-t border-slate-100"
                 >
                   <span>Evaluate in Consultation</span>
@@ -487,7 +407,7 @@ export default function CareGraphDashboard() {
                   </p>
                 </div>
                 <button
-                  onClick={() => { setActiveTab("triage"); scrollToTriage(); }}
+                  onClick={() => handleHeroSymptomSelect("साँस लेने में गंभीर तकलीफ़ हो रही है और ऑक्सीजन का स्तर घट रहा है")}
                   className="pt-2 text-xs font-bold text-teal-700 hover:underline flex items-center gap-1 border-t border-slate-100"
                 >
                   <span>Evaluate in Consultation</span>
@@ -518,7 +438,7 @@ export default function CareGraphDashboard() {
                   </p>
                 </div>
                 <button
-                  onClick={() => { setActiveTab("triage"); scrollToTriage(); }}
+                  onClick={() => handleHeroSymptomSelect("अचानक बहुत ठंडा पसीना आ रहा है और चेहरे का एक हिस्सा सुन्न हो रहा है")}
                   className="pt-2 text-xs font-bold text-teal-700 hover:underline flex items-center gap-1 border-t border-slate-100"
                 >
                   <span>Evaluate in Consultation</span>
@@ -602,6 +522,7 @@ export default function CareGraphDashboard() {
                     onTriggerDispatch={handleTriggerDispatch}
                     isDispatching={isDispatching}
                     onResetGraph={handleResetGraph}
+                    initialQuery={symptomQuery}
                   />
                 </div>
 

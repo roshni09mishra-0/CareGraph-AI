@@ -41,6 +41,7 @@ interface VoiceSoftphoneProps {
   onTriggerDispatch: () => void;
   isDispatching: boolean;
   onResetGraph: () => void;
+  initialQuery?: string;
 }
 
 const CLINICAL_PRESETS = [
@@ -94,6 +95,7 @@ export default function VoiceSoftphone({
   onTriggerDispatch,
   isDispatching,
   onResetGraph,
+  initialQuery,
 }: VoiceSoftphoneProps) {
   const [isRecording, setIsRecording] = useState(false);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
@@ -105,6 +107,14 @@ export default function VoiceSoftphone({
   const [detectedSymptoms, setDetectedSymptoms] = useState<
     { id: string; name: string; severity: string; name_hi?: string }[]
   >([]);
+
+  // If initialQuery is provided from search bar or tag in hero banner
+  useEffect(() => {
+    if (initialQuery && initialQuery.trim()) {
+      setInputText(initialQuery.trim());
+      submitTriageIntake(initialQuery.trim());
+    }
+  }, [initialQuery]);
 
   const [messages, setMessages] = useState<Message[]>([
     {
