@@ -7,14 +7,14 @@ ENV NODE_ENV=production
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-# Copy package manifests and install dependencies
+# Copy package manifests and install all dependencies (including TypeScript for @/* path aliases)
 COPY package*.json ./
-RUN npm ci --only=production || npm install --omit=dev
+RUN npm install
 
 # Copy application files
 COPY . .
 
-# Build application
+# Build Next.js application
 RUN npx next build
 
 EXPOSE 3000
