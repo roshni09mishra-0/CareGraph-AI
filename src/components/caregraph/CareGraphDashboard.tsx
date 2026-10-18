@@ -201,7 +201,7 @@ export default function CareGraphDashboard() {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 font-sans selection:bg-teal-700 selection:text-white">
       {/* MAIN HEADER (Modern Healthcare Navigation inspired by NHS & Maven Clinic) */}
-      <header className="border-b border-teal-900/40 bg-slate-950/90 backdrop-blur-md sticky top-0 z-30 shadow-md text-white">
+      <header className="border-b border-white/15 bg-[#005570]/95 backdrop-blur-md sticky top-0 z-30 shadow-md text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-20 flex items-center justify-between">
           {/* Logo & Brand */}
           <div className="flex items-center gap-3">
